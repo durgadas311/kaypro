@@ -1,0 +1,268 @@
+// Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
+
+import java.util.Arrays;
+import java.util.Vector;
+import java.util.Properties;
+import java.awt.event.*;
+import javax.swing.*;
+
+public class KayproFloppy extends WD1793
+		implements DiskController, GppListener, WD1793Controller,
+			ActionListener {
+	// TODO: These need to come from CPU (Z80)...
+	static final int EI = 0xfb;
+	static final int RST6 = 0xf7;
+
+	static final int BasePort_c = 0x10;
+	static final int Wd1793_Offset_c = 0;
+	static final int KayproFloppy_NumPorts_c = 4;
+	static final String KayproFloppy_Name_c = "Floppy";
+	static final int numDisks_c = 2;
+
+	static final int ctrl_DS1N_c = 0x01;
+	static final int ctrl_DS2N_c = 0x02;
+	static final int ctrl_Side_c = 0x04;
+	static final int ctrl_Motor_c = 0x10;
+	static final int ctrl_SetMFMRecordingN_c = 0x20;
+
+	private int controlReg_m = 0;
+	private GenericFloppyDrive[] drives_m;
+	private LED[] leds_m;
+	private Interruptor intr;
+
+	public KayproFloppy(Properties props, LEDHandler lh,
+			Interruptor intr, SystemPort gpio) {
+		super(BasePort_c + Wd1793_Offset_c, intr);
+		super.setController(this);
+		this.intr = intr;
+		gpio.addGppListener(this);
+		leds_m = new LED[numDisks_c];
+		drives_m = new GenericFloppyDrive[numDisks_c];
+		String s;
+		Arrays.fill(drives_m, null);
+
+		// First identify what drives are installed.
+		GenericFloppyDrive drv;
+		for (int x = 0; x < numDisks_c; ++x) {
+			String prop = String.format("floppy_drive%d", x + 1);
+			s = props.getProperty(prop);
+			if (s != null) {
+				drv = installDrive(x, s);
+				if (lh != null && drv != null) {
+					leds_m[x] = lh.registerLED(drv.getDriveName());
+				}
+			}
+		}
+
+		// Next identify what diskettes are pre-inserted.
+		for (int x = 0; x < numDisks_c; ++x) {
+			String prop = String.format("floppy_disk%d", x + 1);
+			s = props.getProperty(prop);
+			if (s != null) {
+				drv = getDrive(x);
+				if (drv != null) {
+					drv.insertDisk(SectorFloppyImage.getDiskette(drv,
+						new Vector<String>(
+							Arrays.asList(s.split("\\s")))));
+				}
+			}
+		}
+		reset();
+	}
+
+	private GenericFloppyDrive installDrive(int x, String s) {
+		String[] ss = s.split("\\s", 2);
+		String n = getDriveName(x);
+		if (ss.length >= 2) {
+			n = ss[1];
+		}
+		GenericFloppyDrive drv = GenericFloppyDrive.getInstance(ss[0], n);
+		if (!connectDrive(x, drv)) {
+			return null;
+		}
+		return drv;
+	}
+
+	public int getBaseAddress() { return BasePort_c; }
+	public int getNumPorts() { return KayproFloppy_NumPorts_c; }
+
+	ptivate int driveNum(int val) {
+		int n = (val ^ (ctrl_DS1N_c | ctrl_DS2N_c)) & (ctrl_DS1N_c | ctrl_DS2N_c);
+		// 1, 2, or 0 if none...
+		n -= 1; // 0 or 1, or -1...
+		return n;
+	}
+
+	private void setCtrlReg(int val) {
+		int prev = driveNum(controlReg_m);
+		int diff = controlReg_m ^ val;
+		controlReg_m = val;
+		int next = driveNum(controlReg_m);
+		if ((diff & (ctrl_DS1N_c | ctrl_DS2N_c)) != 0) {
+			// This disables any drive select...
+			if (prev >= 0 && leds_m[prev] != null) {
+				leds_m[prev].set(false);
+			}
+			//System.err.format("Drive select OFF\n");
+			if (next >= 0 && leds_m[next] != null) {
+				leds_m[next].set(true);
+			}
+			//System.err.format("Drive select %d\n", next);
+		}
+		if (next >= 0 && drives_m[next] != null) {
+			drives_m[next].selectSide((controlReg_m & ctrl_Side_c) == 0 ? 1 : 0);
+			drives_m[next].motor((controlReg_m & ctrl_Motor_c) == 0);
+		}
+		
+	}
+
+	public GenericFloppyDrive getCurDrive() {
+		int n = driveNum(controlReg_m);
+		if (n >= 0) {
+			// This could be null
+			return drives_m[n];
+		} else {
+			return null;
+		}
+	}
+
+	public int getClockPeriod() {
+		return 1000;
+	}
+
+	public Vector<GenericDiskDrive> getDiskDrives() {
+		Vector<GenericDiskDrive> drives = new Vector<GenericDiskDrive>();
+		for (int x = 0; x < numDisks_c; ++x) {
+			drives.add(drives_m[x]);	// might be null, but must preserve number.
+		}
+		return drives;
+	}
+
+	public int getDriveSize(int index) {
+		return 5;
+	}
+
+	public String getDriveName(int index) {
+		if (index < 0 || index >= numDisks_c) {
+			return null;
+		}
+		String str = String.format("%s-%d", KayproFloppy_Name_c, index + 1);
+		return str;
+	}
+
+	public String getDeviceName() { return KayproFloppy_Name_c; }
+
+	public GenericDiskDrive findDrive(String ident) {
+		if (!ident.startsWith(KayproFloppy_Name_c) ||
+				ident.charAt(KayproFloppy_Name_c.length()) != '-') {
+			return null;
+		}
+		int x = 0;
+		try {
+			x = Integer.valueOf(ident.substring(KayproFloppy_Name_c.length() + 1));
+		} catch (Exception ee) {
+			return null;
+		}
+		if (x == 0 || x > numDisks_c) {
+			return null;
+		}
+		return drives_m[x - 1]; // might still be null...
+	}
+
+	public void destroy() {
+		for (int x = 0; x < numDisks_c; ++x) {
+			if (drives_m[x] != null) {
+				drives_m[x].insertDisk(null);
+			}
+		}
+	}
+
+	public void reset() {
+		super.reset();
+	}
+
+	public int in(int addr) {
+		int val = 0;
+		val = super.in(addr);
+		return val;
+	}
+
+	public void out(int addr, int val) {
+		super.out(addr, val);
+	}
+
+	public GenericFloppyDrive getDrive(int unitNum) {
+		if (unitNum < numDisks_c) {
+			return drives_m[unitNum];
+		}
+		return null;
+	}
+
+	public boolean connectDrive(int unitNum, GenericFloppyDrive drive) {
+		if (unitNum >= numDisks_c) {
+			System.err.format("KayproFloppy Invalid unit number (%d)\n", unitNum);
+			return false;
+		}
+		if (drives_m[unitNum] != null) {
+			System.err.format("KayproFloppy %d: drive already connect\n", unitNum);
+			return false;
+		}
+		if (getDriveSize(unitNum) != drive.getMediaSize()) {
+			System.err.format("KayproFloppy %d: drive incompatible\n", unitNum);
+			return false;
+		}
+		drives_m[unitNum] = drive;
+		return true;
+	}
+
+	public boolean removeDrive(int unitNum) {
+		return false;
+	}
+
+	public void raisedIntrq() {
+		// TODO: ensure it was OFF?
+		intr.triggerNMI();
+	}
+
+	public void raisedDrq() {
+		// TODO: ensure it was OFF?
+		intr.triggerNMI();
+	}
+
+	public void loweredIntrq() {
+	}
+
+	public void loweredDrq() {
+	}
+
+	public void loadedHead(boolean load) {
+	}
+
+	public boolean doubleDensity() {
+		return (controlReg_m & ctrl_SetMFMRecordingN_c) == 0;
+	}
+
+	public int interestedBits() {
+		return ctrl_DS1N_c |
+			ctrl_DS2N_c |
+			ctrl_Side_c |
+			ctrl_Motor_c |
+			ctrl_SetMFMRecordingN_c;
+	}
+
+	public void gppNewValue(int gpio) {
+		setCtrlReg(gpio);
+	}
+
+	public String dumpDebug() {
+		String ret = String.format(
+			"FDC-STS=%02x FDC-CMD=%02x\n" +
+			"FDC-TRK=%d FDC-SEC=%d FDC-DAT=%02x\n" +
+			"DRQ=%s INTRQ=%s HLD=%s\n",
+			statusReg_m, cmdReg_m,
+			trackReg_m, sectorReg_m, dataReg_m,
+			Boolean.toString(drqRaised_m), Boolean.toString(intrqRaised_m),
+			Boolean.toString(headLoaded_m));
+		return ret;
+	}
+}
