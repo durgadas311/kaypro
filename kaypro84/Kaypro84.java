@@ -34,6 +34,7 @@ public class Kaypro84 implements Computer, KayproCommander, Interruptor, Runnabl
 	private Vector<ClockListener> clks;
 	private Z80Disassembler disas;
 	private ReentrantLock cpuLock;
+	private KayproKeyboard kbd; // to prevent erasure...
 
 	// Relationship between virtual CPU clock and real time
 	private long intervalTicks = 4000;	// 1ms
@@ -88,13 +89,20 @@ public class Kaypro84 implements Computer, KayproCommander, Interruptor, Runnabl
 		// TODO: possibly allow customization of memory... and peripherals...
 		mem = new KayproMemory(props, gpp);
 		IODevice cpn = null;
-		addDiskDevice(new KayproFloppy(props, lh, this, gpp));
+		int nFlpy = 2;
+		s = props.getProperty("kaypro_model");
+		if (s != null && s.equals("10")) {
+			//addDiskDevice(new KayproSASI(props, lh, this, gpp);
+			nFlpy = 1;
+		}
+		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
 		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
 		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
 		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
 		baudA.addBaudListener(sio1.clockA());
 		sio1.clockB().setBaud(300 * 16);
+		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
 		baudB.addBaudListener(sio2.clockA());
 		sio2.clockB().setBaud(300 * 16);
 		addDevice(baudA);

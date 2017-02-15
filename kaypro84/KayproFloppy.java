@@ -17,7 +17,6 @@ public class KayproFloppy extends WD1793
 	static final int Wd1793_Offset_c = 0;
 	static final int KayproFloppy_NumPorts_c = 4;
 	static final String KayproFloppy_Name_c = "Floppy";
-	static final int numDisks_c = 2;
 
 	static final int ctrl_DS1N_c = 0x01;
 	static final int ctrl_DS2N_c = 0x02;
@@ -29,21 +28,32 @@ public class KayproFloppy extends WD1793
 	private GenericFloppyDrive[] drives_m;
 	private LED[] leds_m;
 	private Interruptor intr;
+	private int numDisks_m = 2;
+	private int interesting = ctrl_DS1N_c | ctrl_DS2N_c | ctrl_Side_c |
+			ctrl_Motor_c | ctrl_SetMFMRecordingN_c;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
-			Interruptor intr, SystemPort gpio) {
+			Interruptor intr, SystemPort gpio, int numDrives) {
 		super(BasePort_c + Wd1793_Offset_c, intr);
 		super.setController(this);
 		this.intr = intr;
+		// Caller must know if SASI is installed, and set numDrives
+		if (numDrives > 2) {
+			numDrives = 2;
+		}
+		if (numDrives < 2) {
+			interesting &= ~ctrl_DS2N_c;
+		}
+		numDisks_m = numDrives;
 		gpio.addGppListener(this);
-		leds_m = new LED[numDisks_c];
-		drives_m = new GenericFloppyDrive[numDisks_c];
+		leds_m = new LED[numDisks_m];
+		drives_m = new GenericFloppyDrive[numDisks_m];
 		String s;
 		Arrays.fill(drives_m, null);
 
 		// First identify what drives are installed.
 		GenericFloppyDrive drv;
-		for (int x = 0; x < numDisks_c; ++x) {
+		for (int x = 0; x < numDisks_m; ++x) {
 			String prop = String.format("floppy_drive%d", x + 1);
 			s = props.getProperty(prop);
 			if (s != null) {
@@ -55,7 +65,7 @@ public class KayproFloppy extends WD1793
 		}
 
 		// Next identify what diskettes are pre-inserted.
-		for (int x = 0; x < numDisks_c; ++x) {
+		for (int x = 0; x < numDisks_m; ++x) {
 			String prop = String.format("floppy_disk%d", x + 1);
 			s = props.getProperty(prop);
 			if (s != null) {
@@ -87,10 +97,15 @@ public class KayproFloppy extends WD1793
 	public int getNumPorts() { return KayproFloppy_NumPorts_c; }
 
 	ptivate int driveNum(int val) {
-		int n = (val ^ (ctrl_DS1N_c | ctrl_DS2N_c)) & (ctrl_DS1N_c | ctrl_DS2N_c);
-		// 1, 2, or 0 if none...
-		n -= 1; // 0 or 1, or -1...
-		return n;
+		// TODO: must not select "B" if SASI is installed...
+		// ctrl_DS2N_c is used as SASI reset/select
+		if ((val & ctrl_DS1N_c) == 0) {
+			return 0;
+		}
+		if (numDisks_m > 1 && (val & ctrl_DS2N_c) == 0) {
+			return 1;
+		}
+		return -1;
 	}
 
 	private void setCtrlReg(int val) {
@@ -99,7 +114,6 @@ public class KayproFloppy extends WD1793
 		controlReg_m = val;
 		int next = driveNum(controlReg_m);
 		if ((diff & (ctrl_DS1N_c | ctrl_DS2N_c)) != 0) {
-			// This disables any drive select...
 			if (prev >= 0 && leds_m[prev] != null) {
 				leds_m[prev].set(false);
 			}
@@ -132,7 +146,7 @@ public class KayproFloppy extends WD1793
 
 	public Vector<GenericDiskDrive> getDiskDrives() {
 		Vector<GenericDiskDrive> drives = new Vector<GenericDiskDrive>();
-		for (int x = 0; x < numDisks_c; ++x) {
+		for (int x = 0; x < numDisks_m; ++x) {
 			drives.add(drives_m[x]);	// might be null, but must preserve number.
 		}
 		return drives;
@@ -143,7 +157,7 @@ public class KayproFloppy extends WD1793
 	}
 
 	public String getDriveName(int index) {
-		if (index < 0 || index >= numDisks_c) {
+		if (index < 0 || index >= numDisks_m) {
 			return null;
 		}
 		String str = String.format("%s-%d", KayproFloppy_Name_c, index + 1);
@@ -163,14 +177,14 @@ public class KayproFloppy extends WD1793
 		} catch (Exception ee) {
 			return null;
 		}
-		if (x == 0 || x > numDisks_c) {
+		if (x == 0 || x > numDisks_m) {
 			return null;
 		}
 		return drives_m[x - 1]; // might still be null...
 	}
 
 	public void destroy() {
-		for (int x = 0; x < numDisks_c; ++x) {
+		for (int x = 0; x < numDisks_m; ++x) {
 			if (drives_m[x] != null) {
 				drives_m[x].insertDisk(null);
 			}
@@ -192,14 +206,14 @@ public class KayproFloppy extends WD1793
 	}
 
 	public GenericFloppyDrive getDrive(int unitNum) {
-		if (unitNum < numDisks_c) {
+		if (unitNum < numDisks_m) {
 			return drives_m[unitNum];
 		}
 		return null;
 	}
 
 	public boolean connectDrive(int unitNum, GenericFloppyDrive drive) {
-		if (unitNum >= numDisks_c) {
+		if (unitNum >= numDisks_m) {
 			System.err.format("KayproFloppy Invalid unit number (%d)\n", unitNum);
 			return false;
 		}
@@ -243,11 +257,7 @@ public class KayproFloppy extends WD1793
 	}
 
 	public int interestedBits() {
-		return ctrl_DS1N_c |
-			ctrl_DS2N_c |
-			ctrl_Side_c |
-			ctrl_Motor_c |
-			ctrl_SetMFMRecordingN_c;
+		return interesting;
 	}
 
 	public void gppNewValue(int gpio) {

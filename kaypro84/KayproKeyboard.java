@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Vector;
 
 public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
-	OutputStream _fout;
+	VirtualUART _port;
 	java.util.concurrent.LinkedBlockingDeque<String> fifo;
 	int paste_delay = 33;	// mS, 1000/cps
 	int cr_delay = 100;	// mS
@@ -30,10 +30,88 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		altKeys.put((int)'.', 0xb2);
 	}
 
-	public KayproKeyboard(OutputStream fout) {
-		_fout = fout;
-		insertToggle = false;
-		resetees = new Vector<ResetListener>();
+	class KeyboardBeep implements Runnable {
+		Clip beep;
+
+		public KeyboardBeep(Properties props) {
+			setupBeep(props);
+			Thread t = new Thread(this);
+			t.start();
+		}
+
+		private void setupBeep(Properties props) {
+			beep = null;
+			String s = props.getProperty("kaypro_beep");
+			if (s == null) {
+				s = "kpbeep.wav";
+			} else if (s.length() == 0) {
+				return;
+			}
+			String beep_wav = s;
+			try {
+				AudioInputStream wav =
+					AudioSystem.getAudioInputStream(
+						new BufferedInputStream(
+							this.getClass().getResourceAsStream(beep_wav)));
+				AudioFormat format = wav.getFormat();
+				DataLine.Info info = new DataLine.Info(Clip.class, format);
+				beep = (Clip)AudioSystem.getLine(info);
+				beep.open(wav);
+				//_beep.setLoopPoints(0, loop);
+			} catch (Exception e) {
+				//e.printStackTrace();
+				return;
+			}
+			int volume = 50;
+			s = props.getProperty("kaypro_beep_volume");
+			if (s != null) {
+				volume = Integer.valueOf(s);
+				if (volume < 0) volume = 0;
+				if (volume > 100) volume = 100;
+			}
+			FloatControl vol = null;
+			if (_beep.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+				vol = (FloatControl)_beep.getControl(FloatControl.Type.MASTER_GAIN);
+			} else if (_beep.isControlSupported(FloatControl.Type.VOLUME)) {
+				vol = (FloatControl)_beep.getControl(FloatControl.Type.VOLUME);
+			}
+			if (vol != null) {
+				float min = vol.getMinimum();
+				float max = vol.getMaximum();
+				float gain = (float)(min + ((max - min) * (volume / 100.0)));
+				vol.setValue(gain);
+			}
+		}
+
+		private void beep() {
+			if (beep != null) {
+				beep.setFramePosition(0);
+				beep.loop(0);
+			}
+		}
+
+		public void run() {
+			while (true) {
+				int k = -1;
+				try {
+					k = _port.take();
+				} catch (Exception ee) {
+					k = -1;
+				}
+				if (k < 0) {
+					break;
+				}
+				if (k == 0x04) {
+					beep();
+				}
+			}
+		}
+	}
+
+	public KayproKeyboard(Properties props, Vector<String> argv,
+			VirtualUART port) {
+		_port = port;
+		_kbd = new KeyboardBeep(props);
 		fifo = new java.util.concurrent.LinkedBlockingDeque<String>();
 		Thread t = new Thread(this);
 		t.start();
@@ -41,10 +119,8 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 
 	public void sendBack(String s) {
 		byte[] bs = s.getBytes();
-		try {
-			_fout.write(bs);
-			_fout.flush();
-		} catch (Exception ee) {
+		for (byte b : bs) {
+			_port.put(b & 0xff);
 		}
 	}
 
@@ -103,13 +179,8 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 			s = c;
 		}
 		// TODO: do we ever NOT consume event?
-		try {
-			_fout.write(s);
-			_fout.flush();
-			e.consume();
-		} catch (Exception ee) {
-			// handle? probably means back-end is dead...
-		}
+		_port.put(s);
+		e.consume();
         }
 
         public void keyReleased(KeyEvent e) {
@@ -125,17 +196,13 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 			if (s == null) {
 				continue;
 			}
-			try {
-				for (byte b : s.getBytes()) {
-					_fout.write(b);
-					if (b == '\r') {
-						Thread.sleep(cr_delay);
-					} else {
-						Thread.sleep(paste_delay);
-					}
+			for (byte b : s.getBytes()) {
+				_port.out(b & 0xff);
+				if (b == '\r') {
+					Thread.sleep(cr_delay);
+				} else {
+					Thread.sleep(paste_delay);
 				}
-				_fout.flush();
-			} catch (Exception ee) {
 			}
 		}
 	}

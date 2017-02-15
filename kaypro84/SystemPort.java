@@ -24,7 +24,7 @@ public class SystemPort implements IODevice {
 	/// IODevice interface ///
 
 	public void reset() {
-		gpo = 0;
+		gpo = 0xff;	// special FF effectively resets to 1's
 		notify(0xff); // might contradict device resets?
 	}
 

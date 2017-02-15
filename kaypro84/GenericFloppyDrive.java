@@ -88,6 +88,9 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 			etype = DriveType.FDD_5_25_DS_ST;
 		} else if (type.equals("FDD_5_25_DS_DT")) {
 			etype = DriveType.FDD_5_25_DS_DT;
+		} else if (type.equals("FDD_5_25_DS_QT")) {
+			// TODO: DriveTec two-speed, 192-tpi drives...
+			return null;
 		} else if (type.equals("FDD_8_SS")) {
 			etype = DriveType.FDD_8_SS;
 		} else if (type.equals("FDD_8_DS")) {
