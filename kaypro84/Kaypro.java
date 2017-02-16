@@ -11,7 +11,7 @@ import java.util.Properties;
 
 import z80core.*;
 
-public class Kaypro84 implements Computer, KayproCommander, Interruptor, Runnable {
+public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable {
 	private Z80 cpu;
 	private long clock;
 	private Map<Integer, IODevice> ios;
@@ -42,7 +42,7 @@ public class Kaypro84 implements Computer, KayproCommander, Interruptor, Runnabl
 	private long backlogTime = 10000000;	// 10ms backlog limit
 	private long backlogNs;
 
-	public Kaypro84(Properties props, LEDHandler lh) {
+	public Kaypro(Properties props, LEDHandler lh) {
 		String s;
 		intRegistry = new int[8];
 		intLines = new int[8];

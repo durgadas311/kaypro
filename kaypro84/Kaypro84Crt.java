@@ -7,20 +7,29 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
 
-public class CrtScreen extends JPanel
-		implements ScreenDumper, ActionListener,
-			MouseListener, MouseMotionListener {
+public class Kaypro84Crt extends KayproCrt
+		implements ActionListener, MouseListener, MouseMotionListener {
 	static final long serialVersionUID = 198900000001L;
+
+	static final int base = 0x1c;
+	static final int vccmd = base;
+	static final int vcstat = base;
+	static final int vcrdat = base + 1;
+	static final int vcdata = base + 3;
 	String[] lines = new String[25];
+	String[] blinks = new String[25];
+	String[] halfint = new String[25];
+	String[] halfblnk = new String[25];
+	int[] ram = new int[2048]; // char + attrs
 	private FontMetrics _fm;
 	private int _fa; //, _fd;
 	private int _fw, _fh;
 	float _fz;
 	int curs_x;
 	int curs_y;
-	String curs_char = "";
 	boolean curs_on = true;
-	boolean blink = false;
+	int blink = 0;
+	boolean crt_en = false;
 	javax.swing.Timer timer;
 	Dimension _dim;
 	int bd_width;
@@ -31,71 +40,110 @@ public class CrtScreen extends JPanel
 	static final Color highlight = new Color(100, 100, 120);
 	PasteListener paster = null;
 
-	private char[] charCvt = null;
-
-	public void setISO() {
-		charCvt = new char[256];
-		Arrays.fill(charCvt, '\0');
-		for (int x = 32; x < 127; ++x) {
-			charCvt[x] = (char)x;
-		}
-		// graphics chars
-		charCvt[0] = '\u2502';
-		charCvt[1] = '\u2500';
-		charCvt[2] = '\u253c';
-		charCvt[3] = '\u2510';
-		charCvt[4] = '\u2518';
-		charCvt[5] = '\u2514';
-		charCvt[6] = '\u250c';
-		charCvt[7] = '\u00b1';
-		charCvt[8] = '\u2192';
-		charCvt[9] = '\u2592';
-		charCvt[10] = '\u00f7';
-		charCvt[11] = '\u2193';
-		charCvt[12] = '\u2597';
-		charCvt[13] = '\u2596';
-		charCvt[14] = '\u2598';
-		charCvt[15] = '\u259d';
-		charCvt[16] = '\u2580';
-		charCvt[17] = '\u2590';
-		charCvt[18] = '\u25e4';
-		charCvt[19] = '\u252c';
-		charCvt[20] = '\u2524';
-		charCvt[21] = '\u2534';
-		charCvt[22] = '\u2516';
-		charCvt[23] = '\u2573';
-		charCvt[24] = '\u2571';
-		charCvt[25] = '\u2572';
-		charCvt[26] = '\u2594';
-		charCvt[27] = '\u2581';
-		charCvt[28] = '\u258f';
-		charCvt[29] = '\u2595';
-		charCvt[30] = '\u00b6';
-		charCvt[31] = '\u25e5';
-		charCvt[127] = '\u2022';
-		// rev-video graphics chars override
-		charCvt[0x80+18] = '\u25e2';
-		charCvt[0x80+31] = '\u25e3';
-		blockCursor(false);
-	}
+	private int curReg;
+	private int data;
+	private byte[] regs;
+	private byte[] msks = new byte[]{
+		0xff,	// R0
+		0xff,	// R1
+		0xff,	// R2
+		0x0f,	// R3
+		0x7f,	// R4
+		0x1f,	// R5
+		0x7f,	// R6
+		0x7f,	// R7
+		0x03,	// R8
+		0x1f,	// R9
+		0x7f,	// R10
+		0x1f,	// R11
+		0x3f,	// R12
+		0xff,	// R13
+		0x3f,	// R14
+		0xff,	// R15
+		0x3f,	// R16
+		0xff,	// R17
+		0x3f,	// R18	(is 81-189 same as MC6845?)
+		0xff,	// R19
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff,
+	};
+	private int horizTotal;
+	private int horizDisp;
+	private int hSyncPos;
+	private int hSyncWid;
+	private int vertTotal;
+	private int vertAdj;
+	private int vertDisp;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
+	private int horizTotal;
 
 	public Dimension getNormSize() {
 		return _dim;
 	}
 
-	public CrtScreen(float fz) {
+	public Kaypro84Crt(Properties props) {
+		regs = new byte[32];
+		String f = "Kaypro84.ttf";
+		float fz = 16f;
+		Color fc = Color.green;
+		String s = props.getProperty("kaypro_font");
+		if (s != null) {
+			f = s;
+		}
+		s = props.getProperty("kaypro_font_size");
+		if (s != null) {
+			fz = Float.valueOf(s);
+		}
+		s = props.getProperty("kaypro_font_color");
+		if (s != null) {
+			fc = new Color(Integer.valueOf(s, 16));
+		}
 		_fz = fz;
 		clearScreen();
-		timer = new Timer(500, this);
+		timer = new Timer(308, this);
 		timer.start();
 		setBackground(new Color(50,50,50, 255));
 		setOpaque(true);
+		Font font = null;
+		if (f.endsWith(".ttf")) {
+			try {
+				File ff = new File(f);
+				java.io.InputStream ttf;
+				if (ff.exists()) {
+					ttf = new FileInputStream(ff);
+				} else {
+					ttf = VirtualKaypro.class.getResourceAsStream(f);
+				}
+				if (ttf != null) {
+					font = Font.createFont(Font.TRUETYPE_FONT, ttf);
+					font = font.deriveFont(fz);
+				}
+			} catch (Exception ee) {
+				font = null;
+			}
+		} else {
+			font = new Font(f, Font.PLAIN, (int)fz);
+		}
+		if (font == null) {
+			System.err.println("Missing font \"" +
+					f + "\", using default");
+			font = new Font("Monospaced", Font.PLAIN, 10);
+		}
+		setFont(font);
+		setForeground(fc);
 		bd_width = 3;
 		blockCursor(false);
 		addMouseListener(this);
+		reset();
 	}
 
-	public void setFont(Font f) {
+	private void setFont(Font f) {
 		super.setFont(f);
 		_fm = getFontMetrics(f);
 		_fa = _fm.getAscent();
@@ -113,12 +161,82 @@ public class CrtScreen extends JPanel
 		// leave room for borders...
 		_dim = new Dimension(_fw * 80 + 2 * bd_width, _fh * 25 + 2 * bd_width);
 		super.setPreferredSize(_dim);
-		// TODO: determine how to do reverse video and graphics,
-		// if this is not a custom H19 font.
 	}
 
 	public void setPasteListener(PasteListener lstn) {
 		paster = lstn;
+	}
+
+	public void reset() {
+		crt_en = false;
+		Arrays.fill(regs, (byte)0);
+	}
+
+	public int getBaseAddress() {
+		return base;
+	}
+
+	public int getNumPorts() {
+		return 4;
+	}
+
+	public int in(int port) {
+		int val = 0;
+		switch(port) {
+		case vcstat:
+			val = status;
+			break;
+		case vcrdat:
+			val = get_vcrdat();
+			break;
+		case vcdata:
+			val = data;
+			break;
+		}
+		return val;
+	}
+
+	public void out(int port, int value) {
+		switch(port) {
+		case vccmd:
+			do_vccmd(value);
+			break;
+		case vcrdat:
+			do_vcrdat(value);
+			break;
+		case vcdata:
+			do_vcdata(value);
+			break;
+		}
+	}
+
+	public String getDeviceName() {
+		return "MC6845";
+	}
+
+	public String dumpDebug() {
+		return "";
+	}
+
+	private void do_vccmd(int value) {
+		// essentially, CRTC register number...
+		curReg = value & 0x1f;
+		if (value == 0x1f) {
+			// TODO: strobe, or "tickle", command
+		}
+	}
+
+	private void do_vcrdat(int value) {
+		regs[curReg] = value & msks[curReg];
+		// TODO: any triggers?
+	}
+
+	private int get_vcrdat() {
+		return regs[curReg];
+	}
+
+	private void do_vcdata(int value) {
+		data = value & 0xff;
 	}
 
 	private void isoPaint(Graphics2D g2d) {
@@ -167,180 +285,35 @@ public class CrtScreen extends JPanel
 
 	public void paint(Graphics g) {
 		super.paint(g);
+		if (!crt_en) {
+			return;
+		}
 		Graphics2D g2d = (Graphics2D)g;
 		if (drag) {
 			paintHighlight(g2d);
 		}
 		int y;
-		if (charCvt != null) {
-			isoPaint(g2d);
-		} else for (y = 0;  y < 25; ++y) {
-			g2d.drawString(lines[y], bd_width, y * _fh + _fa + bd_width);
+		for (y = 0;  y < 25; ++y) {
+			g2d.drawChars(lines[y], bd_width, y * _fh + _fa + bd_width);
 		}
-		if (blink && curs_on) {
-			g2d.drawString(curs_char, curs_x * _fw + bd_width, curs_y * _fh + _fa + bd_width);
+		if ((blink & 0x02) != 0) for (y = 0;  y < 25; ++y) {
+			g2d.drawChars(blinks[y], bd_width, y * _fh + _fa + bd_width);
 		}
-	}
-
-	private void _scrollDown(int y) {
-		for (int x = 23; x > y; --x) {
-			lines[x] = lines[x - 1];
+		g2d.setColor(halfIntensity);
+		for (y = 0;  y < 25; ++y) {
+			g2d.drawChars(halfint[y], bd_width, y * _fh + _fa + bd_width);
 		}
-		lines[y] = String.format("%80s", "");
-		repaint();
-	}
-
-	private void _scrollUp(int y) {
-		for (int x = y; x < 23; ++x) {
-			lines[x] = lines[x + 1];
+		if ((blink & 0x02) != 0) for (y = 0;  y < 25; ++y) {
+			g2d.drawChars(halfblnk[y], bd_width, y * _fh + _fa + bd_width);
 		}
-		lines[23] = String.format("%80s", "");
-		repaint();
-	}
-
-	public void enableCursor(boolean on) {
-		curs_on = on;
-		repaint();
-	}
-
-	public void blockCursor(boolean on) {
-		if (charCvt != null) { // i.e. ISO charset
-			if (on) {
-				curs_char = "\u2588";
-			} else {
-				curs_char = "\u2581";
-			}
-		} else if (on) {
-			curs_char = "\u00a0";
-		} else {
-			curs_char = "\u011b";
-		}
-		repaint();
-	}
-
-	public void clearScreen() {
-		for (int x = 0; x < 25; ++x) {
-			lines[x] = String.format("%80s", "");
-		}
-		repaint();
-	}
-
-	public void insertChar(char c, int x, int y) {
-		// Ugh...
-		lines[y] = String.format("%-80s",
-			lines[y].substring(0, x) + c +
-			lines[y].substring(x, 79));
-		repaint();
-	}
-
-	public void putChar(char c, int x, int y) {
-		// Ugh...
-		lines[y] = String.format("%-80s",
-			lines[y].substring(0, x) + c +
-			lines[y].substring(x + 1));
-		repaint();
-	}
-
-	public void scrollUp() {
-		_scrollUp(0);
-	}
-
-	public void scrollDown() {
-		_scrollDown(0);
-	}
-
-	public void setCursor(int x, int y) {
-		if (curs_x != x || curs_y != y) {
-			curs_x = x;
-			curs_y = y;
-			repaint();
+		if ((blink & 0x01) == 0) && curs_on) {
+			// TODO: is cursor solid or rev-video?
+			g2d.fillRect(curs_x * _fw + bd_width,
+				curs_y * _fh + bd_width + regs[10],
+				_fw + 1, regs[11] - regs[10] + 1);
 		}
 	}
 
-	public void clearLine(int y) {
-		lines[y] = String.format("%80s", "");
-		repaint();
-	}
-
-	public void clearBOP(int x, int y) {
-		clearBOL(x, y);
-		if (y == 24) {
-			return;
-		}
-		for (int z = y - 1; z >= 0; --z) {
-			clearLine(z);
-		}
-	}
-	public void clearEOP(int x, int y) {
-		clearEOL(x, y);
-		for (int z = y + 1; z < 24; ++z) {
-			clearLine(z);
-		}
-	}
-	public void clearBOL(int x, int y) {
-		lines[y] = String.format("%80s", lines[y].substring(x + 1));
-		repaint();
-	}
-	public void clearEOL(int x, int y) {
-		if (x == 0) {
-			clearLine(y);
-		} else {
-			lines[y] = String.format("%-80s", lines[y].substring(0, x));
-			repaint();
-		}
-	}
-
-	public void insertLine(int y) {
-		if (y == 24) {
-			return;
-		}
-		_scrollDown(y);
-	}
-
-	public void deleteLine(int y) {
-		if (y == 24) {
-			return;
-		}
-		_scrollUp(y);
-	}
-
-	public void deleteChar(int x, int y) {
-		lines[y] = String.format("%-80s",
-			lines[y].substring(0, x) +
-			lines[y].substring(x + 1));
-		repaint();
-	}
-
-	private int graphicsChar(int c) {
-		if (c >= '`') {
-			c -= '`';
-		} else if (c == '^') {
-			c = 0x7f;
-		} else if (c == '_') {
-			c = 0x1f;
-		}
-		return c;
-	}
-
-	public int specialChar(int c, boolean rev, boolean gra) {
-		// This will need to change if the font does not have
-		// custom glyphs for H19 effects.
-		// 'c' starts as code in 0x20-0x7e (' '..'~')
-		if (rev) {
-			if (gra) {
-				c = graphicsChar(c);
-			}
-			c += '\u0080';
-		} else if (gra) {
-			c = graphicsChar(c);
-		}
-		if (c < ' ') {
-			c += '\u0100';
-		}
-		return c;
-	}
-
-	// TODO: change for ISO charsets/fonts?
 	// This currently neutralizes reverse video and graphics,
 	// eliminating those attributes completely.
 	private String normalize(String line) {
@@ -421,7 +394,7 @@ public class CrtScreen extends JPanel
 
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == timer) {
-			blink = !blink;
+			blink = (blink + 1) & 0x03;
 			if (dragCount > 0) {
 				--dragCount;
 				if (dragCount == 0) {

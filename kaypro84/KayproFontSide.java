@@ -238,7 +238,7 @@ class LEDPanel extends JPanel {
 	}
 }
 
-public class HxxFrontSide extends JPanel
+public class KayproFrontSide extends JPanel
 		implements LEDHandler {
 	static final long serialVersionUID = 198900000004L;
 
@@ -254,7 +254,7 @@ public class HxxFrontSide extends JPanel
 	int width, height;
 	int offset;
 
-	public HxxFrontSide(JFrame main, JPanel crt,
+	public KayproFrontSide(JFrame main, JPanel crt,
 			Properties props, String nameplate) {
 		super();
 		if (props == null) {}
