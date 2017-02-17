@@ -185,6 +185,7 @@ public class Kaypro84Crt extends KayproCrt
 		switch(port) {
 		case vcstat:
 			val = status;
+			status &= 0x7f;
 			break;
 		case vcrdat:
 			val = get_vcrdat();
@@ -223,6 +224,12 @@ public class Kaypro84Crt extends KayproCrt
 		curReg = value & 0x1f;
 		if (value == 0x1f) {
 			// TODO: strobe, or "tickle", command
+			if (!crt_en) {
+				crt_en = true;
+				repaint();
+			} else {
+				status |= 0x80;
+			}
 		}
 	}
 
@@ -235,8 +242,29 @@ public class Kaypro84Crt extends KayproCrt
 		return regs[curReg];
 	}
 
+	private void updateAttr(int adr, int atr) {
+		int old = ram[adr & 0x7ff];
+		ram[adr & 0x7ff] = atr | (old & 0xff);
+		// TODO: move display chars...
+	}
+
+	private void updateChar(int adr, int chr) {
+		int old = ram[adr & 0x7ff];
+		ram[adr & 0x7ff] = (old & 0xff00) | chr;
+		// TODO: change display chars...
+	}
+
 	private void do_vcdata(int value) {
-		data = value & 0xff;
+		value &= 0xff;
+		int adr = ((regs[18] & 0xff) << 8) | (regs[19] & 0xff);
+		if (adr > 0x7ff) {
+			--adr;
+			updateAttr(adr, value << 8);
+		} else {
+			val = ram[adr & 0x7ff];
+			nval = (val & 0xff00) | value;
+			updateChar(adr, value);
+		}
 	}
 
 	private void isoPaint(Graphics2D g2d) {
