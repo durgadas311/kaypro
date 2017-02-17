@@ -17,6 +17,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 	private boolean hypoTrack_m;	// ST media in DT drive
 	private boolean hyperTrack_m;	// DT media in ST drive
 	private boolean interlaced_m;
+	private int dsa_m;	// double-sided algorithm...
 	private int mediaLat_m;
 	private int secLenCode_m;
 	private int gapLen_m;
@@ -47,6 +48,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		hypoTrack_m = false;
 		hyperTrack_m = false;
 		interlaced_m = false;
+		dsa_m = 0;
 		mediaLat_m = 0;
 		mediaSec_m = 0;
 		secLenCode_m = 0;
@@ -184,6 +186,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 			case 'i':
 				m |= 0x40;
 				interlaced_m = (p != 0);
+				dsa_m = p;
 				break;
 			case 'l':	// optional ?
 				// m |= 0x80;
@@ -249,6 +252,10 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		if (mediaSec_m == 0) {
 			// TODO: need better way to know 1-based sectoring
 			secNum -= 1;
+		}
+		if (dsa_m == 2 && side == 1) {
+			// TODO: confirm secNum >= numSectors_m?
+			secNum -= numSectors_m;
 		}
 		if (interlaced_m) {
 			bufferOffset_m = ((track * numSides_m + side) * numSectors_m + secNum) * secSize_m;

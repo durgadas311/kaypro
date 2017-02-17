@@ -12,9 +12,9 @@ public class KayproRoms {
 		InputStream fi = null;
 		String s = props.getProperty("monitor_rom");
 		if (s == null) {
-			System.err.format("No Monitor ROM specified, using 81-292a\n");
+			System.err.format("No Monitor ROM specified, using 81-478a\n");
 			try {
-				fi = this.getClass().getResourceAsStream("81-292a.rom");
+				fi = this.getClass().getResourceAsStream("81-478a.rom");
 			} catch (Exception ee) {
 				ee.printStackTrace();
 				System.exit(1);
@@ -30,7 +30,7 @@ public class KayproRoms {
 		try {
 			// TODO: check for power-of-two and viable ROM sizes
 			monMask = fi.available() - 1;
-			mon = new byte[4096];
+			mon = new byte[fi.available()];
 			fi.read(mon);
 			fi.close();
 		} catch (Exception ee) {

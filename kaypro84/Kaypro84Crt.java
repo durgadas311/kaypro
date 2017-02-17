@@ -16,10 +16,10 @@ public class Kaypro84Crt extends KayproCrt
 	static final int vcstat = base;
 	static final int vcrdat = base + 1;
 	static final int vcdata = base + 3;
-	String[] lines = new String[25];
-	String[] blinks = new String[25];
-	String[] halfint = new String[25];
-	String[] halfblnk = new String[25];
+	char[] lines = new char[2048];
+	char[] blinks = new char[2048];
+	char[] halfint = new char[2048];
+	char[] halfblnk = new char[2048];
 	int[] ram = new int[2048]; // char + attrs
 	private FontMetrics _fm;
 	private int _fa; //, _fd;
@@ -38,12 +38,13 @@ public class Kaypro84Crt extends KayproCrt
 	Point dragStop;
 	int dragCount = 0;
 	static final Color highlight = new Color(100, 100, 120);
+	Color halfIntensity;
 	PasteListener paster = null;
 
 	private int curReg;
 	private int data;
-	private byte[] regs;
-	private byte[] msks = new byte[]{
+	private int[] regs;
+	private int[] msks = new int[]{
 		0xff,	// R0
 		0xff,	// R1
 		0xff,	// R2
@@ -88,7 +89,7 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	public Kaypro84Crt(Properties props) {
-		regs = new byte[32];
+		regs = new int[32];
 		String f = "Kaypro84.ttf";
 		float fz = 16f;
 		Color fc = Color.green;
@@ -103,6 +104,12 @@ public class Kaypro84Crt extends KayproCrt
 		s = props.getProperty("kaypro_font_color");
 		if (s != null) {
 			fc = new Color(Integer.valueOf(s, 16));
+		}
+		s = props.getProperty("kaypro_font_color2");
+		if (s != null) {
+			halfIntensity = new Color(Integer.valueOf(s, 16));
+		} else {
+			halfIntensity = fc.darker();
 		}
 		_fz = fz;
 		clearScreen();
@@ -169,7 +176,7 @@ public class Kaypro84Crt extends KayproCrt
 
 	public void reset() {
 		crt_en = false;
-		Arrays.fill(regs, (byte)0);
+		Arrays.fill(regs, 0);
 	}
 
 	public int getBaseAddress() {
@@ -242,21 +249,43 @@ public class Kaypro84Crt extends KayproCrt
 		return regs[curReg];
 	}
 
+	private void setChar(int adr, int chr) {
+		switch(chr & 0x0600) {
+		case 0x0200:	// half intensity
+			halfint[adr] = (char)(chr & 0x9ff);
+			break;
+		case 0x0400:	// blinking
+			blinks[adr] = (char)(chr & 0x9ff);
+			break;
+		case 0x0600:	// blinking half intensity
+			halfblnk[adr] = (char)(chr & 0x9ff);
+			break;
+		default:
+			lines[adr] = (char)(chr & 0x9ff);
+			break;
+		}
+	}
+
 	private void updateAttr(int adr, int atr) {
 		int old = ram[adr & 0x7ff];
-		ram[adr & 0x7ff] = atr | (old & 0xff);
-		// TODO: move display chars...
+		int nuw = atr | (old & 0xff);
+		ram[adr & 0x7ff] = nuw;
+		if (((nuw ^ old) & 0x0600) != 0) {
+			setChar(adr, (old & 0x0600) | ' ');
+		}
+		setChar(adr, nuw);
 	}
 
 	private void updateChar(int adr, int chr) {
 		int old = ram[adr & 0x7ff];
-		ram[adr & 0x7ff] = (old & 0xff00) | chr;
-		// TODO: change display chars...
+		int nuw = (old & 0xff00) | chr;
+		ram[adr & 0x7ff] = nuw;
+		setChar(adr, nuw);
 	}
 
 	private void do_vcdata(int value) {
 		value &= 0xff;
-		int adr = ((regs[18] & 0xff) << 8) | (regs[19] & 0xff);
+		int adr = (regs[18] << 8) | regs[19];
 		if (adr > 0x7ff) {
 			--adr;
 			updateAttr(adr, value << 8);
@@ -265,39 +294,14 @@ public class Kaypro84Crt extends KayproCrt
 			nval = (val & 0xff00) | value;
 			updateChar(adr, value);
 		}
-	}
-
-	private void isoPaint(Graphics2D g2d) {
-		char[] chr = new char[1];
-		int y;
-		for (y = 0;  y < 25; ++y) {
-			int xx = bd_width;
-			int yy = y * _fh + bd_width;
-			for (int x = 0; x < 80; ++x) {
-				boolean r = (lines[y].charAt(x) & 0x80) != 0;
-				char c = charCvt[lines[y].charAt(x) & 0xff];
-				if (c == 0) {
-					if (r) {
-						g2d.setColor(getForeground());
-						g2d.fillRect(xx, yy, _fw, _fh);
-						g2d.setColor(getBackground());
-					}
-					c = charCvt[lines[y].charAt(x) & 0x7f];
-				}
-				chr[0] = c;
-				g2d.drawChars(chr, 0, 1, xx, yy + _fa);
-				if (r) {
-					g2d.setColor(getForeground());
-				}
-				xx += _fw;
-			}
-		}
+		// TODO: is there a way to aggregate on char/attr pair?
+		repaint();
 	}
 
 	private void paintHighlight(Graphics2D g2d) {
 		int x0 = (int)dragStart.getX();
 		int y0 = (int)dragStart.getY();
-		int x1 = 80;
+		int x1 = regs[1];
 		int y1 = (int)dragStop.getY();
 		g2d.setColor(highlight);
 		for (int y = y0; y < y1; ++y) {
@@ -311,6 +315,26 @@ public class Kaypro84Crt extends KayproCrt
 		g2d.setColor(getForeground());
 	}
 
+	private void paintField(Graphics2D g2d, char[] chrs) {
+		int a = (regs[12] << 8) | regs[13];
+		int nr = regs[6];
+		int nc = regs[1];
+		int gx = bd_width;
+		int gy = _fa + bd_width;
+		for (int y = 0;  y < nr; ++y) {
+			if (a + nc > 0x0800) {
+				int n = 0x800 - a;
+				g2d.drawChars(chrs, a, n, gx, gy);
+				g2d.drawChars(chrs, 0, nc - n, gx + _fw * n, gy);
+			} else {
+				g2d.drawChars(chrs, a, nc, gx, gy);
+			}
+			a += nc;
+			a &= 0x07ff;
+			gy += _fh;
+		}
+	}
+
 	public void paint(Graphics g) {
 		super.paint(g);
 		if (!crt_en) {
@@ -320,19 +344,14 @@ public class Kaypro84Crt extends KayproCrt
 		if (drag) {
 			paintHighlight(g2d);
 		}
-		int y;
-		for (y = 0;  y < 25; ++y) {
-			g2d.drawChars(lines[y], bd_width, y * _fh + _fa + bd_width);
-		}
-		if ((blink & 0x02) != 0) for (y = 0;  y < 25; ++y) {
-			g2d.drawChars(blinks[y], bd_width, y * _fh + _fa + bd_width);
+		paintField(g2d, lines);
+		if ((blink & 0x02) != 0) {
+			paintField(g2d, blinks);
 		}
 		g2d.setColor(halfIntensity);
-		for (y = 0;  y < 25; ++y) {
-			g2d.drawChars(halfint[y], bd_width, y * _fh + _fa + bd_width);
-		}
-		if ((blink & 0x02) != 0) for (y = 0;  y < 25; ++y) {
-			g2d.drawChars(halfblnk[y], bd_width, y * _fh + _fa + bd_width);
+		paintField(g2d, halfint);
+		if ((blink & 0x02) != 0) {
+			paintField(g2d, halfblnk);
 		}
 		if ((blink & 0x01) == 0) && curs_on) {
 			// TODO: is cursor solid or rev-video?
@@ -342,47 +361,13 @@ public class Kaypro84Crt extends KayproCrt
 		}
 	}
 
-	// This currently neutralizes reverse video and graphics,
-	// eliminating those attributes completely.
-	private String normalize(String line) {
-		byte[] str = new byte[line.length()];
-		for (int x = 0; x < line.length(); ++x) {
-			int c = line.charAt(x);
-			if (c >= '\u0100') {
-				c -= '\u0100'; // collapse graphics with rev-graphics
-			}
-			if (c >= '\u0080') {
-				c -= '\u0080'; // remove reverse video
-			}
-			if (c < 0x20) {
-				c += '`';
-				if (c == 0x7f) {
-					c = '_';
-				}
-			} else if (c == 0x7f) {
-				c = '^';
-			}
-			str[x] = (byte)c;
-		}
-		return new String(str);
-	}
-
 	private String getRegion(Point p0, Point p1) {
 		String s = "";
 		int x0 = (int)p0.getX();
 		int y0 = (int)p0.getY();
-		int x1 = 80;
+		int x1 = regs[1];
 		int y1 = (int)p1.getY();
-		for (int y = y0; y < y1; ++y) {
-			if (y + 1 == y1) {
-				x1 = (int)p1.getX();
-			}
-			if (!s.isEmpty()) {
-				s += '\n';
-			}
-			s += normalize(lines[y].substring(x0, x1).replaceAll("\\s+$",""));
-			x0 = 0;
-		}
+		// TODO: extract character and format into lines...
 		return s;
 	}
 
@@ -398,9 +383,7 @@ public class Kaypro84Crt extends KayproCrt
 		if (line >= 0) {
 			b = e = line;
 		}
-		for (int y = b; y <= e; ++y) {
-			str += normalize(lines[y]);
-		}
+		// TODO: extract character and format into lines...
 		return str;
 	}
 
@@ -414,9 +397,7 @@ public class Kaypro84Crt extends KayproCrt
 		if (line >= 0) {
 			b = e = line;
 		}
-		for (int y = b; y <= e; ++y) {
-			str += normalize(lines[y].replaceAll("\\s+$","")) + '\n';
-		}
+		// TODO: extract character and format into lines...
 		return str;
 	}
 
@@ -479,7 +460,7 @@ public class Kaypro84Crt extends KayproCrt
 		if (e.getButton() != MouseEvent.BUTTON1) {
 			return;
 		}
-		dragCount = 5;
+		dragCount = 10;
 		repaint();
 		removeMouseMotionListener(this);
 		if (dragStart.equals(dragStop)) {
