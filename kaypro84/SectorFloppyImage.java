@@ -236,10 +236,6 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		if (side < 0 || track < 0 || sector < 0) {
 			return true;
 		}
-		if (sector > numSectors_m) {
-			// For multi-sector reads... end of track.
-			return false;
-		}
 		if (hypoTrack_m) {
 			if ((track & 1) != 0) {
 				return false;
@@ -249,13 +245,17 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 			track *= 2;
 		}
 		int secNum = sector;
-		if (mediaSec_m == 0) {
+		if (mediaSec_m == 0 && dsa_m != 2) {
 			// TODO: need better way to know 1-based sectoring
 			secNum -= 1;
 		}
 		if (dsa_m == 2 && side == 1) {
 			// TODO: confirm secNum >= numSectors_m?
 			secNum -= numSectors_m;
+		}
+		if (secNum >= numSectors_m) {
+			// For multi-sector reads... end of track.
+			return false;
 		}
 		if (interlaced_m) {
 			bufferOffset_m = ((track * numSides_m + side) * numSectors_m + secNum) * secSize_m;

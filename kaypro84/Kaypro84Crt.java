@@ -30,6 +30,8 @@ public class Kaypro84Crt extends KayproCrt
 	float _fz;
 	int curs_x;
 	int curs_y;
+	int curs_s;
+	int curs_e;
 	boolean curs_on = true;
 	int blink = 0;
 	boolean crt_en = false;
@@ -78,6 +80,10 @@ public class Kaypro84Crt extends KayproCrt
 
 	public Kaypro84Crt(Properties props) {
 		regs = new int[32];
+		Arrays.fill(lines, ' ');
+		Arrays.fill(blinks, ' ');
+		Arrays.fill(halfint, ' ');
+		Arrays.fill(halfblnk, ' ');
 		String f = "Kaypro84.ttf";
 		float fz = 16f;
 		Color fc = Color.green;
@@ -177,7 +183,7 @@ public class Kaypro84Crt extends KayproCrt
 		int val = 0;
 		switch(port) {
 		case vcstat:
-			val = status;
+			val = status | 0x80;
 			status &= 0x7f;
 			break;
 		case vcrdat:
@@ -209,7 +215,18 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	public String dumpDebug() {
-		return "";
+		String str = String.format(
+			" R0=%02x  R1=%02x  R2=%02x  R3=%02x\n" +
+			" R4=%02x  R5=%02x  R6=%02x  R7=%02x\n" +
+			" R8=%02x  R9=%02x R10=%02x R11=%02x\n" +
+			"R12=%02x R13=%02x R14=%02x R15=%02x\n" +
+			"R16=%02x R17=%02x R18=%02x R19=%02x\n",
+			regs[0], regs[1], regs[2], regs[3],
+			regs[4], regs[5], regs[6], regs[7],
+			regs[8], regs[9], regs[10], regs[11],
+			regs[12], regs[13], regs[14], regs[15],
+			regs[16], regs[17], regs[18], regs[19]);
+		return str;
 	}
 
 	private void do_vccmd(int value) {
@@ -221,14 +238,33 @@ public class Kaypro84Crt extends KayproCrt
 				crt_en = true;
 				repaint();
 			} else {
-				status |= 0x80;
 			}
+			status |= 0x80;
 		}
 	}
 
 	private void do_vcrdat(int value) {
+		int d;
 		regs[curReg] = value & msks[curReg];
 		// TODO: any triggers?
+		switch(curReg) {
+		case 10:
+			curs_s = regs[10] & 0x1f;
+			break;
+		case 11:
+			curs_e = regs[11];
+			break;
+		case 14:
+		case 15:
+		case 12:
+		case 13:
+			d = (regs[14] << 8) | regs[15];
+			d -= (regs[12] << 8) | regs[13];
+			d &= 0x07ff;
+			curs_y = d / regs[1];
+			curs_x = d % regs[1];
+			break;
+		}
 	}
 
 	private int get_vcrdat() {
@@ -236,6 +272,7 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	private void setChar(int adr, int chr) {
+		adr &= 0x7ff;
 		switch(chr & 0x0600) {
 		case 0x0200:	// half intensity
 			halfint[adr] = (char)(chr & 0x9ff);
@@ -253,9 +290,10 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	private void updateAttr(int adr, int atr) {
-		int old = ram[adr & 0x7ff];
+		adr &= 0x7ff;
+		int old = ram[adr];
 		int nuw = atr | (old & 0xff);
-		ram[adr & 0x7ff] = nuw;
+		ram[adr] = nuw;
 		if (((nuw ^ old) & 0x0600) != 0) {
 			setChar(adr, (old & 0x0600) | ' ');
 		}
@@ -342,8 +380,8 @@ public class Kaypro84Crt extends KayproCrt
 		if (((blink & 0x01) == 0) && curs_on) {
 			// TODO: is cursor solid or rev-video?
 			g2d.fillRect(curs_x * _fw + bd_width,
-				curs_y * _fh + bd_width + regs[10],
-				_fw + 1, regs[11] - regs[10] + 1);
+				curs_y * _fh + bd_width + curs_s,
+				_fw + 1, curs_e - curs_s + 1);
 		}
 	}
 

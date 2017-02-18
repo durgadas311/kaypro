@@ -266,14 +266,14 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			cpu.setINTLine(true);
 		}
 	}
-	public void setNMI(boolean state) {
-		if (isHalted && !nmiState && state) {
+	public synchronized void setNMI(boolean state) {
+		if (isHalted && state) {
 			cpu.triggerNMI();
 		}
 		nmiState = state;
 	}
 	// Not part of Interruptor interface.
-	private void setHalted(boolean halted) {
+	private synchronized void setHalted(boolean halted) {
 		if (!isHalted && halted && nmiState) {
 			cpu.triggerNMI();
 		}
@@ -390,7 +390,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 					ret.add(disas.disas(cpu.getRegPC()) + "\n");
 				}
 				if (args[1].equalsIgnoreCase("page") && args.length > 2) {
-					ret.add(dumpPage(args[2]));
+					//ret.add(dumpPage(args[2]));
+					ret.add(dumpPage("fd"));
 				}
 				if (args[1].equalsIgnoreCase("mach")) {
 					ret.add(dumpDebug());

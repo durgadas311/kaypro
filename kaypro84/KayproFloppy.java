@@ -44,11 +44,11 @@ public class KayproFloppy extends WD1793
 			interesting &= ~ctrl_DS2N_c;
 		}
 		numDisks_m = numDrives;
-		gpio.addGppListener(this);
 		leds_m = new LED[numDisks_m];
 		drives_m = new GenericFloppyDrive[numDisks_m];
 		String s;
 		Arrays.fill(drives_m, null);
+		Arrays.fill(leds_m, null);
 
 		// First identify what drives are installed.
 		GenericFloppyDrive drv;
@@ -77,6 +77,7 @@ public class KayproFloppy extends WD1793
 			}
 		}
 		reset();
+		gpio.addGppListener(this);
 	}
 
 	private GenericFloppyDrive installDrive(int x, String s) {
@@ -124,7 +125,7 @@ public class KayproFloppy extends WD1793
 		}
 		if (next >= 0 && drives_m[next] != null) {
 			drives_m[next].selectSide((controlReg_m & ctrl_Side_c) == 0 ? 1 : 0);
-			drives_m[next].motor((controlReg_m & ctrl_Motor_c) == 0);
+			drives_m[next].motor((controlReg_m & ctrl_Motor_c) != 0);
 		}
 		
 	}
@@ -197,6 +198,9 @@ public class KayproFloppy extends WD1793
 	public int in(int addr) {
 		int val = 0;
 		val = super.in(addr);
+		if (addr == 0x10) {
+			val &= ~stat_NotReady_c; // always READY
+		}
 		return val;
 	}
 

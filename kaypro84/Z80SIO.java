@@ -253,13 +253,15 @@ public class Z80SIO implements IODevice {
 		}
 
 		// Must sleep if nothing available...
-		public synchronized int take() {
+		public int take() {
 			try {
 				int c = fifo.take();
 				// TODO: how does this work with baud rate?
 				if (fifo.size() == 0) {
-					rr[0] &= ~rr0_txp_c;
-					chkIntr();
+					synchronized(this) {
+						rr[0] &= ~rr0_txp_c;
+						chkIntr();
+					}
 				}
 				return c;
 			} catch(Exception ee) {
