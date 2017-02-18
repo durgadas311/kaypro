@@ -4,12 +4,15 @@ import java.io.*;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Vector;
+import java.util.Properties;
+import javax.sound.sampled.*;
 
 public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 	VirtualUART _port;
 	java.util.concurrent.LinkedBlockingDeque<String> fifo;
 	int paste_delay = 33;	// mS, 1000/cps
 	int cr_delay = 100;	// mS
+	KeyboardBeep _kbd;
 	static final Map<Integer, Integer> altKeys;
 	static {
 		altKeys = new HashMap<Integer, Integer>();
@@ -57,7 +60,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				DataLine.Info info = new DataLine.Info(Clip.class, format);
 				beep = (Clip)AudioSystem.getLine(info);
 				beep.open(wav);
-				//_beep.setLoopPoints(0, loop);
+				//beep.setLoopPoints(0, loop);
 			} catch (Exception e) {
 				//e.printStackTrace();
 				return;
@@ -70,10 +73,10 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				if (volume > 100) volume = 100;
 			}
 			FloatControl vol = null;
-			if (_beep.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-				vol = (FloatControl)_beep.getControl(FloatControl.Type.MASTER_GAIN);
-			} else if (_beep.isControlSupported(FloatControl.Type.VOLUME)) {
-				vol = (FloatControl)_beep.getControl(FloatControl.Type.VOLUME);
+			if (beep.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+				vol = (FloatControl)beep.getControl(FloatControl.Type.MASTER_GAIN);
+			} else if (beep.isControlSupported(FloatControl.Type.VOLUME)) {
+				vol = (FloatControl)beep.getControl(FloatControl.Type.VOLUME);
 			}
 			if (vol != null) {
 				float min = vol.getMinimum();
@@ -197,12 +200,14 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				continue;
 			}
 			for (byte b : s.getBytes()) {
-				_port.out(b & 0xff);
-				if (b == '\r') {
-					Thread.sleep(cr_delay);
-				} else {
-					Thread.sleep(paste_delay);
-				}
+				_port.put(b & 0xff);
+				try {
+					if (b == '\r') {
+						Thread.sleep(cr_delay);
+					} else {
+						Thread.sleep(paste_delay);
+					}
+				} catch (Exception ee) {}
 			}
 		}
 	}

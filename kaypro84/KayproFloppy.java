@@ -7,8 +7,7 @@ import java.awt.event.*;
 import javax.swing.*;
 
 public class KayproFloppy extends WD1793
-		implements DiskController, GppListener, WD1793Controller,
-			ActionListener {
+		implements DiskController, GppListener, WD1793Controller {
 	// TODO: These need to come from CPU (Z80)...
 	static final int EI = 0xfb;
 	static final int RST6 = 0xf7;
@@ -96,7 +95,7 @@ public class KayproFloppy extends WD1793
 	public int getBaseAddress() { return BasePort_c; }
 	public int getNumPorts() { return KayproFloppy_NumPorts_c; }
 
-	ptivate int driveNum(int val) {
+	private int driveNum(int val) {
 		// TODO: must not select "B" if SASI is installed...
 		// ctrl_DS2N_c is used as SASI reset/select
 		if ((val & ctrl_DS1N_c) == 0) {

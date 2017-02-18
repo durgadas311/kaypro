@@ -40,6 +40,10 @@ public class ParallelPrinter
 		data = val;
 	}
 
+	public String getDeviceName() {
+		return "ParallelPrinter";
+	}
+
 	public int interestedBits() {
 		return ctrl_PRSTB_c;
 	}

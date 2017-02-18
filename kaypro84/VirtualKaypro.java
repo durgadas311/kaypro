@@ -24,8 +24,8 @@ public class VirtualKaypro {
 		}
 		try {
 			FileInputStream cfg = new FileInputStream(config);
-			setProperty("configuration", config);
-			load(cfg);
+			props.setProperty("configuration", config);
+			props.load(cfg);
 			cfg.close();
 		} catch(Exception ee) {
 			config = null;

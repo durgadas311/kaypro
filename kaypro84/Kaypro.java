@@ -44,7 +44,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private long backlogTime = 10000000;	// 10ms backlog limit
 	private long backlogNs;
 
-	public Kaypro(Properties props, LEDHandler lh) {
+	public Kaypro(Properties props, LEDHandler lh, IODevice crt) {
 		String s;
 		intRegistry = new int[8];
 		intLines = new int[8];
@@ -87,7 +87,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 
 		gpp = new SystemPort(props, this);
 		addDevice(gpp);
-		addDevice(new Kaypro84Crt(props));
+		addDevice(crt);
 		// TODO: possibly allow customization of memory... and peripherals...
 		mem = new KayproMemory(props, gpp);
 		IODevice cpn = null;
@@ -111,7 +111,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDevice(baudB);
 		addDevice(sio1);
 		addDevice(sio2);
-		addDevice(new ParallelPrinter(props, gpp);
+		addDevice(new ParallelPrinter(props, gpp));
 		// TODO: work out Z80-PIO and attached devices...
 		// addDevice(new Z80PIO(props, "rtc", "modem", 0x20, this));
 		// addDevice(new MM58167(props, 0x24, this));
@@ -146,6 +146,10 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (wasRunning) {
 			start();
 		}
+	}
+
+	public KayproKeyboard getKeyboard() {
+		return kbd;
 	}
 
 	public boolean addDevice(IODevice dev) {
@@ -218,9 +222,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		}
 	}
 
-	// I.e. admin commands to virtual H89...
-	public H89Commander getCommander() {
-		return (H89Commander)this;
+	// I.e. admin commands to virtual Kaypro...
+	public KayproCommander getCommander() {
+		return (KayproCommander)this;
 	}
 
 	// TODO: these may be separate classes...

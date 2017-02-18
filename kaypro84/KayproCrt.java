@@ -1,6 +1,7 @@
 // Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
 
 import java.awt.*;
+import javax.swing.*;
 
 public abstract class KayproCrt extends JPanel
 		implements IODevice, ScreenDumper {

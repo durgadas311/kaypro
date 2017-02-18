@@ -1,4 +1,5 @@
 // Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
+import java.util.Vector;
 
 // User must instantiate two of these per "chip" for the Kaypro I/O decoding scheme.
 public class WD1943 implements IODevice {
@@ -47,7 +48,7 @@ public class WD1943 implements IODevice {
 		}
 	}
 
-	public addBaudListener(BaudListener lstn) {
+	public void addBaudListener(BaudListener lstn) {
 		lstns.add(lstn);
 		lstn.setBaud(bauds[divisor] * 16);
 	}

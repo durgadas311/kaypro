@@ -3,8 +3,8 @@
 import java.util.Arrays;
 import java.util.HashMap;
 
-public class WD1797 implements ClockListener {
-	static final int WD1797_NumPorts_c = 4;
+public class WD1793 implements ClockListener {
+	static final int WD1793_NumPorts_c = 4;
 	static final int StatusPort_Offset_c = 0;
 	static final int CommandPort_Offset_c = 0;
 	static final int TrackPort_Offset_c = 1;
@@ -247,7 +247,7 @@ public class WD1797 implements ClockListener {
 	/// stat_DataRequest_c    - 0x02;
 	/// stat_Busy_c           - 0x01;
 
-	private WD1797Controller ctrl;
+	private WD1793Controller ctrl;
 
 	protected int basePort_m;
 
@@ -259,13 +259,13 @@ public class WD1797 implements ClockListener {
 		{ 128, 256, 512,  1024}	// [1]
 	};
 
-	public WD1797(int base, Interruptor intr) {
+	public WD1793(int base, Interruptor intr) {
 		intr.addClockListener(this);
 		basePort_m = base;
 		curPos_m = 0;
 	}
 
-	public void setController(WD1797Controller ctrl) {
+	public void setController(WD1793Controller ctrl) {
 		this.ctrl = ctrl;
 	}
 

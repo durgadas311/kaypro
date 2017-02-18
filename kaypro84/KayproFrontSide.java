@@ -334,7 +334,7 @@ public class KayproFrontSide extends JPanel
 		JLabel lab = new JLabel("Kaypro");
 		lab.setFont(new Font("Sans-serif", Font.PLAIN, dim.height / 20));
 		lab.setForeground(Color.black);
-		lab.setText(nameplate);
+		lab.setText("Kaypro");
 		Border lb = BorderFactory.createBevelBorder(BevelBorder.LOWERED);
 		lab.setBorder(lb);
 		_nameshape.add(lab);

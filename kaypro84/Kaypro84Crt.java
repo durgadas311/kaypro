@@ -1,5 +1,7 @@
 // Copyright (c) 2017 Douglas Miller
 import java.util.Arrays;
+import java.util.Properties;
+import java.io.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
@@ -21,6 +23,7 @@ public class Kaypro84Crt extends KayproCrt
 	char[] halfint = new char[2048];
 	char[] halfblnk = new char[2048];
 	int[] ram = new int[2048]; // char + attrs
+	int status;
 	private FontMetrics _fm;
 	private int _fa; //, _fd;
 	private int _fw, _fh;
@@ -68,21 +71,6 @@ public class Kaypro84Crt extends KayproCrt
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff,
 	};
-	private int horizTotal;
-	private int horizDisp;
-	private int hSyncPos;
-	private int hSyncWid;
-	private int vertTotal;
-	private int vertAdj;
-	private int vertDisp;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
-	private int horizTotal;
 
 	public Dimension getNormSize() {
 		return _dim;
@@ -112,8 +100,7 @@ public class Kaypro84Crt extends KayproCrt
 			halfIntensity = fc.darker();
 		}
 		_fz = fz;
-		clearScreen();
-		timer = new Timer(308, this);
+		timer = new javax.swing.Timer(308, this);
 		timer.start();
 		setBackground(new Color(50,50,50, 255));
 		setOpaque(true);
@@ -142,15 +129,14 @@ public class Kaypro84Crt extends KayproCrt
 					f + "\", using default");
 			font = new Font("Monospaced", Font.PLAIN, 10);
 		}
-		setFont(font);
+		setupFont(font);
 		setForeground(fc);
 		bd_width = 3;
-		blockCursor(false);
 		addMouseListener(this);
 		reset();
 	}
 
-	private void setFont(Font f) {
+	private void setupFont(Font f) {
 		super.setFont(f);
 		_fm = getFontMetrics(f);
 		_fa = _fm.getAscent();
@@ -290,9 +276,9 @@ public class Kaypro84Crt extends KayproCrt
 			--adr;
 			updateAttr(adr, value << 8);
 		} else {
-			val = ram[adr & 0x7ff];
-			nval = (val & 0xff00) | value;
-			updateChar(adr, value);
+			int val = ram[adr & 0x7ff];
+			int nval = (val & 0xff00) | value;
+			updateChar(adr, nval);
 		}
 		// TODO: is there a way to aggregate on char/attr pair?
 		repaint();
@@ -353,7 +339,7 @@ public class Kaypro84Crt extends KayproCrt
 		if ((blink & 0x02) != 0) {
 			paintField(g2d, halfblnk);
 		}
-		if ((blink & 0x01) == 0) && curs_on) {
+		if (((blink & 0x01) == 0) && curs_on) {
 			// TODO: is cursor solid or rev-video?
 			g2d.fillRect(curs_x * _fw + bd_width,
 				curs_y * _fh + bd_width + regs[10],

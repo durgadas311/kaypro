@@ -8,7 +8,6 @@ public interface Interruptor {
 	void unblockInts(int mask);
 	void setNMI(boolean state);	// As implemented by Kaypro
 	void triggerNMI();		// Not used/available for Kaypro
-	void timeout2ms();
 	void addClockListener(ClockListener lstn);
 	void addIntrController(InterruptController ctrl);
 	void waitCPU();

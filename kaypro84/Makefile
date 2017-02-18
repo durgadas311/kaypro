@@ -9,11 +9,11 @@ all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 	javac -cp $(CLASS_PATH) $?
 
 run:
-	java -cp $(CLASS_PATH) VirtualKaypro84
+	java -cp $(CLASS_PATH) VirtualKaypro
 
-VirtualKaypro84.jar: all temp
-	echo "Main-Class: VirtualKaypro84" >Manifest.txt
-	jar -cmf Manifest.txt VirtualKaypro84.jar *.class \
+VirtualKaypro.jar: all temp
+	echo "Main-Class: VirtualKaypro" >Manifest.txt
+	jar -cmf Manifest.txt VirtualKaypro.jar *.class \
 		*.rom *.ttf *.wav \
 		-C temp .
 	rm -rf temp
@@ -33,12 +33,10 @@ diablo630/Diablo630Embedded.jar:
 	make -C diablo630 Diablo630Embedded.jar
 
 src:
-	cd ..; tar -czf kaypro84/v89.tgz kaypro84/Makefile \
-		kaypro84/README kaypro84/INSTALL \
+	cd ..; tar -czf kaypro84/vkaypro.tgz kaypro84/Makefile \
 		kaypro84/*.java \
 		kaypro84/*.rom \
 		kaypro84/*.ttf \
-		kaypro84/*.wav \
-		kaypro84/www/*.*
+		kaypro84/*.wav
 
 __FRC__:

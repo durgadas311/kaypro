@@ -19,8 +19,6 @@ public class Z80SIO implements IODevice {
 	public Z80SIO(Properties props, String pfxA, String pfxB, int base,
 			Interruptor intr) {
 		name = String.format("Z80SIO%d", (base >> 3) + 1);
-		attObj = null;
-		attFile = null;
 		this.intr = intr;
 		src = intr.registerINT(0);
 		basePort = base;
@@ -52,6 +50,9 @@ public class Z80SIO implements IODevice {
 	}
 	public int getNumPorts() {
 		return 4;
+	}
+	public String getDeviceName() {
+		return name;
 	}
 
 	private void raiseINT(int idx) {
@@ -103,12 +104,14 @@ public class Z80SIO implements IODevice {
 		private int index;
 
 		public Z80SIOPort(Properties props, String pfx, int idx) {
+			attObj = null;
+			attFile = null;
 			index = idx;
 			fifo = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 			fifi = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 			wr = new byte[8];
 			rr = new byte[8]; // only 3 useable...
-			s = props.getProperty(pfx + "att");
+			String s = props.getProperty(pfx + "att");
 			if (s != null && s.length() > 1) {
 				if (s.charAt(0) == '>') { // redirect output to file
 					attachFile(s.substring(1));
@@ -274,6 +277,9 @@ public class Z80SIO implements IODevice {
 			lastRx = System.nanoTime();
 			rr[0] |= rr0_rxr_c;
 			chkIntr();
+		}
+		public void setBaud(int baud) {
+			// TODO: implement something
 		}
 
 		public void setModem(int mdm) {
