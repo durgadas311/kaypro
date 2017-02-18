@@ -226,7 +226,7 @@ public class Z80SIO implements IODevice {
 			if (x == 0) {	// data
 				synchronized(this) {
 					fifo.add(val);
-					rr[0] |= rr0_txp_c;
+					rr[0] &= ~rr0_txp_c;
 					chkIntr();
 				}
 			} else {	// control
@@ -244,6 +244,7 @@ public class Z80SIO implements IODevice {
 			fifi.clear();
 			Arrays.fill(wr, (byte)0);
 			Arrays.fill(rr, (byte)0);
+			rr[0] |= rr0_txp_c;
 		}
 
 		////////////////////////////////////////////////////
@@ -259,7 +260,7 @@ public class Z80SIO implements IODevice {
 				// TODO: how does this work with baud rate?
 				if (fifo.size() == 0) {
 					synchronized(this) {
-						rr[0] &= ~rr0_txp_c;
+						rr[0] |= rr0_txp_c;
 						chkIntr();
 					}
 				}

@@ -178,12 +178,14 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		} else if (k == KeyEvent.VK_RIGHT) {
 			s = 0xf4;
 		}
-		if (s < 0) {
+		if (s < 0 && c < 0x80) {
 			s = c;
 		}
 		// TODO: do we ever NOT consume event?
-		_port.put(s);
-		e.consume();
+		if (s >= 0) {
+			_port.put(s);
+			e.consume();
+		}
         }
 
         public void keyReleased(KeyEvent e) {

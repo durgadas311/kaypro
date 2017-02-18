@@ -271,20 +271,26 @@ public class Kaypro84Crt extends KayproCrt
 		return regs[curReg];
 	}
 
+	private char chr2Font(int ch) {
+		ch &= 0x09ff;
+		ch += (ch & 0x0100); // move rev-vid bit over one
+		return (char)ch;
+	}
+
 	private void setChar(int adr, int chr) {
 		adr &= 0x7ff;
 		switch(chr & 0x0600) {
 		case 0x0200:	// half intensity
-			halfint[adr] = (char)(chr & 0x9ff);
+			halfint[adr] = chr2Font(chr);
 			break;
 		case 0x0400:	// blinking
-			blinks[adr] = (char)(chr & 0x9ff);
+			blinks[adr] = chr2Font(chr);
 			break;
 		case 0x0600:	// blinking half intensity
-			halfblnk[adr] = (char)(chr & 0x9ff);
+			halfblnk[adr] = chr2Font(chr);
 			break;
 		default:
-			lines[adr] = (char)(chr & 0x9ff);
+			lines[adr] = chr2Font(chr);
 			break;
 		}
 	}
