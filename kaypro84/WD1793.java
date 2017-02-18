@@ -38,6 +38,7 @@ public class WD1797 implements ClockListener {
 	private boolean multiple_m;
 	private boolean delay_m;
 	private int side_m;
+	private boolean sideCmp_m;
 	private boolean deleteDAM_m;
 	private int[] addr_m = new int[6];
 
@@ -134,13 +135,12 @@ public class WD1797 implements ClockListener {
 	static final int cmdop_DataAddressMark_c = 0x01;
 
 	///
-	/// U - Update SSO
+	/// U - Side Compare
 	/// ===============================================
-	/// 0 - Update SSO to 0
-	/// 1 - Update SSO to 1
+	/// 0 - Do Not Compare Side
+	/// 1 - Compare Side
 	///
-	static final int cmdop_UpdateSSO_c = 0x02;
-	static final int cmdop_UpdateSSO_Shift_c = 1;
+	static final int cmdop_CompareSide_c = 0x02;
 
 	///
 	/// E - 15 mSec Delay
@@ -159,7 +159,8 @@ public class WD1797 implements ClockListener {
 	/// L=0 |  256   |  512   |  1024 |  128
 	/// L=1 |  128   |  256   |   512 | 1024
 	///
-	static final int cmdop_SectorLength_c = 0x08;
+	static final int cmdop_SideSelect_c = 0x08;
+	static final int cmdop_SideSelect_Shift_c = 3;
 
 	///
 	/// Options to the Force Interrupt command
@@ -301,6 +302,7 @@ public class WD1797 implements ClockListener {
 		verifyTrack_m = false;
 		multiple_m = false;
 		delay_m = false;
+		sideCmp_m = false;
 		side_m = 0;
 		deleteDAM_m = false;
 		curCommand_m = Command.noneCmd;
@@ -459,8 +461,13 @@ public class WD1797 implements ClockListener {
 	private void processCmdTypeII(int cmd) {
 		multiple_m = ((cmd & cmdop_MultipleRecord_c) != 0);
 		delay_m = ((cmd & cmdop_Delay_15ms_c) != 0);
-		sectorLength_m = ((cmd & cmdop_SectorLength_c) != 0 ? 1 : 0);
-		side_m = ((cmd & cmdop_UpdateSSO_c) >> cmdop_UpdateSSO_Shift_c);
+		sectorLength_m = 1;
+		sideCmp_m = ((cmd & cmdop_CompareSide_c) != 0);
+		if (sideCmp_m) {
+			side_m = ((cmd & cmdop_SideSelect_c) >> cmdop_SideSelect_Shift_c);
+		} else {
+			side_m = -1;
+		}
 		loadHead(true);
 
 		lowerDrq();
@@ -487,7 +494,12 @@ public class WD1797 implements ClockListener {
 
 	private void processCmdTypeIII(int cmd) {
 		delay_m = ((cmd & cmdop_Delay_15ms_c) != 0);
-		side_m = ((cmd & cmdop_UpdateSSO_c) >> cmdop_UpdateSSO_Shift_c);
+		sideCmp_m = ((cmd & cmdop_CompareSide_c) != 0);
+		if (sideCmp_m) {
+			side_m = ((cmd & cmdop_SideSelect_c) >> cmdop_SideSelect_Shift_c);
+		} else {
+			side_m = -1;
+		}
 		loadHead(true);
 		lowerDrq();
 		dataReady_m = false;
@@ -607,7 +619,9 @@ public class WD1797 implements ClockListener {
 	}
 
 	private boolean checkAddr(int[] addr) {
-		return addr[0] == trackReg_m && addr[1] == side_m && addr[2] == sectorReg_m;
+		return addr[0] == trackReg_m &&
+			(!sideCmp_m || addr[1] == side_m) &&
+			addr[2] == sectorReg_m;
 	}
 
 	private int sectorLen(int[] addr) {
@@ -802,7 +816,6 @@ public class WD1797 implements ClockListener {
 			}
 
 			missCount_m = 0;
-			drive.selectSide(side_m);
 			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, sectorReg_m,
 									sectorPos_m);
 
@@ -849,7 +862,6 @@ public class WD1797 implements ClockListener {
 			}
 
 			missCount_m = 0;
-			drive.selectSide(side_m);
 			// sector '0xfd' indicates a read address
 			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, 0xfd,
 									sectorPos_m);
@@ -879,7 +891,6 @@ public class WD1797 implements ClockListener {
 			break;
 
 		case writeSectorCmd:
-			drive.selectSide(side_m);
 			result = drive.writeData(ctrl.doubleDensity(), trackReg_m, side_m, sectorReg_m,
 						  sectorPos_m, dataReg_m, dataReady_m);
 
@@ -931,7 +942,6 @@ public class WD1797 implements ClockListener {
 			}
 
 			missCount_m = 0;
-			drive.selectSide(side_m);
 			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, 0xff, sectorPos_m);
 
 			if (data == GenericFloppyFormat.NO_DATA) {
@@ -954,7 +964,6 @@ public class WD1797 implements ClockListener {
 			break;
 
 		case writeTrackCmd:
-			drive.selectSide(side_m);
 			result = drive.writeData(ctrl.doubleDensity(), trackReg_m, side_m, 0xff,
 						  sectorPos_m, dataReg_m, dataReady_m);
 

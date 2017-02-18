@@ -235,18 +235,24 @@ public class KayproFloppy extends WD1793
 
 	public void raisedIntrq() {
 		// TODO: ensure it was OFF?
-		intr.triggerNMI();
+		intr.setNMI(true);
 	}
 
 	public void raisedDrq() {
 		// TODO: ensure it was OFF?
-		intr.triggerNMI();
+		intr.setNMI(true);
 	}
 
 	public void loweredIntrq() {
+		if (!drqRaised_m) {
+			intr.setNMI(false);
+		}
 	}
 
 	public void loweredDrq() {
+		if (!intrqRaised_m) {
+			intr.setNMI(false);
+		}
 	}
 
 	public void loadedHead(boolean load) {

@@ -311,6 +311,9 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 				break;
 			case 2:
 				data = 1;	// anything will do? 'sector' is 0xfd...
+				if (dsa_m == 2 && side == 1) {
+					data += numSectors_m;
+				}
 				break;
 			case 3:
 				data = secLenCode_m;

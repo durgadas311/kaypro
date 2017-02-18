@@ -39,13 +39,8 @@ public class VirtualKaypro {
 		front_end.getContentPane().setBackground(new Color(100, 100, 100));
 		// This allows TAB to be sent
 		front_end.setFocusTraversalKeysEnabled(false);
-		LEDHandler lh = null;
-		KayproFrontSide front = null;
-		if (false) {
-		} else {
-			front = new KayproFrontSide(front_end, crt, props);
-			lh = front;
-		}
+		KayproFrontSide front = new KayproFrontSide(front_end, crt, props);
+		LEDHandler lh = front;
 
 		Kaypro kaypro = new Kaypro(props, lh, crt);
 		// All LEDs should be registered now...

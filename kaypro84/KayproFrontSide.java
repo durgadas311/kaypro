@@ -255,7 +255,7 @@ public class KayproFrontSide extends JPanel
 	int offset;
 
 	public KayproFrontSide(JFrame main, JPanel crt,
-			Properties props, String nameplate) {
+			Properties props) {
 		super();
 		if (props == null) {}
 		setBackground(main.getContentPane().getBackground());
@@ -331,7 +331,7 @@ public class KayproFrontSide extends JPanel
 		_ledy = 0;
 		_nameshape.add(_ledspace);
 
-		JLabel lab = new JLabel(nameplate);
+		JLabel lab = new JLabel("Kaypro");
 		lab.setFont(new Font("Sans-serif", Font.PLAIN, dim.height / 20));
 		lab.setForeground(Color.black);
 		lab.setText(nameplate);

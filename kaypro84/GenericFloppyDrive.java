@@ -152,6 +152,9 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 								int inSector) {
 		int data = 0;
 		boolean verify = (sector < 0xf0);
+		if (side < 0) {
+			side = headSel_m;
+		}
 
 		if (disk_m == null) {
 			return GenericFloppyFormat.ERROR;
@@ -180,6 +183,9 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 					int inSector, int data, boolean dataReady) {
 		int result = GenericFloppyFormat.ERROR;
 		boolean verify = (sector < 0xf0);
+		if (side < 0) {
+			side = headSel_m;
+		}
 
 		if (disk_m == null) {
 			return GenericFloppyFormat.ERROR;
@@ -266,6 +272,9 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		return p;
 	}
 
+	// Caller of this must not inspect sector number!
+	// Use readData(..., 0xfd, ...) for that.
+	// (Except hard-sectored controllers)
 	public int[] readAddress() {
 		if (disk_m == null || !motor_m) {
 			return null;

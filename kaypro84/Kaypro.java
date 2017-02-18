@@ -31,6 +31,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private int[] intLines;
 	private int intState;
 	private int intMask;
+	private boolean nmiState;
+	private boolean isHalted;
 	private Vector<ClockListener> clks;
 	private Z80Disassembler disas;
 	private ReentrantLock cpuLock;
@@ -260,12 +262,22 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			cpu.setINTLine(true);
 		}
 	}
-	public void triggerNMI() {
-		if (cpu.isHalted()) {
+	public void setNMI(boolean state) {
+		if (isHalted && !nmiState && state) {
 			cpu.triggerNMI();
 		}
-		// TODO: else preserve state for later HALT?
-		// that requires NMI to be tracked by level, not edge
+		nmiState = state;
+	}
+	// Not part of Interruptor interface.
+	private void setHalted(boolean halted) {
+		if (!isHalted && halted && nmiState) {
+			cpu.triggerNMI();
+		}
+		isHalted = halted;
+	}
+	// Kaypro does not allow direct access to NMI pin.
+	public void triggerNMI() {
+		cpu.triggerNMI();
 	}
 	public void addClockListener(ClockListener lstn) {
 		clks.add(lstn);
@@ -551,6 +563,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 						cpu.isINTLine() ? " INT" : "");
 				}
 				clk = cpu.execute();
+				setHalted(cpu.isHalted());
 				limit -= clk;
 				if (traceCycles > 0) {
 					traceCycles -= clk;
