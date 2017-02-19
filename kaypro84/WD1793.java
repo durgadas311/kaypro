@@ -823,12 +823,8 @@ public class WD1793 implements ClockListener {
 				// just wait for sector to come around..
 			} else if (data == GenericFloppyFormat.INDEX_AM) {
 				sectorPos_m = -1;
-				if (multiple_m) {
-					statusReg_m |= stat_RecordNotFound_c;
-					commandCompleted();
-				} else {
-					// Error?
-				}
+				statusReg_m |= stat_RecordNotFound_c;
+				commandCompleted();
 			} else if (data == GenericFloppyFormat.DATA_AM) {
 				sectorPos_m = 0;
 			} else if (data == GenericFloppyFormat.CRC) {
