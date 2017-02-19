@@ -134,9 +134,10 @@ class LEDPane extends JPanel implements MouseListener {
 	JMenuItem mnu = null;
 	String name;
 
-	public LEDPane() {
+	public LEDPane(Color bg) {
 		super();
 		setOpaque(false);
+		setBackground(bg);
 		addMouseListener(this);
 	}
 
@@ -177,20 +178,52 @@ class LEDPane extends JPanel implements MouseListener {
 	public void mouseReleased(MouseEvent e) { }
 }
 
+class KayproPowerLED extends JPanel {
+	int height;
+	int width;
+	int vcenter;
+	public KayproPowerLED(int wd, int ht, Font ft) {
+		super();
+		setPreferredSize(new Dimension(wd, ht));
+		setFont(ft);
+		setOpaque(false);
+		setForeground(Color.white);
+		width = wd;
+		height = ht;
+		vcenter = ht / 2;
+	}
+	public void paint(Graphics g) {
+		super.paint(g);
+		Graphics2D g2d = (Graphics2D)g;
+		g2d.addRenderingHints(new RenderingHints(
+			RenderingHints.KEY_ANTIALIASING,
+			RenderingHints.VALUE_ANTIALIAS_ON));
+		g2d.drawString("~", 20, vcenter - 20);
+		g2d.drawString("POWER", 0, vcenter + 20);
+		g2d.setColor(Color.black);
+		g2d.fillOval(15, vcenter - 20, 20, 20);
+		g2d.setColor(Color.red);
+		g2d.fillOval(19, vcenter - 16, 12, 12);
+	}
+}
+
 class LEDPanel extends JPanel {
 	LEDPane[] panes;
-	public static final Font font = new Font("Monospaced", Font.PLAIN, 12);
+	public static final Font font = new Font("Monospaced", Font.BOLD, 16);
 
-	public LEDPanel(int w, int h, int rows) {
+	public LEDPanel(int w, int h, int rows, Color bg) {
 		super();
 		panes = new LEDPane[rows];
-		setLayout(new GridLayout(rows, 1));
+		setLayout(new GridLayout(rows + 1, 1));
 		setOpaque(false);
 		setPreferredSize(new Dimension(w, h));
 		for (int y = 0; y < rows; ++y) {
-			LEDPane pn = new LEDPane();
+			LEDPane pn = new LEDPane(bg);
 			add(pn);
 			panes[y] = pn;
+			if (y == 0) {
+				add(new KayproPowerLED(w, h / 3, font));
+			}
 		}
 	}
 
@@ -242,7 +275,6 @@ public class KayproFrontSide extends JPanel
 		implements LEDHandler {
 	static final long serialVersionUID = 198900000004L;
 
-	RoundedRectangle _nameshape;
 	BezelRoundedRectangle _crtshape;
 	LEDPanel _ledspace;
 	int _ledy;
@@ -319,28 +351,13 @@ public class KayproFrontSide extends JPanel
 
 		int nmwid = width / 3;
 		int nmhgh = height;
-		_nameshape = new RoundedRectangle(new Color(220,220,220, 255), false,
-				0f, 0f, nmwid, height,
-				rounding, rounding);
-		_nameshape.setOpaque(false);
-		FlowLayout fl = new FlowLayout();
-		fl.setVgap((dim.height * 1) / 8);
-		_nameshape.setLayout(fl);
 
-		_ledspace = new LEDPanel(nmwid - 20, (dim.height * 3) / 6, 8);
+		_ledspace = new LEDPanel(nmwid - 20, dim.height, 2,
+					getBackground().brighter());
 		_ledy = 0;
-		_nameshape.add(_ledspace);
-
-		JLabel lab = new JLabel("Kaypro");
-		lab.setFont(new Font("Sans-serif", Font.PLAIN, dim.height / 20));
-		lab.setForeground(Color.black);
-		lab.setText("Kaypro");
-		Border lb = BorderFactory.createBevelBorder(BevelBorder.LOWERED);
-		lab.setBorder(lb);
-		_nameshape.add(lab);
 		gc.gridx = 3;
-		gridbag.setConstraints(_nameshape, gc);
-		add(_nameshape);
+		gridbag.setConstraints(_ledspace, gc);
+		add(_ledspace);
 
 		pan = new JPanel();
 		pan.setPreferredSize(new Dimension(gaps, gaps));
@@ -392,6 +409,7 @@ public class KayproFrontSide extends JPanel
 		if (pn != null) {
 			pn.setName(drive);
 			JLabel lb = new JLabel(String.format(_ledfmt, drive));
+			lb.setForeground(Color.white);
 			lb.setFont(LEDPanel.font);
 			pn.add(lb);
 		}

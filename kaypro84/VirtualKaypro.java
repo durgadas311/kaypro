@@ -36,7 +36,7 @@ public class VirtualKaypro {
 		front_end = new JFrame("Virtual Kaypro Computer");
 		front_end.getContentPane().setName("Kaypro Emulator");
 		front_end.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		front_end.getContentPane().setBackground(new Color(100, 100, 100));
+		front_end.getContentPane().setBackground(new Color(25, 25, 25));
 		// This allows TAB to be sent
 		front_end.setFocusTraversalKeysEnabled(false);
 		KayproFrontSide front = new KayproFrontSide(front_end, crt, props);
