@@ -103,7 +103,7 @@ public class Kaypro84Crt extends KayproCrt
 		if (s != null) {
 			halfIntensity = new Color(Integer.valueOf(s, 16));
 		} else {
-			halfIntensity = fc.darker();
+			halfIntensity = fc.darker().darker();
 		}
 		_fz = fz;
 		timer = new javax.swing.Timer(308, this);
@@ -389,6 +389,7 @@ public class Kaypro84Crt extends KayproCrt
 		if ((blink & 0x02) != 0) {
 			paintField(g2d, halfblnk);
 		}
+		g2d.setColor(getForeground());
 		if (((blink & 0x01) == 0) && curs_on) {
 			// TODO: is cursor solid or rev-video?
 			g2d.fillRect(curs_x * _fw + bd_width,
