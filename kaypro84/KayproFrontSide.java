@@ -327,7 +327,7 @@ public class KayproFrontSide extends JPanel
 		fl.setVgap((dim.height * 1) / 8);
 		_nameshape.setLayout(fl);
 
-		_ledspace = new LEDPanel(nmwid - 20, (dim.height * 5) / 8, 16);
+		_ledspace = new LEDPanel(nmwid - 20, (dim.height * 3) / 6, 8);
 		_ledy = 0;
 		_nameshape.add(_ledspace);
 

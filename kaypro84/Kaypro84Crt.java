@@ -250,6 +250,7 @@ public class Kaypro84Crt extends KayproCrt
 		switch(curReg) {
 		case 10:
 			curs_s = regs[10] & 0x1f;
+			curs_on = (regs[10] & 0x60) == 0x60;
 			break;
 		case 11:
 			curs_e = regs[11];
@@ -314,6 +315,11 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	private void do_vcdata(int value) {
+		// hack? this also honors 'curReg'... it seems...
+		if (curReg < 0x1f) {
+			do_vcrdat(value);
+			return;
+		}
 		value &= 0xff;
 		int adr = (regs[18] << 8) | regs[19];
 		if (adr > 0x7ff) {
