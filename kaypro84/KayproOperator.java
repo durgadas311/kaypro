@@ -347,7 +347,7 @@ public class KayproOperator implements ActionListener, Runnable
 				}
 				Vector<String> r = _cmdr.sendCommand(cmd);
 				if (!r.get(0).equals("ok")) {
-					error(_main, cmd, r.get(0));
+					error(_main, cmd, join(r));
 					continue;
 				}
 				if (msecs == 0) {
@@ -358,21 +358,21 @@ public class KayproOperator implements ActionListener, Runnable
 				} catch(Exception ee) {}
 				r = _cmdr.sendCommand("trace off");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "Trace OFF", r.get(0));
+					error(_main, "Trace OFF", join(r));
 				}
 				continue;
 			}
 			if (key == _traceon_key) {
 				Vector<String> r = _cmdr.sendCommand("trace on");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "Trace ON", r.get(0));
+					error(_main, "Trace ON", join(r));
 				}
 				continue;
 			}
 			if (key == _traceoff_key) {
 				Vector<String> r = _cmdr.sendCommand("trace off");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "Trace OFF", r.get(0));
+					error(_main, "Trace OFF", join(r));
 				}
 				continue;
 			}
@@ -388,7 +388,7 @@ public class KayproOperator implements ActionListener, Runnable
 			if (key == _cpu_key) {
 				Vector<String> r = _cmdr.sendCommand("dump cpu");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "CPU Debug", r.get(0));
+					error(_main, "CPU Debug", join(r));
 				} else {
 					handleResp("CPU Debug", r);
 				}
@@ -397,7 +397,7 @@ public class KayproOperator implements ActionListener, Runnable
 			if (key == _mach_key) {
 				Vector<String> r = _cmdr.sendCommand("dump mach");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "Machine Debug", r.get(0));
+					error(_main, "Machine Debug", join(r));
 				} else {
 					handleResp("Machine Debug", r);
 				}
@@ -406,7 +406,7 @@ public class KayproOperator implements ActionListener, Runnable
 			if (key == _page_key) {
 				Vector<String> r = _cmdr.sendCommand("dump page 0");
 				if (!r.get(0).equals("ok")) {
-					error(_main, "Dump Page 0", r.get(0));
+					error(_main, "Dump Page 0", join(r));
 				} else {
 					handleResp("Dump Page 0", r);
 				}
@@ -420,7 +420,7 @@ public class KayproOperator implements ActionListener, Runnable
 				String dev = _devs.get(key);
 				Vector<String> r = _cmdr.sendCommand("dump disk " + dev);
 				if (!r.get(0).equals("ok")) {
-					error(_main, dev + " Debug", r.get(0));
+					error(_main, dev + " Debug", join(r));
 				} else {
 					handleResp(dev + " Debug", r);
 				}
@@ -452,7 +452,7 @@ public class KayproOperator implements ActionListener, Runnable
 						drv + ' ' + media + ' ' +
 						(ch.isProtected() ? "ro" : "rw"));
 					if (!resp.get(0).equals("ok")) {
-						error(_main, "Mount", resp.get(0));
+						error(_main, "Mount", join(resp));
 					} else {
 						_mdia.put(key, media);
 						setMenuText(mu, drv, ch.getSelectedFile().getName());
@@ -462,7 +462,7 @@ public class KayproOperator implements ActionListener, Runnable
 						Vector<String> resp = _cmdr.sendCommand(
 							"unmount " + drv);
 						if (!resp.get(0).equals("ok")) {
-							error(_main, "Unmount", resp.get(0));
+							error(_main, "Unmount", join(resp));
 						} else {
 							_mdia.put(key, "");
 							setMenuText(mu, drv, "");
@@ -473,6 +473,17 @@ public class KayproOperator implements ActionListener, Runnable
 			}
 			System.err.println("unknown action key");
 		}
+	}
+
+	private String join(Vector<String> vec) {
+		if (vec.size() < 1) {
+			return "";
+		}
+		String s = vec.get(0);
+		for (int i = 1; i < vec.size(); ++i) {
+			s += ' ' + vec.get(i);
+		}
+		return s;
 	}
 
 	static public void error(JFrame main, String op, String err) {

@@ -167,20 +167,15 @@ public class KayproFloppy extends WD1793
 	public String getDeviceName() { return KayproFloppy_Name_c; }
 
 	public GenericDiskDrive findDrive(String ident) {
-		if (!ident.startsWith(KayproFloppy_Name_c) ||
-				ident.charAt(KayproFloppy_Name_c.length()) != '-') {
-			return null;
+		for (int x = 0; x < numDisks_m; ++x) {
+			if (drives_m[x] == null) {
+				continue;
+			}
+			if (ident.equals(drives_m[x].getDriveName())) {
+				return drives_m[x];
+			}
 		}
-		int x = 0;
-		try {
-			x = Integer.valueOf(ident.substring(KayproFloppy_Name_c.length() + 1));
-		} catch (Exception ee) {
-			return null;
-		}
-		if (x == 0 || x > numDisks_m) {
-			return null;
-		}
-		return drives_m[x - 1]; // might still be null...
+		return null;
 	}
 
 	public void destroy() {

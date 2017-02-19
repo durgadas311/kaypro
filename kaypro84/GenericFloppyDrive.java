@@ -98,7 +98,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		} else {
 			return null;
 		}
-		return new GenericFloppyDrive(etype, name);
+		return new GenericFloppyDrive(etype, name.replaceAll(" ", "_"));
 	}
 
 	public void insertDisk(GenericFloppyDisk disk) {

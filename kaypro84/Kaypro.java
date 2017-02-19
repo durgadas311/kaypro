@@ -328,7 +328,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			return ret;
 		}
 		try {
-			cpuLock.lock(); // This might sleep waiting for CPU to finish 2mS
+			cpuLock.lock(); // This might sleep waiting for CPU to finish 1mS
 			if (args[0].equalsIgnoreCase("reset")) {
 				reset();
 				return ret;
