@@ -264,8 +264,10 @@ public class Kaypro84Crt extends KayproCrt
 		case 12:
 		case 13:
 			d = (regs[14] << 8) | regs[15];
-			setChar(curs_a, ram[curs_a]);
-			curs_a = d & 0x07ff;
+			synchronized(this) {
+				setChar(curs_a, ram[curs_a]);
+				curs_a = d & 0x07ff;
+			}
 			d -= (regs[12] << 8) | regs[13];
 			d &= 0x07ff;
 			curs_y = d / regs[1];
@@ -388,10 +390,12 @@ public class Kaypro84Crt extends KayproCrt
 			paintHighlight(g2d);
 		}
 		if (curs_rev && curs_on) {
-			if ((blink & 0x01) == 0) {
-				setChar(curs_a, ram[curs_a] ^ 0x0100);
-			} else {
-				setChar(curs_a, ram[curs_a]);
+			synchronized(this) {
+				if ((blink & 0x01) == 0) {
+					setChar(curs_a, ram[curs_a] ^ 0x0100);
+				} else {
+					setChar(curs_a, ram[curs_a]);
+				}
 			}
 		}
 		paintField(g2d, lines);
