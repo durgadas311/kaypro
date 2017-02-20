@@ -1,3 +1,11 @@
+kaypro-cpm22u.logdisk:
+	Kaypro CP/M 2.2u (for ROM 81-478a)
+
+kaypro-cpm22g.logdisk:
+	Kaypro CP/M 2.2G (for ROM ?)
+
+drm-cpm310.logdisk:
+	Custom CP/M 3 for modified hardware (ROM ?)
 
 kay10a08.logdisk:
 	IMD 1.05: 23/09/2005  0:53:19
