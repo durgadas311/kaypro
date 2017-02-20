@@ -30,10 +30,18 @@ public class VirtualKaypro {
 		} catch(Exception ee) {
 			config = null;
 		}
+		String model = props.getProperty("kaypro_model");
+		if (model == null) {
+			model = "84";
+		}
+		String title = "Virtual Kaypro " + model + " Computer";
 
+		KayproCrt crt = null;
 		// TODO: configure based on model...
-		KayproCrt crt = new Kaypro84Crt(props);
-		front_end = new JFrame("Virtual Kaypro Computer");
+		if (crt == null) {
+			crt = new Kaypro84Crt(props);
+		}
+		front_end = new JFrame(title);
 		front_end.getContentPane().setName("Kaypro Emulator");
 		front_end.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		front_end.getContentPane().setBackground(new Color(25, 25, 25));

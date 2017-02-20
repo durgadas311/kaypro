@@ -18,7 +18,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private Vector<IODevice> devs;
 	private Vector<DiskController> dsks;
 	private Vector<InterruptController> intrs;
-	private Memory mem;
+	private Memory mem = null;
 	private SystemPort gpp;
 	private boolean running;
 	private boolean stopped;
@@ -84,18 +84,29 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		} else {
 			System.err.format("Using configuration from %s\n", s);
 		}
+		String model = props.getProperty("kaypro_model");
+		if (model == null) {
+			model = "84";
+		}
 
 		gpp = new SystemPort(props, this);
 		addDevice(gpp);
 		addDevice(crt);
-		// TODO: possibly allow customization of memory... and peripherals...
-		mem = new KayproMemory(props, gpp);
 		IODevice cpn = null;
 		int nFlpy = 2;
-		s = props.getProperty("kaypro_model");
-		if (s != null && s.equals("10")) {
+		if (model.equals("10")) {
 			//addDiskDevice(new KayproSASI(props, lh, this, gpp);
+			//addDevice(new Z80PIO(...));
+			//addDevice(new MM58167(pio, ...));
+			//modem?
 			nFlpy = 1;
+		} else if (model.equals("84")) {
+			//addDevice(new Z80PIO(...));
+			//addDevice(new MM58167(pio, ...));
+			//modem?
+		}
+		if (mem == null) {
+			mem = new KayproMemory(props, gpp);
 		}
 		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
