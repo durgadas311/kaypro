@@ -505,6 +505,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		port &= 0xff;
 		IODevice dev = ios.get(port);
 		if (dev == null) {
+			// This helps U-ROM quickly decide WIN is missing
+			val = 0xff;
 			//System.err.format("Undefined Input on port %02x\n", port);
 		} else {
 			val = dev.in(port);
