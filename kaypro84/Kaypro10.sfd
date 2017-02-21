@@ -1,9 +1,9 @@
 SplineFontDB: 3.0
-FontName: Kaypro84
-FullName: Kaypro84
-FamilyName: Kaypro84
+FontName: Kaypro10
+FullName: Kaypro10
+FamilyName: Kaypro10
 Weight: Medium
-Copyright: Created by Douglas Miller with genfont Kaypro2xFONT.rom
+Copyright: Created by Douglas Miller with genfont 81-187.rom
 UComments: "2017-2-20: Created." 
 Version: 001.000
 ItalicAngle: 0
@@ -14,13 +14,13 @@ Descent: 410
 LayerCount: 2
 Layer: 0 0 "Back"  1
 Layer: 1 0 "Fore"  0
-XUID: [1021 590 1487644555 919824]
+XUID: [1021 590 1487644358 919824]
 FSType: 0
 OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
-CreationTime: 1487644555
-ModificationTime: 1487644555
+CreationTime: 1487644358
+ModificationTime: 1487644358
 OS2TypoAscent: 0
 OS2TypoAOffset: 1
 OS2TypoDescent: 0
