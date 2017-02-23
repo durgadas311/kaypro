@@ -65,11 +65,18 @@ public class ParallelPrinter
 		return (strobe ? 1 : 0);
 	}
 
-	public int take() {
+	public int take(boolean sleep) {
+		if (sleep && !strobe) {
+			// TODO: sleep...
+		}
 		int val = data;
 		strobe = false;
 		return val;
 	}
+
+	// No input allowed on this port
+	public boolean ready() { return false; }
+	public void put(int ch) { }
 
 	public String dumpDebug() {
 		String ret = String.format(

@@ -92,27 +92,29 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		gpp = new SystemPort(props, this);
 		addDevice(gpp);
 		addDevice(crt);
+		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
+		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
+		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
+		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
 		IODevice cpn = null;
 		int nFlpy = 2;
 		if (model.equals("10")) {
 			//addDiskDevice(new KayproSASI(props, lh, this, gpp);
-			//addDevice(new Z80PIO(...));
-			//addDevice(new MM58167(pio, ...));
-			//modem?
+			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this);
+			addDevice(pio1);
+			addDevice(new MM58167(props, 0x24, pio1.portA()));
+			// addDevice(new TMS99531_2(props, 0x24, pio1.portB(), sio2.portB()));
 			nFlpy = 1;
 		} else if (model.equals("84")) {
-			//addDevice(new Z80PIO(...));
-			//addDevice(new MM58167(pio, ...));
-			//modem?
+			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this);
+			addDevice(pio1);
+			addDevice(new MM58167(props, 0x24, pio1.portA()));
+			// addDevice(new TMS99531_2(props, 0x24, pio1.portB(), sio2.portB()));
 		}
 		if (mem == null) {
 			mem = new KayproMemory(props, gpp);
 		}
 		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
-		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
-		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
-		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
-		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
 		baudA.addBaudListener(sio1.clockA());
 		sio1.clockB().setBaud(300 * 16);
 		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
@@ -123,9 +125,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDevice(sio1);
 		addDevice(sio2);
 		addDevice(new ParallelPrinter(props, gpp));
-		// TODO: work out Z80-PIO and attached devices...
-		// addDevice(new Z80PIO(props, "rtc", "modem", 0x20, this));
-		// addDevice(new MM58167(props, 0x24, this));
 
 		s = props.getProperty("kaypro_disas");
 		if (s != null && s.equalsIgnoreCase("zilog")) {

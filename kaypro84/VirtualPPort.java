@@ -2,5 +2,7 @@
 
 public interface VirtualPPort {
 	int available();	// Num bytes available from Port
-	int take();		// Get byte from Port
+	int take(boolean sleep); // Get byte from Port (allow sleep)
+	boolean ready();	// Port accepting input
+	void put(int ch);	// Send byte to port input
 }

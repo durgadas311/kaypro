@@ -137,9 +137,9 @@ public class Kaypro84Crt extends KayproCrt
 					f + "\", using default");
 			font = new Font("Monospaced", Font.PLAIN, 10);
 		}
+		bd_width = 3;
 		setupFont(font);
 		setForeground(fc);
-		bd_width = 3;
 		addMouseListener(this);
 		reset();
 	}
@@ -152,15 +152,11 @@ public class Kaypro84Crt extends KayproCrt
 		_fw = _fm.charWidth('M');
 		_fh = _fm.getHeight();
 
-		// e.g. Font 30f = ascent 15.6, * 19.2 = 29.952... but getAscent is 16.
-		// so, Math.round() would be correct if we had not already rounded...
-		// TBD: what happens for sizes other than 30f?
-		// Might need to employ getLineMetrics, but need graphics context...
-		//_fh = (int)Math.floor(_fw * 1.92f);
 		_fh = (int)Math.floor(_fz);
-		//System.err.format("%s ascent=%d descent=%d width=%d height=%d\n", f.getName(), _fa, _fd, _fw, _fh);
 		// leave room for borders...
 		_dim = new Dimension(_fw * 80 + 2 * bd_width, _fh * 25 + 2 * bd_width);
+		//System.err.format("%s ascent=%d width=%d height=%d dim=(%d,%d)\n",
+		//	f.getName(), _fa, _fw, _fh, _dim.width, _dim.height);
 		super.setPreferredSize(_dim);
 	}
 
