@@ -111,7 +111,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			// It is also an IODevice...
 			addDevice(m84x);
 			mem = m84x;
-			nFlpy = 3;
+			nFlpy = 4;
+			needWin = false; // cannot have WD1002!
 		}
 		if (mem == null) {
 			mem = new KayproMemory(props, gpp);
