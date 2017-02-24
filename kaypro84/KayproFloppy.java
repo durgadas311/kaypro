@@ -19,6 +19,7 @@ public class KayproFloppy extends WD1793
 
 	static final int ctrl_DS1N_c = 0x01;
 	static final int ctrl_DS2N_c = 0x02;
+	static final int ctrl_DSxN_c = (ctrl_DS1N_c | ctrl_DS2N_c);
 	static final int ctrl_Side_c = 0x04;
 	static final int ctrl_Motor_c = 0x10;
 	static final int ctrl_SetMFMRecordingN_c = 0x20;
@@ -28,7 +29,7 @@ public class KayproFloppy extends WD1793
 	private LED[] leds_m;
 	private Interruptor intr;
 	private int numDisks_m = 2;
-	private int interesting = ctrl_DS1N_c | ctrl_DS2N_c | ctrl_Side_c |
+	private int interesting = ctrl_DSxN_c | ctrl_Side_c |
 			ctrl_Motor_c | ctrl_SetMFMRecordingN_c;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
@@ -37,8 +38,8 @@ public class KayproFloppy extends WD1793
 		super.setController(this);
 		this.intr = intr;
 		// Caller must know if SASI is installed, and set numDrives
-		if (numDrives > 2) {
-			numDrives = 2;
+		if (numDrives > 4) {
+			numDrives = 4;
 		}
 		if (numDrives < 2) {
 			interesting &= ~ctrl_DS2N_c;
@@ -99,6 +100,17 @@ public class KayproFloppy extends WD1793
 	private int driveNum(int val) {
 		// TODO: must not select "B" if SASI is installed...
 		// ctrl_DS2N_c is used as SASI reset/select
+		if (numDisks_m > 2) {
+			// drive A = 10 -> 00
+			// drive B = 01 -> 01
+			// drive C = 00 -> 10
+			// drive D = 11 -> 11
+			int drv = val | ~ctrl_DSxN_c;	// ensure no borrow
+						// 2 1 0 3
+			drv ^= ctrl_DSxN_c;	// 1 2 3 0
+			drv -= 1;		// 0 1 2 3
+			return (drv & ctrl_DSxN_c);
+		}
 		if ((val & ctrl_DS1N_c) == 0) {
 			return 0;
 		}
@@ -113,7 +125,7 @@ public class KayproFloppy extends WD1793
 		int diff = controlReg_m ^ val;
 		controlReg_m = val;
 		int next = driveNum(controlReg_m);
-		if ((diff & (ctrl_DS1N_c | ctrl_DS2N_c)) != 0) {
+		if ((diff & ctrl_DSxN_c) != 0) {
 			if (prev >= 0 && leds_m[prev] != null) {
 				leds_m[prev].set(false);
 			}
