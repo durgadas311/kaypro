@@ -89,30 +89,45 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			model = "84";
 		}
 
+		// Order of instantiation is vital, establishes interrupt daisy-chain.
 		gpp = new SystemPort(props, this);
 		addDevice(gpp);
 		addDevice(crt);
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
 		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
-		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
-		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
+		boolean needPio = false; // PIO + RTC (+ MODEM)
+		boolean needWin = false;
 		IODevice cpn = null;
 		int nFlpy = 2;
 		if (model.equals("10")) {
-			//addDiskDevice(new KayproSASI(props, lh, this, gpp);
-			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this);
-			addDevice(pio1);
-			addDevice(new MM58167(props, 0x24, pio1.portA()));
-			// addDevice(new TMS99531_2(props, 0x24, pio1.portB(), sio2.portB()));
+			needWin = true;
+			needPio = true;
 			nFlpy = 1;
 		} else if (model.equals("84")) {
+			needPio = true;
+		} else if (model.equals("84X")) {
+			needPio = true;
+			Memory84X m84x = new Memory84X(props, gpp);
+			// It is also an IODevice...
+			addDevice(m84x);
+			mem = m84x;
+			nFlpy = 3;
+		}
+		if (mem == null) {
+			mem = new KayproMemory(props, gpp);
+		}
+		// Order of instantiation is vital, establishes interrupt daisy-chain.
+		// + ---> PIO ---> SIO1 ---> SIO2 ---> WD1002 ---> CPU
+		if (needPio) {
 			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this);
 			addDevice(pio1);
 			addDevice(new MM58167(props, 0x24, pio1.portA()));
 			// addDevice(new TMS99531_2(props, 0x24, pio1.portB(), sio2.portB()));
 		}
-		if (mem == null) {
-			mem = new KayproMemory(props, gpp);
+		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
+		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
+		if (needWin) {
+			//addDiskDevice(new WD1002_05(props, lh, this, gpp));
 		}
 		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		baudA.addBaudListener(sio1.clockA());
@@ -297,7 +312,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		clks.add(lstn);
 	}
 	public void addIntrController(InterruptController ctrl) {
-		// There really should be only zero or one.
+		// Each Z80-compatible IM2 chip may register here.
+		// Order is vital, establishes interrupt daisy-chain.
 		intrs.add(ctrl);
 	}
 	public void waitCPU() {
@@ -510,6 +526,18 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		return vector;
 	}
 
+	public void retIntr(int opCode) {
+		if (opCode != 0x4d) {
+			// TODO: RETN doesn't matter?
+			return;
+		}
+		for (InterruptController ctrl : intrs) {
+			if (ctrl.retIntr()) {
+				return;
+			}
+		}
+	}
+
 	public int inPort(int port) {
 		int val = 0;
 		port &= 0xff;
@@ -562,7 +590,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 				boolean trace = tracing;
 				if (!trace && (traceCycles > 0 ||
 						(PC >= traceLow && PC < traceHigh))) {
-					trace = true;
+					//trace = true;
+					trace = ((gpp.get() & 0x80) == 0);
 				}
 				if (trace) {
 					++traced;

@@ -6,7 +6,7 @@ import java.util.Properties;
 import java.io.*;
 import java.lang.reflect.Constructor;
 
-public class Z80PIO implements IODevice {
+public class Z80PIO implements IODevice, InterruptController {
 	private Interruptor intr;
 	private int src;
 	private int basePort;
@@ -20,6 +20,7 @@ public class Z80PIO implements IODevice {
 		name = String.format("Z80PIO%d", (base >> 3) + 1);
 		this.intr = intr;
 		src = intr.registerINT(0);
+		intr.addIntrController(this);
 		basePort = base;
 		ports[0] = new Z80PIOPort(props, pfxA, 0);
 		ports[1] = new Z80PIOPort(props, pfxB, 1);
@@ -72,6 +73,34 @@ public class Z80PIO implements IODevice {
 
 	public VirtualPPort portA() { return ports[0]; }
 	public VirtualPPort portB() { return ports[1]; }
+
+	public int readDataBus() {
+		if (intrs == 0) {
+			return -1;
+		}
+		int vec = -1;
+		if ((intrs & 1) != 0) {
+			vec = ports[0].readDataBus();
+		} else if ((intrs & 2) != 0) {
+			vec = ports[1].readDataBus();
+		}
+		return vec;
+	}
+
+	public boolean retIntr() {
+		if (intrs == 0) {
+			return false;
+		}
+		if ((intrs & 1) != 0) {
+			ports[0].retIntr();
+		} else if ((intrs & 2) != 0) {
+			ports[1].retIntr();
+		}
+		if (intrs == 0) {
+			intr.lowerINT(0, src);
+		}
+		return true;
+	}
 
 	class Z80PIOPort implements VirtualPPort {
 		private Object attObj;
@@ -174,11 +203,46 @@ public class Z80PIO implements IODevice {
 
 		// Conditions affecting interrupts have changed, ensure proper signal.
 		private void chkIntr() {
-			// TODO: determine interrupt status
-			if (false) {
-				raiseINT(index);
-			} else {
+			int intr = 0;
+			int bits = 0;
+			switch (mode) {
+			case 0:
+			case 2:
+				if (!avail) {
+					intr |= 1;
+				}
+				if (mode == 0) {
+					break;
+				}
+			case 1:
+				if (ready) {
+					intr |= 2;
+				}
+				break;
+			case 3:
+				// RTC example:
+				// EI, OR (!and), HI (high)
+				// disables = 10111111b
+				// data=00000000b => (11111111b != 0xff: intr off)
+				// data=01000000b => (10111111b != 0xff: intr on)
+				if (high) {
+					// convert to active-low
+					bits = ~data;
+				} else {
+					bits = data;
+				}
+				bits |= disables;
+				if (and && bits == disables) {
+					intr |= 4;
+				} else if (!and && bits != 0xff) {
+					intr |= 4;
+				}
+				break;
+			}
+			if (!intrEnable || intr == 0) {
 				lowerINT(index);
+			} else if (intr != 0) {
+				raiseINT(index);
 			}
 		}
 
@@ -232,6 +296,7 @@ public class Z80PIO implements IODevice {
 				if (mask) {
 					mask = false;
 					disables = val & 0xff;
+					chkIntr();
 					return;
 				}
 				if ((val & 1) == 0) {
@@ -248,8 +313,11 @@ public class Z80PIO implements IODevice {
 					and = ((val & 0x40) != 0);
 					high = ((val & 0x20) != 0);
 					mask = ((val & 0x10) != 0);
-					// TODO: reset intr if mask...
-					chkIntr();
+					if (mask) {
+						lowerINT(index);
+					} else {
+						chkIntr();
+					}
 				}
 			}
 		}
@@ -260,6 +328,16 @@ public class Z80PIO implements IODevice {
 			intrEnable = false;
 			mode = 1;
 			inputs = 0xff;
+			disables = 0xff;
+			lowerINT(index);
+		}
+
+		public int readDataBus() {
+			return vec;
+		}
+
+		public void retIntr() {
+			chkIntr(); // normally results in lowerINT(index)
 		}
 
 		////////////////////////////////////////////////////
@@ -280,6 +358,7 @@ public class Z80PIO implements IODevice {
 				val = data;
 				avail = false;
 				// TODO: strobe
+				chkIntr();
 				break;
 			case 1:
 				break;
@@ -316,15 +395,20 @@ public class Z80PIO implements IODevice {
 
 		public String dumpDebug() {
 			String ret = new String();
-			ret += String.format("ch %c, vac = %02x mode = %d, dir = %02x data = %02x\n",
-				index + 'A', vec, mode, inputs, data);
+			ret += String.format("ch %c, vec = %02x mode = %d\n" +
+				"dir = %02x data = %02x\n" +
+				"IE = %s, AND = %s, HI = %s mask = %02x\n" +
+				"avail = %s, ready = %s\n",
+				index + 'A', vec, mode, inputs, data,
+				intrEnable, and, high, disables,
+				avail, ready);
 			return ret;
 		}
 	}
 
 	public String dumpDebug() {
 		String ret = new String();
-		ret += String.format("port %02x\n", basePort);
+		ret += String.format("port %02x intrs = %02x\n", basePort, intrs);
 		ret += ports[0].dumpDebug();
 		ret += ports[1].dumpDebug();
 		return ret;

@@ -1,11 +1,13 @@
 // Copyright 2017 Douglas Miller <durgadas311@gmail.com>
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Properties;
+import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.text.ParsePosition;
 
-public class MM58167 implements IODevice {
+public class MM58167 implements IODevice, ActionListener {
 	private int baseAdr;
 	private VirtualPPort pio = null;
 	private int[] regs;
@@ -14,6 +16,7 @@ public class MM58167 implements IODevice {
 	private int intr;
 	private boolean dirty;
 	private int lastWR;
+	private javax.swing.Timer[] timers;
 
 	public static SimpleDateFormat timestamp =
 		new java.text.SimpleDateFormat("yyyy MM dd F HH:mm:ss.SSS");
@@ -22,7 +25,11 @@ public class MM58167 implements IODevice {
 		baseAdr = base;
 		pio = att;
 		regs = new int[32];
+		timers = new javax.swing.Timer[8];
 		reset();
+		// pretend time already set...
+		getTime();
+		regs[12] = 1; // trick TIME.COM
 	}
 
 	private void getTime() {
@@ -59,6 +66,49 @@ public class MM58167 implements IODevice {
 	}
 
 	private void chkIntr() {
+		// TODO: Not how we do things?
+	}
+
+	// TODO: implement this
+	private int computeTime(int x) {
+		int t = 0;
+		if (x == 0) {
+			// get time from compare regs, subtract 'now', ...
+		} else if (x == 7) {
+			// get current month, compute time to EOM
+		}
+		return t;
+	}
+
+	static final int[] times = new int[] {
+		-1,		// 0: comparator - custom timeout, one-shot(?)
+		100,		// 1: 1/10 second
+		1000,		// 2: 1 second
+		60*1000,	// 3: 1 minute
+		60*60*1000,	// 4: 1 hour
+		24*60*60*1000,	// 5: 1 day
+		7*24*60*60*1000,// 6: 1 week
+		-1,		// 7: TODO: how to manage 1 month...
+	};
+
+	private void setIntr() {
+		for (int x = 0; x < 8; ++x) {
+			if ((regs[0x11] & (1 << x)) == 0) {
+				if (timers[x] != null) {
+					timers[x].stop();
+					timers[x] = null;
+				}
+			} else {
+				if (timers[x] == null) {
+					int t = times[x];
+					if (t < 0) { // comparator...
+						t = computeTime(x);
+					}
+					timers[x] = new javax.swing.Timer(t, this);
+					timers[x].start(); // TODO: try to synchronize?
+				}
+			}
+		}
 	}
 
 	private int getAddr(int port) {
@@ -73,13 +123,14 @@ public class MM58167 implements IODevice {
 
 	public void reset() {
 		Arrays.fill(regs, 0);
+		intr = 0x80;
 		if (pio != null) {
 			// TODO: make bits configurable?
-			pio.put(0x80);
+			pio.put(intr);
 		}
-		intr = 0;
 		off = 0;
 		dirty = false;
+		lastWR = -1;
 	}
 
 	public int getBaseAddress() { return baseAdr; }
@@ -105,7 +156,11 @@ public class MM58167 implements IODevice {
 		if (adr == 0x14) {
 			regs[adr] = 0;
 		}
-		lastWR = adr;
+		if (adr == 0x10) {
+			regs[adr] = 0;
+			intr &= ~0x40;
+			pio.put(intr);
+		}
 		return val;
 	}
 	public void out(int port, int value) {
@@ -119,6 +174,9 @@ public class MM58167 implements IODevice {
 			chkIntr();
 		}
 		switch (adr) {
+		case 0x11:	// Interrupt Control
+			setIntr();
+			break;
 		case 0x12:	// Counters reset
 			if (value == 0xff) {
 				Arrays.fill(regs, 0, 8, 0);
@@ -142,6 +200,18 @@ public class MM58167 implements IODevice {
 			// TODO: support test mode?
 			break;
 
+		}
+	}
+
+	public void actionPerformed(ActionEvent e) {
+		for (int x = 0; x < 8; ++x) {
+			if (e.getSource() != timers[x]) {
+				continue;
+			}
+			regs[0x10] |= (1 << x);
+			intr |= 0x40;
+			pio.put(intr);
+			break;
 		}
 	}
 
