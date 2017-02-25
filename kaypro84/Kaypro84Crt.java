@@ -108,7 +108,7 @@ public class Kaypro84Crt extends KayproCrt
 			halfIntensity = fc.darker().darker();
 		}
 		_fz = fz;
-		timer = new javax.swing.Timer(308, this);
+		timer = new javax.swing.Timer(500, this);
 		timer.start();
 		setBackground(new Color(50,50,50, 255));
 		setOpaque(true);
@@ -378,6 +378,7 @@ public class Kaypro84Crt extends KayproCrt
 
 	public void paint(Graphics g) {
 		super.paint(g);
+		int blnk = blink;
 		if (!crt_en) {
 			return;
 		}
@@ -387,7 +388,7 @@ public class Kaypro84Crt extends KayproCrt
 		}
 		if (curs_rev && curs_on) {
 			synchronized(this) {
-				if ((blink & 0x01) == 0) {
+				if ((blnk & 0x01) == 0) {
 					setChar(curs_a, ram[curs_a] ^ 0x0100);
 				} else {
 					setChar(curs_a, ram[curs_a]);
@@ -395,16 +396,16 @@ public class Kaypro84Crt extends KayproCrt
 			}
 		}
 		paintField(g2d, lines);
-		if ((blink & 0x02) != 0) {
+		if ((blnk & 0x02) != 0) {
 			paintField(g2d, blinks);
 		}
 		g2d.setColor(halfIntensity);
 		paintField(g2d, halfint);
-		if ((blink & 0x02) != 0) {
+		if ((blnk & 0x02) != 0) {
 			paintField(g2d, halfblnk);
 		}
 		g2d.setColor(getForeground());
-		if (!curs_rev && ((blink & 0x01) == 0) && curs_on) {
+		if (!curs_rev && ((blnk & 0x01) == 0) && curs_on) {
 			// TODO: is cursor solid or rev-video?
 			g2d.fillRect(curs_x * _fw + bd_width,
 				curs_y * _fh + bd_width + curs_s,
