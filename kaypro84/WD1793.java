@@ -546,11 +546,14 @@ public class WD1793 implements ClockListener {
 			statusReg_m &= ~stat_Busy_c;
 		} else if (drive != null) {
 			// no Command running, update status.
-			// try more-surgical repair of status register.
-			statusReg_m &= ~stat_SeekError_c;
-			statusReg_m &= ~stat_CRCError_c;
-			// if previous command was Tyype II or III, need to clear
-			// stat_LostData_c and stat_DataRequest_c ? But not if Type I.
+			statusReg_m = stat_Busy_c;
+			updateReady(drive);
+			if (drive.getTrackZero()) {
+				statusReg_m |= stat_TrackZero_c;
+			}
+			if (drive.getIndexPulse()) {
+				statusReg_m |= stat_IndexPulse_c;
+			}
 		} else {
 			//System.err.format("Type IV with no drive\n");
 			statusReg_m &= ~stat_SeekError_c;

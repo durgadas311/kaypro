@@ -13,9 +13,9 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 	public Memory84X(Properties props, SystemPort gpio) {
 		super(props);
 		gpp = gpio;
+		mem = new byte[256*1024];
 		// rely entirely on notifications for 'rom' value.
 		gpp.addGppListener(this);
-		mem = new byte[256*1024];
 	}
 
 	public int read(int address) {
@@ -76,7 +76,7 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 	}
 
 	public String dumpDebug() {
-		String str = String.format("rom=%s comm=%05x rd=%d wr=%d\n",
+		String str = String.format("rom=%s comm=%04x rd=%d wr=%d\n",
 			rom, commPage, rdBank, wrBank);
 		return str;
 	}
