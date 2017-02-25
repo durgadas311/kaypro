@@ -5,6 +5,8 @@ IndexOrderDefault Descending Date
 AddDescription "Kaypro Schematic by Micro Cornucopia" KayproSchematic.pdf
 AddDescription "Kaypro Theory of Operation by Micro Cornucopia" KayproOperation.pdf
 AddDescription "Kaypro Addendum to User's Guide" KayproAddendum.pdf
-AddDescription "The Virtual Kaypro" VirtualKaypro.jar
+AddDescription "The Virtual Kaypro Computer" VirtualKaypro.jar
 AddDescription "Virtual Kaypro Source Code" vkaypro.tgz
+AddDescription "Virtual Z80 Source Code" z80cpu.tgz
+AddDescription "Virtual Diablo 630 Printer Source Code" diablo630.tgz
 AddDescription "Virtual Kaypro Diskettes (see index.txt)" disks

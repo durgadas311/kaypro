@@ -32,11 +32,22 @@ z80cpu/z80core.jar:
 diablo630/Diablo630Embedded.jar:
 	make -C diablo630 Diablo630Embedded.jar
 
+jar: VirtualKaypro.jar
+
 src:
 	cd ..; tar -czf kaypro84/vkaypro.tgz kaypro84/Makefile \
 		kaypro84/*.java \
 		kaypro84/*.rom \
 		kaypro84/*.ttf \
 		kaypro84/*.wav
+
+www: __FRC__
+	rsync -Wuv www/*.* durgadas.com:/http/durgadas.com/sims/kaypro
+	rsync -rWuv www/downloads/. durgadas.com:/http/durgadas.com/sebhc/kaypro/.
+	rsync -rWuv ../disks/. durgadas.com:/http/durgadas.com/sebhc/kaypro/disks/.
+
+ship:
+	rsync -Wuv *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
+		durgadas.com:/http/durgadas.com/sebhc/kaypro
 
 __FRC__:
