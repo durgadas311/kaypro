@@ -1,0 +1,71 @@
+<HTML>
+<HEAD>
+<TITLE>Virtual Kaypro 84X Computer</TITLE>
+</HEAD>
+<BODY>
+<H2>Virtual Kaypro 84X Computer</H2>
+
+<IMG SRC="kaypro84X-1.png">
+
+<P>Because of my past experience at Magnolia Microsystems, I was
+not satisfied with a computer that had only 2 floppies and merely ran CP/M 2.2.
+So I worked up a series of modifications to expand the system.
+(I currently can't find the schematics)
+
+<H3>Memory Modification</H3>
+
+<P>I acquired some 256Kx1 DRAM chips, which were pin-compatible with the
+existing 64Kx1 chips on the board, having one new pin for the extra 2 address
+signals (DRAM of the era multiplexed address lines using CAS and RAS signals).
+I then added a 8-bit output port at (unused) I/O address 0x3c-0x3f.
+The top 4 bits fed into a comparator circuit that was used to select
+the "common page boundary". Bits 2, 3 were used to select the WR bank and
+bits 0, 1 were the RD bank - allowing direct inter-bank copies.
+Each of these pairs of address bits were multiplexed
+using CAS/RAS and then selected based on memory RD or WR and fed to the new address
+pin on the 256K DRAM chips (previously unused pin). That provided a simple,
+but flexible and powerful (for that era), memoru management unit.
+The following table describes how common page boundary was selected.
+
+<P><TABLE BORDER>
+<TR><TH>8</TH><TH>7</TH><TH>6</TH><TH>5</TH><TH>Boundary</TH><TH>Banked Size</TH></TR>
+<TR><TD>1</TD><TD>1</TD><TD>1</TD><TD>1</TD><TD>F000</TD><TD>60K</TD></TR>
+<TR><TD>1</TD><TD>1</TD><TD>1</TD><TD>0</TD><TD>E000</TD><TD>56K</TD></TR>
+<TR><TD>1</TD><TD>1</TD><TD>0</TD><TD>0</TD><TD>C000</TD><TD>48K</TD></TR>
+<TR><TD>1</TD><TD>0</TD><TD>0</TD><TD>0</TD><TD>8000</TD><TD>32K</TD></TR>
+</TABLE>
+
+The above memory arrangements all result in some wasted memory, as the
+memory above the common page boundary in banks other than "0" could
+not be accessed. But, it divided memory up into 4 banks that could be
+easily used to implement CP/M Plus (CP/M 3) or MP/M-II.
+
+<H3>Floppy Modification</H3>
+
+<P>The modification for more than 2 floppies was a bit simpler.
+It involved adding a decoder IC to the existing 2 floppy select bits,
+turning the former into a 4-way select. Some additional circuitry was added,
+as I recall, to help avoid potential multiple select. I only had one extra
+drive, so the prior "no drives selected" state still resulted in no drive
+being selected.
+
+<H3>Fully Populated Motherboard</H3>
+
+<P>The original motherboard was only partially populated, missing at least the modem
+and RTC chips (possibly the Z80-IPO also). I added the RTC (and PIO) so that
+CP/M Plus could have a time source.
+
+<H3>Software</H3>
+
+<P>To simplify the initial version, the ROM BIOS was not used at all.
+There are provisions in the code to use the ROM for the CRT, which would reduce the
+size of the BNKBIOS, but that was not tested.
+
+<P>The basic structure of the software is based on Magnolia Microsystem's
+CP/M Plus implementations, using a BNKBIOS made up of linkable modules
+(.REL files as produced by RMAC).
+It also supported several diskette formats from the H89 realm
+(without the need for patching the OS with MFDISK).
+
+</BODY>
+</HTML>
