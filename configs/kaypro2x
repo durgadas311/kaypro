@@ -1,9 +1,8 @@
 # Kaypro 2X - as purchased Aug 1984
 kaypro_model = 2x
+monitor_rom = 81-292a.rom
 
 floppy_drive1 = FDD_5_25_DS_ST A
 floppy_drive2 = FDD_5_25_DS_ST B
 
-monitor_rom = 81-292a.rom
-floppy_disk1 = kaypro-cpm22g.logdisk rw
-floppy_disk2 = work1.logdisk rw
+#floppy_disk1 = kaypro-cpm22g.logdisk rw

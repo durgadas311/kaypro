@@ -10,3 +10,4 @@ AddDescription "Virtual Kaypro Source Code" vkaypro.tgz
 AddDescription "Virtual Z80 Source Code" z80cpu.tgz
 AddDescription "Virtual Diablo 630 Printer Source Code" diablo630.tgz
 AddDescription "Virtual Kaypro Diskettes (see index.txt)" disks
+AddDescription "Example Virtual Kaypro Config Files" configs

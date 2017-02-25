@@ -1,9 +1,8 @@
 # Kaypro 2X with upgraded motherboard - ~Oct 1986
 kaypro_model = 84
+#monitor_rom = 81-478a.rom # default
 
 floppy_drive1 = FDD_5_25_DS_ST A
 floppy_drive2 = FDD_5_25_DS_ST B
 
-#monitor_rom = 81-478a.rom # default
-floppy_disk1 = kaypro-cpm22u.logdisk rw
-floppy_disk2 = work2.logdisk rw
+#floppy_disk1 = kaypro-cpm22u.logdisk rw
