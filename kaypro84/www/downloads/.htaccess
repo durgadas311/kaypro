@@ -7,3 +7,4 @@ AddDescription "Kaypro Theory of Operation by Micro Cornucopia" KayproOperation.
 AddDescription "Kaypro Addendum to User's Guide" KayproAddendum.pdf
 AddDescription "The Virtual Kaypro" VirtualKaypro.jar
 AddDescription "Virtual Kaypro Source Code" vkaypro.tgz
+AddDescription "Virtual Kaypro Diskettes (see index.txt)" disks
