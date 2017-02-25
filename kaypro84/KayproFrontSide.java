@@ -214,16 +214,35 @@ class LEDPanel extends JPanel {
 	public LEDPanel(int w, int h, int rows, Color bg) {
 		super();
 		panes = new LEDPane[rows];
-		setLayout(new GridLayout(rows + 1, 1));
+		GridBagLayout gb = new GridBagLayout();
+		GridBagConstraints gc = new GridBagConstraints();
+		gc.fill = GridBagConstraints.NONE;
+		gc.gridx = 0;
+		gc.gridy = 0;
+		gc.weightx = 0;
+		gc.weighty = 0;
+		gc.gridwidth = 1;
+		gc.gridheight = 1;
+		setLayout(gb);
 		setOpaque(false);
 		setPreferredSize(new Dimension(w, h));
 		for (int y = 0; y < rows; ++y) {
 			LEDPane pn = new LEDPane(bg);
-			add(pn);
-			panes[y] = pn;
 			if (y == 0) {
-				add(new KayproPowerLED(w, h / 3, font));
+				pn.setPreferredSize(new Dimension(w, h / 3));
+				gb.setConstraints(pn, gc);
+				add(pn);
+				++gc.gridy;
+				KayproPowerLED kp = new KayproPowerLED(w, h / 3, font);
+				gb.setConstraints(kp, gc);
+				add(kp);
+			} else {
+				pn.setPreferredSize(new Dimension(w, h / 3 / (rows - 1)));
+				gb.setConstraints(pn, gc);
+				add(pn);
 			}
+			panes[y] = pn;
+			++gc.gridy;
 		}
 	}
 
@@ -352,7 +371,8 @@ public class KayproFrontSide extends JPanel
 		int nmwid = width / 3;
 		int nmhgh = height;
 
-		_ledspace = new LEDPanel(nmwid - 20, dim.height, 2,
+		// TODO: scan properties and count number of drives?
+		_ledspace = new LEDPanel(nmwid - 20, dim.height, 4,
 					getBackground().brighter());
 		_ledy = 0;
 		gc.gridx = 3;
