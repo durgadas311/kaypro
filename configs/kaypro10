@@ -1,0 +1,5 @@
+kaypro_model = 10
+monitor_rom = 81-302c.rom
+
+wd1002_drive1 = ST412
+floppy_drive1 = FDD_5_25_DS_ST

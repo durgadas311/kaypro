@@ -89,6 +89,13 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			model = "84";
 		}
 
+		s = props.getProperty("kaypro_trace");
+		if (s != null) {
+			Vector<String> ret = new Vector<String>();
+			traceCommand(s.split("\\s"), ret, ret);
+			// TODO: log error?
+		}
+
 		// Order of instantiation is vital, establishes interrupt daisy-chain.
 		gpp = new SystemPort(props, this);
 		addDevice(gpp);
@@ -128,7 +135,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
 		Z80SIO sio2 = new Z80SIO(props, "aux", "modem", 0x0c, this);
 		if (needWin) {
-			//addDiskDevice(new WD1002_05(props, lh, this, gpp));
+			addDiskDevice(new WD1002_05(props, lh, this, gpp));
 		}
 		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		baudA.addBaudListener(sio1.clockA());
@@ -591,8 +598,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 				boolean trace = tracing;
 				if (!trace && (traceCycles > 0 ||
 						(PC >= traceLow && PC < traceHigh))) {
-					//trace = true;
-					trace = ((gpp.get() & 0x80) == 0);
+					trace = true;
+					//trace = ((gpp.get() & 0x80) == 0);
 				}
 				if (trace) {
 					++traced;

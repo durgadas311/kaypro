@@ -694,7 +694,7 @@ public class WD1793 implements ClockListener {
 			return;
 		}
 		charPos = drive.getCharPos(ctrl.doubleDensity());
-		if (charPos == curPos_m) {
+		if (drive.isReady() && charPos == curPos_m) {
 			// Position hasn't changed just return
 			return;
 		}
