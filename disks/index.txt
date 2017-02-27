@@ -7,6 +7,13 @@ kaypro-cpm22g.logdisk:
 drm-cpm310.logdisk:
 	Custom CP/M 3 for modified hardware (ROM ?)
 
+WD1002-0.blank:
+	Black ST412 harddisk for WD1002
+
+WD1002-0.installed:
+	ST412 harddisk for WD1002, after running 2.2H "auto load".
+	(some verify errors occured during PIP)
+
 kay10a08.logdisk:
 	IMD 1.05: 23/09/2005  0:53:19
 	Kaypro 10 PC (Perfect Calc?)
