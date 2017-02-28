@@ -3,7 +3,7 @@
 import java.awt.*;
 import javax.swing.*;
 
-public class LED extends JPanel {
+public abstract class LED extends JPanel {
 	public static enum Colors { RED, AMBER, YELLOW, GREEN };
 	private static final Color btnRedOff = new Color(50, 0, 0);
 	private static final Color btnRedOn = new Color(255, 0, 0);
@@ -14,16 +14,8 @@ public class LED extends JPanel {
 	private static final Color btnGreenOff = new Color(0, 80, 0);
 	private static final Color btnGreenOn = new Color(0, 255, 0);
 
-	private Color off;
-	private Color on;
-
-	public LED() {
-		super();
-		off = btnRedOff;
-		on = btnRedOn;
-		setBackground(off);
-		setPreferredSize(new Dimension(16, 8));
-	}
+	protected Color off;
+	protected Color on;
 
 	public LED(Colors color) {
 		super();
@@ -48,23 +40,7 @@ public class LED extends JPanel {
 			on = btnGreenOn;
 			break;
 		}
-		setBackground(off);
-		setPreferredSize(new Dimension(16, 8));
 	}
 
-	public static JPanel blank() {
-		JPanel pn = new JPanel();
-		pn.setPreferredSize(new Dimension(16, 8));
-		pn.setOpaque(false);
-		return pn;
-	}
-
-	public void set(boolean onf) {
-		if (onf) {
-			setBackground(on);
-		} else {
-			setBackground(off);
-		}
-		repaint();
-	}
+	public abstract void set(boolean onf);
 }

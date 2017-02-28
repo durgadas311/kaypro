@@ -8,43 +8,61 @@ import java.util.Map;
 import java.util.HashMap;
 import javax.swing.border.*;
 
-class KayproPowerLED extends JPanel {
-	int height;
-	int width;
-	int vcenter;
+class LabeledRectLED extends LEDPane {
 	LED led;
-	public KayproPowerLED(int wd, int ht, Font ft) {
-		super();
+	public LabeledRectLED(int wd, int ht, Color bg,
+			Font ft, String lbl, LED.Colors clr) {
+		super(bg);
 		setPreferredSize(new Dimension(wd, ht));
 		setFont(ft);
-		setOpaque(false);
-		setForeground(Color.white);
-		width = wd;
-		height = ht;
-		vcenter = ht / 2;
-		led = new RoundLED(LED.Colors.RED);
-		led.set(true);
+		setForeground(Color.black);
+		JPanel pn = new JPanel();
+		pn.setPreferredSize(new Dimension(wd, 30));
+		pn.setOpaque(false);
+		add(pn);
+		led = new VRectLED(clr);
+		add(led);
+		JLabel lb = new JLabel(lbl);
+		lb.setPreferredSize(new Dimension(wd, 15));
+		lb.setHorizontalAlignment(SwingConstants.CENTER);
+		add(lb);
 	}
-	public void paint(Graphics g) {
-		super.paint(g);
-		Graphics2D g2d = (Graphics2D)g;
-		g2d.addRenderingHints(new RenderingHints(
-			RenderingHints.KEY_ANTIALIASING,
-			RenderingHints.VALUE_ANTIALIAS_ON));
-		g2d.drawString("~", 20, vcenter - 20);
-		g2d.drawString("POWER", 0, vcenter + 20);
-		g2d.translate(18, vcenter - 16);
-		led.paint(g2d);
-	}
+	public LED getLED() { return led; }
 }
 
-class LEDPanel extends JPanel {
-	LEDPane[] panes;
-	public static final Font font = new Font("Monospaced", Font.BOLD, 16);
+class LabeledRoundLED extends LEDPane {
+	LED led;
+	public LabeledRoundLED(int wd, int ht, Color bg,
+			Font ft, String[] lbl, LED.Colors clr) {
+		super(bg);
+		setPreferredSize(new Dimension(wd, ht));
+		setForeground(Color.black);
+		JPanel pn = new JPanel();
+		pn.setPreferredSize(new Dimension(wd, 15));
+		pn.setOpaque(false);
+		add(pn);
+		led = new RoundLED(clr);
+		add(led);
+		for (int x = 0; x < lbl.length; ++x) {
+			JLabel lb = new JLabel(lbl[x]);
+			lb.setFont(ft);
+			lb.setPreferredSize(new Dimension(wd, ft.getSize()));
+			lb.setHorizontalAlignment(SwingConstants.CENTER);
+			add(lb);
+		}
+	}
+	public LED getLED() { return led; }
+}
 
-	public LEDPanel(int w, int h, int rows, Color bg) {
+class K10LEDPanel extends JPanel {
+	LEDPane[] panes;
+	LED[] leds;
+	public static final Font font = new Font("Monospaced", Font.BOLD, 12);
+
+	public K10LEDPanel(int w, int h, int rows, Color bg, Color bh) {
 		super();
 		panes = new LEDPane[rows];
+		leds = new LED[rows];
 		GridBagLayout gb = new GridBagLayout();
 		GridBagConstraints gc = new GridBagConstraints();
 		gc.fill = GridBagConstraints.NONE;
@@ -55,26 +73,32 @@ class LEDPanel extends JPanel {
 		gc.gridwidth = 1;
 		gc.gridheight = 1;
 		setLayout(gb);
-		setOpaque(false);
+		setOpaque(true);
+		setBackground(bg);
 		setPreferredSize(new Dimension(w, h));
-		for (int y = 0; y < rows; ++y) {
-			LEDPane pn = new LEDPane(bg);
-			if (y == 0) {
-				pn.setPreferredSize(new Dimension(w, h / 3));
-				gb.setConstraints(pn, gc);
-				add(pn);
-				++gc.gridy;
-				KayproPowerLED kp = new KayproPowerLED(w, h / 3, font);
-				gb.setConstraints(kp, gc);
-				add(kp);
-			} else {
-				pn.setPreferredSize(new Dimension(w, h / 3 / (rows - 1)));
-				gb.setConstraints(pn, gc);
-				add(pn);
-			}
-			panes[y] = pn;
-			++gc.gridy;
-		}
+		LabeledRoundLED kp = new LabeledRoundLED(w / 3, h, bh, font,
+			new String[]{"POWER"}, LED.Colors.RED);
+		kp.getLED().set(true);
+		gb.setConstraints(kp, gc);
+		add(kp);
+		++gc.gridx;
+		LabeledRoundLED led1 = new LabeledRoundLED(w / 3, h, bh, font,
+			new String[]{"10 MB", "READY"}, LED.Colors.RED);
+		gb.setConstraints(led1, gc);
+		add(led1);
+		++gc.gridx;
+		LabeledRectLED led2 = new LabeledRectLED(w / 3, h, bh, font, "floppy", LED.Colors.RED);
+		gb.setConstraints(led2, gc);
+		add(led2);
+		++gc.gridx;
+		panes[0] = led1;
+		leds[0] = led1.getLED();
+		panes[1] = led2;
+		leds[1] = led2.getLED();
+	}
+
+	public LED getLED(int row) {
+		return leds[row];
 	}
 
 	public LEDPane getPane(int row) {
@@ -104,7 +128,7 @@ class LEDPanel extends JPanel {
 				continue;
 			}
 			JLabel lb = (JLabel)pn.getComponent(0);
-			lb.setText(String.format(fmt, lb.getText()));
+			//lb.setText(String.format(fmt, lb.getText()));
 		}
 	}
 
@@ -115,20 +139,18 @@ class LEDPanel extends JPanel {
 			int n = pn.getComponentCount();
 			if (n <= 0 || n >= num) continue;
 			for (int x = n; x < num; ++x) {
-				JPanel p = new JPanel();
-				p.setPreferredSize(RectLED.getDim());
-				pn.add(p);
+				//pn.add(LED.blank());
 			}
 		}
 	}
 }
 
-public class KayproFrontSide extends JPanel
+public class Kaypro10FrontSide extends JPanel
 		implements LEDHandler {
 	static final long serialVersionUID = 198900000004L;
 
 	BezelRoundedRectangle _crtshape;
-	LEDPanel _ledspace;
+	K10LEDPanel _ledspace;
 	int _ledy;
 	int _ledmax = 1;
 	int _ledwid = 5;
@@ -138,7 +160,7 @@ public class KayproFrontSide extends JPanel
 	int width, height;
 	int offset;
 
-	public KayproFrontSide(JFrame main, JPanel crt,
+	public Kaypro10FrontSide(JFrame main, JPanel crt,
 			Properties props) {
 		super();
 		if (props == null) {}
@@ -168,7 +190,7 @@ public class KayproFrontSide extends JPanel
 		pan.setPreferredSize(new Dimension(gaps, gaps));
 		pan.setOpaque(false);
 		gc.gridx = 0;
-		gc.gridwidth = 5;
+		gc.gridwidth = 3;
 		gridbag.setConstraints(pan, gc);
 		gc.gridwidth = 1;
 		add(pan);
@@ -204,20 +226,19 @@ public class KayproFrontSide extends JPanel
 		int nmwid = width / 3;
 		int nmhgh = height;
 
+		
 		// TODO: scan properties and count number of drives?
-		_ledspace = new LEDPanel(nmwid - 20, dim.height, 4,
-					getBackground().brighter());
+		_ledspace = new K10LEDPanel(nmwid, dim.height + 2 * (gaps + offset), 2,
+					new Color(200, 200, 255),
+					new Color(220, 220, 255));
 		_ledy = 0;
+		gc.gridheight = 3;
 		gc.gridx = 3;
+		gc.gridy = 0;
 		gridbag.setConstraints(_ledspace, gc);
 		add(_ledspace);
-
-		pan = new JPanel();
-		pan.setPreferredSize(new Dimension(gaps, gaps));
-		pan.setOpaque(false);
-		gc.gridx = 4;
-		gridbag.setConstraints(pan, gc);
-		add(pan);
+		gc.gridy = 1;
+		gc.gridheight = 1;
 
 		++gc.gridy;
 		gc.gridx = 0;
@@ -225,7 +246,7 @@ public class KayproFrontSide extends JPanel
 		pan = new JPanel();
 		pan.setPreferredSize(new Dimension(gaps, gaps));
 		pan.setOpaque(false);
-		gc.gridwidth = 5;
+		gc.gridwidth = 3;
 		gridbag.setConstraints(pan, gc);
 		gc.gridwidth = 1;
 		add(pan);
@@ -244,41 +265,16 @@ public class KayproFrontSide extends JPanel
 		return registerLED(drive, LED.Colors.RED);
 	}
 
+	// TODO: how to allow more LEDs, per-device and per-system
 	public LED[] registerLEDs(String drive, int num, LED.Colors[] colors) {
 		LED[] leds = new LED[num];
-		if (_ledmax < num) {
-			_ledmax = num;
-			_ledspace.rePad(num);
-		}
-		if (drive.length() > 20) {
-			drive = drive.substring(0, 20);
-		}
-		if (drive.length() > _ledwid) {
-			_ledwid = drive.length();
-			_ledfmt = String.format("%%%ds", _ledwid);
-			_ledspace.reFmt(_ledfmt);
-		}
-		LEDPane pn = _ledspace.getPane(_ledy++);
+		int x = _ledy++;
+		LEDPane pn = _ledspace.getPane(x);
 		if (pn != null) {
 			pn.setName(drive);
-			JLabel lb = new JLabel(String.format(_ledfmt, drive));
-			lb.setForeground(Color.white);
-			lb.setFont(LEDPanel.font);
-			pn.add(lb);
+			leds[0] = _ledspace.getLED(x);
 		}
-		for (int x = 0; x < num; ++x) {
-			leds[x] = new RectLED(colors[x]);
-			if (pn != null) {
-				pn.add(leds[x]);
-			}
-		}
-		if (pn != null) {
-			for (int x = num; x < _ledmax; ++x) {
-				JPanel p = new JPanel();
-				p.setPreferredSize(RectLED.getDim());
-				pn.add(p);
-			}
-		}
+		// TODO: might return zero LEDs, a problem for drevices.
 		return leds;
 	}
 }
