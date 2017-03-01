@@ -450,6 +450,21 @@ public class Kaypro84Crt extends KayproCrt
 			b = e = line;
 		}
 		// TODO: extract character and format into lines...
+		int a = (regs[12] << 8) | regs[13];
+		int nr = regs[6];
+		int nc = regs[1];
+		for (; b < e; ++b) {
+			for (int x = 0; x < nc; ++x) {
+				int c = ram[a] & 0x0ff;
+				if (c > '~' || c < ' ') {
+					c = '.';
+				}
+				str += (char)c;
+				++a;
+				a &= 0x07ff;
+			}
+			str += '\n';
+		}
 		return str;
 	}
 
