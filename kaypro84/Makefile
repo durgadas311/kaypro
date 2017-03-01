@@ -6,7 +6,7 @@ CLASSES = $(subst .java,.class,$(JAVAS))
 all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 
 %.class: %.java
-	javac -cp $(CLASS_PATH) $?
+	javac -source 1.7 -target 1.7 -cp $(CLASS_PATH) $?
 
 run:
 	java -cp $(CLASS_PATH) VirtualKaypro

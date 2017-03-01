@@ -1,7 +1,6 @@
 // Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
 
-import java.io.InputStream;
-import java.io.FileInputStream;
+import java.io.*;
 import java.util.Properties;
 
 public class KayproRoms {
@@ -13,19 +12,20 @@ public class KayproRoms {
 		String s = props.getProperty("monitor_rom");
 		if (s == null) {
 			System.err.format("No Monitor ROM specified, using 81-478a\n");
+			s = "81-478a.rom";
+		}
+		try {
+			fi = new FileInputStream(s);
+		} catch (FileNotFoundException nf) {
 			try {
-				fi = this.getClass().getResourceAsStream("81-478a.rom");
+				fi = this.getClass().getResourceAsStream(s);
 			} catch (Exception ee) {
 				ee.printStackTrace();
 				System.exit(1);
 			}
-		} else {
-			try {
-				fi = new FileInputStream(s);
-			} catch (Exception ee) {
-				ee.printStackTrace();
-				System.exit(1);
-			}
+		} catch (Exception ee) {
+			ee.printStackTrace();
+			System.exit(1);
 		}
 		try {
 			// TODO: check for power-of-two and viable ROM sizes
