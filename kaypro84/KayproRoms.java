@@ -7,12 +7,12 @@ public class KayproRoms {
 	protected byte[] mon; // 2K or 4K at 0x0000
 	protected int monMask;
 
-	public KayproRoms(Properties props) {
+	public KayproRoms(Properties props, String defRom) {
 		InputStream fi = null;
 		String s = props.getProperty("monitor_rom");
 		if (s == null) {
-			System.err.format("No Monitor ROM specified, using 81-478a\n");
-			s = "81-478a.rom";
+			System.err.format("No Monitor ROM specified, using %s\n", defRom);
+			s = defRom;
 		}
 		try {
 			fi = new FileInputStream(s);

@@ -44,11 +44,11 @@ src:
 www: __FRC__
 	rsync -Wuv www/*.* durgadas.com:/http/durgadas.com/sims/kaypro
 	rsync -rWuv www/downloads/. durgadas.com:/http/durgadas.com/sebhc/kaypro/.
-	rsync -rWuv ../disks/. durgadas.com:/http/durgadas.com/sebhc/kaypro/disks/.
-	rsync -rWuv ../configs/. durgadas.com:/http/durgadas.com/sebhc/kaypro/configs/.
 
 ship:
 	rsync -Wuv *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
 		durgadas.com:/http/durgadas.com/sebhc/kaypro
+	rsync -rWuv ../disks/. durgadas.com:/http/durgadas.com/sebhc/kaypro/disks/.
+	rsync -rWuv ../configs/. durgadas.com:/http/durgadas.com/sebhc/kaypro/configs/.
 
 __FRC__:

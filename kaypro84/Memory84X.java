@@ -10,8 +10,8 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 	private int wrBank;
 	private int rdBank;
 
-	public Memory84X(Properties props, SystemPort gpio) {
-		super(props);
+	public Memory84X(Properties props, SystemPort gpio, String defrom) {
+		super(props, defrom);
 		gpp = gpio;
 		mem = new byte[256*1024];
 		// rely entirely on notifications for 'rom' value.

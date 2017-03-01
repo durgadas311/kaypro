@@ -8,8 +8,8 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 	private byte[] mem;
 	private boolean rom;
 
-	public KayproMemory(Properties props, SystemPort gpio) {
-		super(props);
+	public KayproMemory(Properties props, SystemPort gpio, String defrom) {
+		super(props, defrom);
 		gpp = gpio;
 		// rely entirely on notifications for 'rom' value.
 		gpp.addGppListener(this);

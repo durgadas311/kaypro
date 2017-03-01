@@ -106,23 +106,28 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		boolean needWin = false;
 		IODevice cpn = null;
 		int nFlpy = 2;
+		String defRom = "81-478a.rom";	// The "Universal ROM" (CP/M 2.2u)
 		if (model.equals("10")) {
+			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
 			needWin = true;
 			needPio = true;
 			nFlpy = 1;
 		} else if (model.equals("84")) {
 			needPio = true;
-		} else if (model.equals("84X")) {
+		} else if (model.equalsIgnoreCase("84X")) {
+			defRom = "81-292a.rom";	// reqd for CP/M 2.20d loader
 			needPio = true;
-			Memory84X m84x = new Memory84X(props, gpp);
 			// It is also an IODevice...
+			Memory84X m84x = new Memory84X(props, gpp, defRom);
 			addDevice(m84x);
 			mem = m84x;
 			nFlpy = 4;
 			needWin = false; // cannot have WD1002!
+		} else if (model.equalsIgnoreCase("2X")) {
+			defRom = "81-292a.rom";	// reqd for CP/M 2.2G
 		}
 		if (mem == null) {
-			mem = new KayproMemory(props, gpp);
+			mem = new KayproMemory(props, gpp, defRom);
 		}
 		// Order of instantiation is vital, establishes interrupt daisy-chain.
 		// + ---> PIO ---> SIO1 ---> SIO2 ---> WD1002 ---> CPU
