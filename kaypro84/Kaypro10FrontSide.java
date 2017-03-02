@@ -17,7 +17,7 @@ class LabeledRectLED extends LEDPane {
 		setFont(ft);
 		setForeground(Color.black);
 		JPanel pn = new JPanel();
-		pn.setPreferredSize(new Dimension(wd, 30));
+		pn.setPreferredSize(new Dimension(wd, 60));
 		pn.setOpaque(false);
 		add(pn);
 		led = new VRectLED(clr);
@@ -36,7 +36,7 @@ class LabeledRoundLED extends LEDPane {
 			Font ft, String[] lbl, LED.Colors clr) {
 		super(bg);
 		setPreferredSize(new Dimension(wd, ht));
-		setForeground(Color.black);
+		setForeground(Color.white);
 		JPanel pn = new JPanel();
 		pn.setPreferredSize(new Dimension(wd, 15));
 		pn.setOpaque(false);
@@ -46,7 +46,8 @@ class LabeledRoundLED extends LEDPane {
 		for (int x = 0; x < lbl.length; ++x) {
 			JLabel lb = new JLabel(lbl[x]);
 			lb.setFont(ft);
-			lb.setPreferredSize(new Dimension(wd, ft.getSize()));
+			lb.setForeground(Color.white);
+			lb.setPreferredSize(new Dimension(wd, ft.getSize() - 2));
 			lb.setHorizontalAlignment(SwingConstants.CENTER);
 			add(lb);
 		}
@@ -57,10 +58,22 @@ class LabeledRoundLED extends LEDPane {
 class K10LEDPanel extends JPanel {
 	LEDPane[] panes;
 	LED[] leds;
-	public static final Font font = new Font("Monospaced", Font.BOLD, 12);
+	public static final Font font = new Font("SansSerif", Font.BOLD, 10);
+	// From photo, BG = new Color(141, 156, 163);
+	// From photo, LN = new Color(193, 206, 214);
+	Color bg;
+	Color ln;
+	int wd;
+	int ht;
+	int dh;
 
 	public K10LEDPanel(int w, int h, int rows, Color bg, Color bh) {
 		super();
+		wd = w;
+		ht = h;
+		dh = ht / 12;
+		this.bg = bg;
+		ln = bg.brighter();
 		panes = new LEDPane[rows];
 		leds = new LED[rows];
 		GridBagLayout gb = new GridBagLayout();
@@ -73,8 +86,7 @@ class K10LEDPanel extends JPanel {
 		gc.gridwidth = 1;
 		gc.gridheight = 1;
 		setLayout(gb);
-		setOpaque(true);
-		setBackground(bg);
+		setOpaque(false); // background painted by this, not JPanel
 		setPreferredSize(new Dimension(w, h));
 		LabeledRoundLED kp = new LabeledRoundLED(w / 3, h, bh, font,
 			new String[]{"POWER"}, LED.Colors.RED);
@@ -95,6 +107,17 @@ class K10LEDPanel extends JPanel {
 		leds[0] = led1.getLED();
 		panes[1] = led2;
 		leds[1] = led2.getLED();
+	}
+
+	public void paint(Graphics g) {
+		Graphics2D g2d = (Graphics2D)g;
+		g2d.setColor(bg);
+		g2d.fillRect(0, 0, wd, ht);
+		g2d.setColor(ln);
+		for (int y = 32; y < ht; y += dh) {
+			g2d.drawLine(0, y, wd, y);
+		}
+		super.paint(g);
 	}
 
 	public LED getLED(int row) {
@@ -229,8 +252,8 @@ public class Kaypro10FrontSide extends JPanel
 		
 		// TODO: scan properties and count number of drives?
 		_ledspace = new K10LEDPanel(nmwid, dim.height + 2 * (gaps + offset), 2,
-					new Color(200, 200, 255),
-					new Color(220, 220, 255));
+					new Color(141, 156, 163),
+					new Color(161, 176, 183, 128));
 		_ledy = 0;
 		gc.gridheight = 3;
 		gc.gridx = 3;
