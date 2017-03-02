@@ -110,7 +110,15 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (model.equals("10")) {
 			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
 			needWin = true;
-			needPio = true;
+			needPio = false; // No RTC (PIO) in model 10...
+			nFlpy = 1;
+		} else if (model.equals("10X")) {
+			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
+			needWin = true;
+			needPio = true;	// not authentic...
+			Memory84X m84x = new Memory84X(props, gpp, defRom);
+			addDevice(m84x);
+			mem = m84x;
 			nFlpy = 1;
 		} else if (model.equals("84")) {
 			needPio = true;
