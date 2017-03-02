@@ -279,7 +279,9 @@ public class Kaypro84Crt extends KayproCrt
 
 	private char chr2Font(int ch) {
 		ch &= 0x09ff;
-		ch += (ch & 0x0100); // move rev-vid bit over one
+		if (ch > 0xff) {
+			ch |= 0xe000;
+		}
 		return (char)ch;
 	}
 
