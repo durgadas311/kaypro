@@ -29,16 +29,22 @@ having the newer "universal" 81-478 ROM and requring CP/M 2.2u.
 <P>Base hardware is currently 2 Z80-SIOs (serial data, keyboard, serial printer, modem),
 with two WD1943 Baud generators, WD1793 Floppy Disk Controller, System Port,
 Centronics Parallel Printer Port, MC6845-based CRT Controller.
+I seem to recall that the built-in modem had problems, and was
+probably obsolete soon after release, which may explain why many machines did not
+have it.
 The following models are currently supported:
 
 <P><TABLE BORDER>
 <TR><TH>model</TH><TH>additional<BR>hardware</TH><TH>default ROM</TH><TR>
 <TR><TD>2X</TD><TD>(none)</TD><TD>81-292a</TD><TR>
-<TR><TD>84</TD><TD>Z80-PIO<BR>MM58167 RTC<BR>TODO: Modem</TD><TD>81-478a</TD><TR>
+<TR><TD>84</TD><TD>Z80-PIO<BR>MM58167 RTC</TD><TD>81-478a</TD><TR>
 <TR><TD><A HREF="kaypro84X.html">84X</A></TD>
 	<TD>Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU<BR>4 Floppy Drives</TD><TD>81-292a</TD><TR>
-<TR><TD>10</TD><TD>Z80-PIO<BR>MM58167 RTC<BR>TODO: Modem</TD><TD>81-302c</TD><TR>
-<TR><TD>10X</TD><TD>Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU<BR>TODO: Modem</TD><TD>TBD</TD><TR>
+<TR><TD><A HREF="kaypro10.html">10</A></TD>
+	<TD>WD1002 Winchester<BR>Controller<BR>ST412 Hard Disk</TD><TD>81-302c</TD><TR>
+<TR><TD>10X</TD><TD>
+	WD1002 Winchester<BR>Controller<BR>ST412 Hard Disk<BR>
+Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU</TD><TD>TBD</TD><TR>
 </TABLE>
 <P>Default ROM may be overridden with config property.
 <P>Note that models 84X and 10X were never actual products.
@@ -60,6 +66,11 @@ The jar looks for "vkayprorc" in the current directory,
 then ".vkayprorc" in the user's home directory.
 This may be overridden by specifying the path to a config
 file in the environment variable "KAYPRO_CONFIG".
+<P>The display (CRT) is implemented using a TrueType font derived from the
+character generator ROM (81-187/81-235). However, the original video
+aspect ratio was about 1:1.2 and this cannot be cleanly displayed
+using pixel-sized features. The result is a feature aspect ratio of 1:1
+which results in a wider/shorter screen than the original hardware.
 <P>
 The virtual computer jar, and source code, is available on this
 <A HREF="http://sebhc.durgadas.com/kaypro">download page</A>.
