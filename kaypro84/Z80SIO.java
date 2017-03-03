@@ -279,10 +279,17 @@ public class Z80SIO implements IODevice {
 			int x = port & 1;
 			val &= 0xff; // necessary?
 			if (x == 0) {	// data
-				synchronized(this) {
-					fifo.add(val);
-					rr[0] &= ~rr0_txp_c;
-					chkIntr();
+				if (attFile != null) {
+					try {
+						attFile.write(val);
+					} catch (Exception ee) {}
+				}
+				if (attFile == null || !excl) {
+					synchronized(this) {
+						fifo.add(val);
+						rr[0] &= ~rr0_txp_c;
+						chkIntr();
+					}
 				}
 			} else {	// control
 				int r = wr[0] & 0x07;
@@ -331,6 +338,9 @@ public class Z80SIO implements IODevice {
 						break;
 					}
 				}
+				// TODO: implement notification of modem lines...
+				// attached object needs callback. Perhaps
+				// combine with data stream via OOB values.
 			}
 		}
 
@@ -411,6 +421,8 @@ public class Z80SIO implements IODevice {
 		}
 
 		public boolean ready() {
+			// TODO: allow some buffering?
+			// return (fifi.size() < N);
 			return (rr[0] & rr0_rxr_c) != 0;
 		}
 		// Must NOT sleep
@@ -422,7 +434,8 @@ public class Z80SIO implements IODevice {
 			chkIntr();
 		}
 		public void setBaud(int baud) {
-			// TODO: implement something
+			// TODO: implement something.
+			// Needed for SYNC modes.
 		}
 
 		public void setModem(int mdm) {
