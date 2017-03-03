@@ -19,10 +19,9 @@ public class Kaypro84Crt extends KayproCrt
 	static final int vcrdat = base + 1;
 	static final int vcdata = base + 3;
 
-	// Unclear just when the MC6845 was used vs. SY6545.
 	static final int sts_Update = 0x80;
-	static final int sts_LtPen = 0x40;	// SY6545 only
-	static final int sts_VBlnk = 0x20;	// SY6545 only
+	static final int sts_LtPen = 0x40;
+	static final int sts_VBlnk = 0x20;
 
 	char[] lines = new char[2048];
 	char[] blinks = new char[2048];
@@ -76,7 +75,7 @@ public class Kaypro84Crt extends KayproCrt
 		0xff,	// R15
 		0x3f,	// R16
 		0xff,	// R17
-		0x3f,	// R18	(is 81-189 same as MC6845?)
+		0x3f,	// R18
 		0xff,	// R19
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff,
@@ -173,6 +172,7 @@ public class Kaypro84Crt extends KayproCrt
 	public void reset() {
 		crt_en = false;
 		Arrays.fill(regs, 0);
+		status = sts_VBlnk;	// always on is OK?
 	}
 
 	public int getBaseAddress() {
@@ -187,6 +187,7 @@ public class Kaypro84Crt extends KayproCrt
 		int val = 0;
 		switch(port) {
 		case vcstat:
+			// TODO: determine proper handling of Update bit
 			val = status | sts_Update;
 			status &= 0x7f;
 			break;
@@ -215,7 +216,7 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	public String getDeviceName() {
-		return "MC6845";
+		return "SY6545";
 	}
 
 	public String dumpDebug() {

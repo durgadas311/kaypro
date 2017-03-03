@@ -28,7 +28,7 @@ having the newer "universal" 81-478 ROM and requring CP/M 2.2u.
 
 <P>Base hardware is currently 2 Z80-SIOs (serial data, keyboard, serial printer, modem),
 with two WD1943 Baud generators, WD1793 Floppy Disk Controller, System Port,
-Centronics Parallel Printer Port, MC6845-based CRT Controller.
+Centronics Parallel Printer Port, SY6545-based CRT Controller.
 I seem to recall that the built-in modem had problems, and was
 probably obsolete soon after release, which may explain why many machines did not
 have it.
@@ -54,9 +54,7 @@ and are all capable of running with the "universal ROM".
 Models 2X (2/84) and 4/84 used the same motherboard, with some parts
 left out in the case of 2X. Model 10 used a different motherboard
 but was generally software compatible. The model 10 was incapable of
-hosting a built-in modem, and used the SY6545 CRT controller which seems
-to be software-compatible with the combination of MC6845 plus 81-189 Gate Array
-used in the others.
+hosting a built-in modem.
 Other (older) models do not have the same level of compatability,
 and may be developed as virtual hardware is created and/or software is available.
 Currently, there are no restrictions on what ROM is used.
