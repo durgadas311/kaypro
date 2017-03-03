@@ -36,6 +36,12 @@ public class MM58167 implements IODevice, ActionListener {
 		long time = off + new Date().getTime();
 		Date dt = new Date(time);
 		String tod = timestamp.format(dt);
+		// Setup year for CP/M 3...
+		regs[10] = ((tod.charAt(0) & 0x0f) << 4) |
+			(tod.charAt(1) & 0x0f);
+		regs[9] = ((tod.charAt(2) & 0x0f) << 4) |
+			(tod.charAt(3) & 0x0f);
+		// Standard RTC regs
 		regs[7] = ((tod.charAt(5) & 0x0f) << 4) |
 			(tod.charAt(6) & 0x0f);
 		regs[6] = ((tod.charAt(8) & 0x0f) << 4) |
