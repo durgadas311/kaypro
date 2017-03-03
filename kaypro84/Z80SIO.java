@@ -22,8 +22,8 @@ public class Z80SIO implements IODevice {
 		this.intr = intr;
 		src = intr.registerINT(0);
 		basePort = base;
-		ports[0] = new Z80SIOPort(props, pfxA, 0);
-		ports[1] = new Z80SIOPort(props, pfxB, 1);
+		ports[0] = new Z80SIOPort(props, pfxA, 0, null);
+		ports[1] = new Z80SIOPort(props, pfxB, 1, ports[0]);
 		reset();
 	}
 
@@ -76,6 +76,31 @@ public class Z80SIO implements IODevice {
 	public VirtualUART portB() { return ports[1]; }
 	public BaudListener clockB() { return ports[1]; }
 
+	public int readDataBus() {
+		if (intrs == 0) {
+			return -1;
+		}
+		int vec = -1;
+		// Only Ch B has the vector, but either may interrupt...
+		vec = ports[1].readDataBus();
+		return vec;
+	}
+
+	public boolean retIntr() {
+		if (intrs == 0) {
+			return false;
+		}
+		if ((intrs & 1) != 0) {
+			ports[0].retIntr();
+		} else if ((intrs & 2) != 0) {
+			ports[1].retIntr();
+		}
+		if (intrs == 0) {
+			intr.lowerINT(0, src);
+		}
+		return true;
+	}
+
 	class Z80SIOPort implements VirtualUART, BaudListener {
 		private java.util.concurrent.LinkedBlockingDeque<Integer> fifo;
 		private java.util.concurrent.LinkedBlockingDeque<Integer> fifi;
@@ -102,8 +127,11 @@ public class Z80SIO implements IODevice {
 		private long nanoBaud = 0; // length of char in nanoseconds
 		private int bits; // bits per character
 		private int index;
+		private Z80SIOPort chA; // null on Ch A
+		private int intrs;
 
-		public Z80SIOPort(Properties props, String pfx, int idx) {
+		public Z80SIOPort(Properties props, String pfx, int idx, Z80SIOPort alt) {
+			chA = alt;
 			attObj = null;
 			attFile = null;
 			index = idx;
@@ -186,8 +214,32 @@ public class Z80SIO implements IODevice {
 
 		// Conditions affecting interrupts have changed, ensure proper signal.
 		private void chkIntr() {
+			int intr = 0;
 			// TODO: determine interrupt status
-			if (false) {
+			// TODO: "first char" handling needed?
+			if ((wr[1] & 0x18) != 0 && (rr[0] & rr0_rxr_c) != 0) {
+				intr |= 1;
+			}
+			if ((wr[1] & 0x02) != 0 && (rr[0] & rr0_txp_c) != 0) {
+				intr |= 2;
+			}
+			// TODO: external status detection
+			if ((wr[1] & 0x01) != 0 && (rr[0] & 0xf8) != 0) {
+				intr |= 4;
+			}
+			// TODO: special receive condition detection
+			// TODO: exclude parity if bit set...
+			if ((wr[1] & 0x18) != 0 && (rr[1] & 0xf0) != 0) {
+				intr |= 8;
+			}
+			// TODO: check diffs?
+			updateIntr(intr);
+		}
+
+		private void updateIntr(int intr) {
+			intrs = intr;
+			// TODO: set Ch A RR[0] bit D1...
+			if (intrs != 0) {
 				raiseINT(index);
 			} else {
 				lowerINT(index);
@@ -211,6 +263,9 @@ public class Z80SIO implements IODevice {
 				}
 			} else {	// control
 				int r = wr[0] & 0x07;
+				if (r == 2) {
+					setRR2();
+				}
 				val = rr[r] & 0xff;
 				if (r != 0) {
 					wr[0] &= ~0x07;
@@ -236,6 +291,46 @@ public class Z80SIO implements IODevice {
 					wr[0] &= ~0x07;
 				}
 				// TODO: check for required updates...
+				if (r == 0) {
+					switch ((val >> 3) & 7) {
+					case 0:
+						break;
+					case 1:
+						break;
+					case 2:
+						updateIntr(intrs & ~4);
+						// TODO: clear latched state?
+						break;
+					case 3:
+						reset(); // right?
+						break;
+					case 4:
+						// TODO: INT on next Rx char
+						break;
+					case 5:
+						updateIntr(intrs & ~2);
+						break;
+					case 6:
+						// TODO: reset error bits
+						break;
+					case 7:
+						retIntr(); // Ch A only...
+						break;
+					}
+					switch ((val >> 6) & 3) {
+					case 0:
+						break;
+					case 1:
+						// TODO: reset Rx CRC
+						break;
+					case 2:
+						// TODO: reset Tx CRC
+						break;
+					case 3:
+						// TODO: reset Tx Underrun/EOM
+						break;
+					}
+				}
 			}
 		}
 
@@ -245,6 +340,51 @@ public class Z80SIO implements IODevice {
 			Arrays.fill(wr, (byte)0);
 			Arrays.fill(rr, (byte)0);
 			rr[0] |= rr0_txp_c;
+			updateIntr(0);
+			// TODO: chkIntr()? must exclude TxE
+		}
+
+		private int getIntr() {
+			int ret = -1;
+			if ((intrs & 1) != 0) {	// Receive
+				ret = 0b00000100;
+			} else if ((intrs & 2) != 0) {	// Transmit
+				ret = 0b00000000;
+			} else if ((intrs & 4) != 0) { // Ext/Status
+				ret = 0b00000010;
+			} else if ((intrs & 8) != 0) { // Special Rcv
+				ret = 0b00000110;
+			}
+			return -1;
+		}
+
+		private void setRR2() {
+			if (chA == null) {
+				return;
+			}
+			rr[2] = wr[2];
+			if ((wr[1] & 0x02) == 0) { // not status-affects-vector
+				return;
+			}
+			rr[2] &= 0b11110001;
+			int mod = chA.getIntr();
+			if (mod < 0) {
+				mod = getIntr() + 0b00001000;
+			}
+			if (mod < 0) {
+				mod = 0b00000110;
+			}
+			rr[2] |= (byte)mod;
+		}
+
+		// Only called on Ch B (!)
+		public int readDataBus() {
+			setRR2();
+			return rr[2];
+		}
+
+		public void retIntr() {
+			chkIntr();
 		}
 
 		////////////////////////////////////////////////////
@@ -294,6 +434,7 @@ public class Z80SIO implements IODevice {
 			if ((mdm & VirtualUART.SET_DCD) != 0) {
 				nuw |= rr0_dcd_c;
 			}
+			// TODO: these bits latch, must maintain separate static state...
 			rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
 			rr[0] |= nuw;
 			// TODO: must make this thread-safe...
