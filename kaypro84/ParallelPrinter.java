@@ -7,6 +7,7 @@ import java.io.*;
 import java.awt.event.*;
 import javax.swing.*;
 import java.lang.reflect.Constructor;
+import java.util.concurrent.Semaphore;
 
 public class ParallelPrinter
 		implements IODevice, GppListener, GppProvider, VirtualPPort {
@@ -18,9 +19,11 @@ public class ParallelPrinter
 	private Object attObj;
 	private OutputStream attFile;
 	private boolean excl = true;
+	private Semaphore wait;
 
 	public ParallelPrinter(Properties props, SystemPort gpio) {
 		strobe = false; // actually, must follow GPIO...
+		wait = new Semaphore(0);
 		String s = props.getProperty("pprinter_att");
 		if (s != null && s.length() > 1) {
 			if (s.charAt(0) == '>') { // redirect output to file
@@ -134,7 +137,7 @@ public class ParallelPrinter
 			}
 			if (attFile == null || !excl) {
 				strobe = true;
-				// TODO: wakeup...
+				wait.release();
 			}
 		}
 	}
@@ -144,10 +147,10 @@ public class ParallelPrinter
 	}
 
 	public int take(boolean sleep) {
+		wait.drainPermits();
 		while (sleep && !strobe) {
-			// TODO: sleep...
 			try {
-				Thread.sleep(10);
+				wait.acquire();
 			} catch (Exception ee) {}
 		}
 		int val = data;
