@@ -7,7 +7,7 @@ import java.awt.event.*;
 import javax.swing.*;
 
 public class ParallelPrinter
-		implements IODevice, GppListener, VirtualPPort {
+		implements IODevice, GppListener, GppProvider, VirtualPPort {
 	static final int ctrl_PRSTB_c = 0x08;
 	static final int ctrl_PRBSY_c = 0x40;	// "1" == "Busy"
 
@@ -18,7 +18,7 @@ public class ParallelPrinter
 	public ParallelPrinter(Properties props, SystemPort gpio) {
 		strobe = false; // actually, must follow GPIO...
 		gpio.addGppListener(this);
-		// gpio.addGppSource(this); // TODO: create this interface
+		gpio.addGppProvider(this);
 		// TODO: scan properties for attached device
 		reset();
 	}
@@ -48,9 +48,8 @@ public class ParallelPrinter
 		return ctrl_PRSTB_c;
 	}
 
-	// TODO: create this interface...
-	public int gppRead(int val) {
-		return (val & ~ctrl_PRBSY_c) | (busy ? ctrl_PRBSY_c : 0);
+	public int gppInputs() {
+		return (busy ? ctrl_PRBSY_c : 0);
 	}
 
 	public void gppNewValue(int gpio) {

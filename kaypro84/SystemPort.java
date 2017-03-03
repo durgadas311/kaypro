@@ -4,15 +4,16 @@ import java.util.Vector;
 import java.util.Properties;
 
 public class SystemPort implements IODevice {
-	private int gpi;
 	private int gpo;
 	private Interruptor intr;
 	private Vector<GppListener> notif;
+	private Vector<GppProvider> inps;
+	static final int inputs = 0x40;
 
 	public SystemPort(Properties props, Interruptor intr) {
 		this.intr = intr;
-		gpi = 0;
 		notif = new Vector<GppListener>();
+		inps = new Vector<GppProvider>();
 		reset();
 	}
 
@@ -38,8 +39,11 @@ public class SystemPort implements IODevice {
 
 	public int in(int port) {
 		// check port?
-		// TODO: how to get PRSTB...
-		return (gpo & ~0x40) | (gpi & 0x40);
+		int val = gpo & ~inputs;
+		for (GppProvider inp : inps) {
+			val |= (inp.gppInputs() & inputs);
+		}
+		return val;
 	}
 	public void out(int port, int value) {
 		// check port?
@@ -58,6 +62,10 @@ public class SystemPort implements IODevice {
 				lstn.gppNewValue(gpo);
 			}
 		}
+	}
+
+	public void addGppProvider(GppProvider inp) {
+		inps.add(inp);
 	}
 
 	public void addGppListener(GppListener lstn) {
