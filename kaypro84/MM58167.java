@@ -2,6 +2,8 @@
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Properties;
 import java.awt.event.*;
 import java.text.SimpleDateFormat;
@@ -19,7 +21,21 @@ public class MM58167 implements IODevice, ActionListener {
 	private javax.swing.Timer[] timers;
 
 	public static SimpleDateFormat timestamp =
-		new java.text.SimpleDateFormat("yyyy MM dd F HH:mm:ss.SSS");
+		new java.text.SimpleDateFormat("yyyy MM dd EEE HH:mm:ss.SSS");
+	private static Map<String, Integer> wdays;
+	static {
+		wdays = new HashMap<String, Integer>();
+		wdays.put("Sun", 0);
+		wdays.put("Mon", 1);
+		wdays.put("Tue", 2);
+		wdays.put("Wed", 3);
+		wdays.put("Thu", 4);
+		wdays.put("Fri", 5);
+		wdays.put("Sat", 6);
+	}
+	private static String[] xdays = new String[]{
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sat"
+	};
 
 	public MM58167(Properties pros, int base, VirtualPPort att) {
 		baseAdr = base;
@@ -46,25 +62,31 @@ public class MM58167 implements IODevice, ActionListener {
 			(tod.charAt(6) & 0x0f);
 		regs[6] = ((tod.charAt(8) & 0x0f) << 4) |
 			(tod.charAt(9) & 0x0f);
-		regs[5] = (tod.charAt(11) & 0x0f) + 1;
-		regs[4] = ((tod.charAt(13) & 0x0f) << 4) |
-			(tod.charAt(14) & 0x0f);
-		regs[3] = ((tod.charAt(16) & 0x0f) << 4) |
-			(tod.charAt(17) & 0x0f);
-		regs[2] = ((tod.charAt(19) & 0x0f) << 4) |
-			(tod.charAt(20) & 0x0f);
-		regs[1] = ((tod.charAt(22) & 0x0f) << 4) |
-			(tod.charAt(23) & 0x0f);
-		regs[0] = (tod.charAt(24) & 0x0f) << 4;
+		Integer w = wdays.get(tod.substring(11, 14));
+		if (w == null) {
+			regs[5] = 0;
+		} else {
+			regs[5] = w;
+		}
+		regs[4] = ((tod.charAt(15) & 0x0f) << 4) |
+			(tod.charAt(16) & 0x0f);
+		regs[3] = ((tod.charAt(18) & 0x0f) << 4) |
+			(tod.charAt(19) & 0x0f);
+		regs[2] = ((tod.charAt(21) & 0x0f) << 4) |
+			(tod.charAt(22) & 0x0f);
+		regs[1] = ((tod.charAt(24) & 0x0f) << 4) |
+			(tod.charAt(25) & 0x0f);
+		regs[0] = (tod.charAt(26) & 0x0f) << 4;
 		dirty = false;
 	}
 
 	private void setTime() {
+		// TODO: get year from regs[9:10] ?
 		Date now = new Date();
 		String t = timestamp.format(now);
 		String tod = t.substring(0, 5) +
-			String.format("%02x %02x %d %02x:%02x:%02x.%02x%d",
-				regs[7], regs[6], regs[5] - 1, regs[4],
+			String.format("%02x %02x %s %02x:%02x:%02x.%02x%d",
+				regs[7], regs[6], xdays[regs[5] & 7], regs[4],
 				regs[3], regs[2], regs[1], regs[0] >> 4);
 		Date dt = timestamp.parse(tod, new ParsePosition(0));
 		off = now.getTime() - dt.getTime();
