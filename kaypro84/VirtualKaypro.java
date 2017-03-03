@@ -13,6 +13,9 @@ public class VirtualKaypro {
 		Properties props = new Properties();
 		String config;
 		config = System.getenv("KAYPRO_CONFIG");
+		if (args.length > 0) {
+			config = args[0];
+		}
 		if (config == null) {
 			config = "vkayprorc";
 			File f = new File(config);

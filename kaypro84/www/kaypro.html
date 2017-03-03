@@ -36,8 +36,8 @@ The following models are currently supported:
 
 <P><TABLE BORDER>
 <TR><TH>model</TH><TH>additional<BR>hardware</TH><TH>default ROM</TH><TR>
-<TR><TD>2X</TD><TD>(none)</TD><TD>81-292a</TD><TR>
-<TR><TD>84</TD><TD>Z80-PIO<BR>MM58167 RTC</TD><TD>81-478a</TD><TR>
+<TR><TD>2X (2/84)</TD><TD>(none)</TD><TD>81-292a</TD><TR>
+<TR><TD>84 (4/84)</TD><TD>Z80-PIO<BR>MM58167 RTC<BR>TODO: Modem</TD><TD>81-478a</TD><TR>
 <TR><TD><A HREF="kaypro84X.html">84X</A></TD>
 	<TD>Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU<BR>4 Floppy Drives</TD><TD>81-292a</TD><TR>
 <TR><TD><A HREF="kaypro10.html">10</A></TD>
@@ -51,7 +51,14 @@ Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU</TD><TD>TBD</TD><TR>
 Model 10X never existed in real hardware.
 <P>All of these models seemed to have similar/compatible hardware, 
 and are all capable of running with the "universal ROM".
-Other models may be developed as virtual hardware is created.
+Models 2X (2/84) and 4/84 used the same motherboard, with some parts
+left out in the case of 2X. Model 10 used a different motherboard
+but was generally software compatible. The model 10 was incapable of
+hosting a built-in modem, and used the SY6545 CRT controller which seems
+to be software-compatible with the combination of MC6845 plus 81-189 Gate Array
+used in the others.
+Other (older) models do not have the same level of compatability,
+and may be developed as virtual hardware is created and/or software is available.
 Currently, there are no restrictions on what ROM is used.
 The user must ensure the CP/M version is compatible.
 <P><TABLE BORDER>
@@ -60,12 +67,19 @@ The user must ensure the CP/M version is compatible.
 <TR><TD>81-302c</TD><TD>2.2H</TD></TR>
 <TR><TD>81-478a</TD><TD>2.2u</TD></TR>
 </TABLE>
-<P>Computer is configured using a "properties file", plain text.
+<P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
+were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
+plus the ROMs changed how they interpret the boot loader sector
+(e.g. 81-478a requires a checksum on the
+boot sector which older boot images do not have).
+
+<P>The Virtual Computer is configured using a "properties file", plain text.
 The downloads page has some examples in the "configs" subdirectory.
 The jar looks for "vkayprorc" in the current directory,
 then ".vkayprorc" in the user's home directory.
 This may be overridden by specifying the path to a config
-file in the environment variable "KAYPRO_CONFIG".
+file in the environment variable "KAYPRO_CONFIG"
+or as the first commandline argument.
 <P>The display (CRT) is implemented using a TrueType font derived from the
 character generator ROM (81-187/81-235). However, the original video
 aspect ratio was about 1:1.2 and this cannot be cleanly displayed

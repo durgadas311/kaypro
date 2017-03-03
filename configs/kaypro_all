@@ -1,0 +1,46 @@
+# Example showing all properties, with defaults, all commented-out
+#kaypro_log = (stderr)
+#	Log Java messages to file
+#kaypro_model = "84"
+#	Kaypro machine model. "2/84", "2X", etc.
+#kaypro_font = Kaypro84.ttf
+#	TrueType font to use. Depends on CRT model.
+#	For current models, must have special characters encoding:
+#		\u0020-\u00ff: Char Gen 20-FF (graphics 80-FF)
+#		\u0100-\u011f: Char Gen 00-1F (greek)
+#		\ue100-\ue1ff: Char Gen 00-FF Reverse Video
+#		\ue800-\ue8ff: Char Gen 00-FF Underlined
+#		\ue900-\ue9ff: Char Gen 00-FF Rev Vid + Undl
+#kaypro_font_size = 16
+#	Font height. Must be multiple of 16 for decent
+#	results.
+#kaypro_font_color = 00ff00
+#	Color for normal video
+#kaypro_font_color2 = (kaypro_font_color.darker().darker())
+#	Color for Half-Intensity
+#kaypro_trace = (none)
+#	Debug CPU tracing for early execution
+#kaypro_disas = MAC80
+#	Instruction mnemonic style for trace.
+#kaypro_beep = kpbeep.wav
+#	WAV file to use for ASCII BEL (^G) sound
+#kaypro_beep_volume = 50
+#	Audio volume setting for beep (%)
+#monitor_rom = (varies by model)
+#	ROM image to use
+#floppy_drive[1-4] = (none)
+#	Type of floppy drive, and label for menu. Max drive varies with model.
+#	See (tbd).
+#floppy_disk[1-4] = (none)
+#	Diskette image to load at start. Max drive varies with model.
+#	See (tbd).
+#wd1002_drive1 = ST412
+#	Winchester harddisk model (may require software changes).
+#	Only one drive currently supported.
+#data_att = (special)
+#kbd_att = (special)
+#aux_att = (special)
+#modem_att = (special)
+#	Attach object (device) to serial port. See (tbd).
+#pprinter_att = (special)
+#	Attach object (device) to parallel printer port. See (tbd).

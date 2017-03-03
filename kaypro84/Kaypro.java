@@ -120,9 +120,11 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			addDevice(m84x);
 			mem = m84x;
 			nFlpy = 1;
-		} else if (model.equals("84")) {
+		} else if (model.equals("84") ||
+				model.equals("4/84")) {
 			needPio = true;
-		} else if (model.equalsIgnoreCase("84X")) {
+		} else if (model.equalsIgnoreCase("84X") ||
+				model.equalsIgnoreCase("2XX")) {
 			defRom = "81-292a.rom";	// reqd for CP/M 2.20d loader
 			needPio = true;
 			// It is also an IODevice...
@@ -131,7 +133,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			mem = m84x;
 			nFlpy = 4;
 			needWin = false; // cannot have WD1002!
-		} else if (model.equalsIgnoreCase("2X")) {
+		} else if (model.equalsIgnoreCase("2X") ||
+				model.equals("2/84")) {
 			defRom = "81-292a.rom";	// reqd for CP/M 2.2G
 		}
 		if (mem == null) {
