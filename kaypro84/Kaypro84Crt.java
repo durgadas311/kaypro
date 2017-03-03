@@ -221,11 +221,13 @@ public class Kaypro84Crt extends KayproCrt
 
 	public String dumpDebug() {
 		String str = String.format(
+			" status=%02x command=%02x\n" +
 			" R0=%02x  R1=%02x  R2=%02x  R3=%02x\n" +
 			" R4=%02x  R5=%02x  R6=%02x  R7=%02x\n" +
 			" R8=%02x  R9=%02x R10=%02x R11=%02x\n" +
 			"R12=%02x R13=%02x R14=%02x R15=%02x\n" +
 			"R16=%02x R17=%02x R18=%02x R19=%02x\n",
+			status, curReg,
 			regs[0], regs[1], regs[2], regs[3],
 			regs[4], regs[5], regs[6], regs[7],
 			regs[8], regs[9], regs[10], regs[11],
