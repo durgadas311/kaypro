@@ -18,6 +18,12 @@ public class Kaypro84Crt extends KayproCrt
 	static final int vcstat = base;
 	static final int vcrdat = base + 1;
 	static final int vcdata = base + 3;
+
+	// Unclear just when the MC6845 was used vs. SY6545.
+	static final int sts_Update = 0x80;
+	static final int sts_LtPen = 0x40;	// SY6545 only
+	static final int sts_VBlnk = 0x20;	// SY6545 only
+
 	char[] lines = new char[2048];
 	char[] blinks = new char[2048];
 	char[] halfint = new char[2048];
@@ -181,7 +187,7 @@ public class Kaypro84Crt extends KayproCrt
 		int val = 0;
 		switch(port) {
 		case vcstat:
-			val = status | 0x80;
+			val = status | sts_Update;
 			status &= 0x7f;
 			break;
 		case vcrdat:
@@ -237,7 +243,7 @@ public class Kaypro84Crt extends KayproCrt
 				repaint();
 			} else {
 			}
-			status |= 0x80;
+			status |= sts_Update;
 		}
 	}
 
@@ -274,7 +280,11 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	private int get_vcrdat() {
-		return regs[curReg];
+		int val = regs[curReg];
+		if (curReg == 16 || curReg == 17) {
+			status &= ~sts_LtPen;
+		}
+		return val;
 	}
 
 	private char chr2Font(int ch) {
@@ -415,13 +425,34 @@ public class Kaypro84Crt extends KayproCrt
 		}
 	}
 
+	private int getAddress(Point p) {
+		int sa = (regs[12] << 8) | regs[13];
+		int x = (int)p.getX();
+		int y = (int)p.getY();
+		sa += (y * regs[1] + x);
+		sa &= 0x07ff;
+		return sa;
+	}
+
 	private String getRegion(Point p0, Point p1) {
 		String s = "";
-		int x0 = (int)p0.getX();
-		int y0 = (int)p0.getY();
-		int x1 = regs[1];
-		int y1 = (int)p1.getY();
-		// TODO: extract character and format into lines...
+		p1.setLocation(regs[1], (int)p1.getY());
+		int x = (int)p0.getX();
+		int a0 = getAddress(p0);
+		int a1 = getAddress(p1);
+		while (a0 != a1) {
+			int c = ram[a0] & 0x0ff;
+			if (c > '~' || c < ' ') {
+				c = '.';
+			}
+			s += (char)c;
+			if (++x >= regs[1]) {
+				s += '\n';
+				x = 0;
+			}
+			++a0;
+			a0 &= 0x07ff;
+		}
 		return s;
 	}
 
@@ -499,6 +530,15 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	public void mouseClicked(MouseEvent e) {
+		if (e.getButton() == MouseEvent.BUTTON3) {
+			// Light Pen...
+			Point p = charStart(e.getPoint());
+			int a = getAddress(p);
+			regs[16] = (a >> 8) & 0xff;
+			regs[17] = (a & 0xff);
+			status |= sts_LtPen;
+			return;
+		}
 		if (e.getButton() != MouseEvent.BUTTON2) {
 			return;
 		}
