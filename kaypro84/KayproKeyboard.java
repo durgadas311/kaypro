@@ -63,6 +63,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				//beep.setLoopPoints(0, loop);
 			} catch (Exception e) {
 				//e.printStackTrace();
+				beep = null;
 				return;
 			}
 			int volume = 50;

@@ -144,8 +144,11 @@ public class ParallelPrinter
 	}
 
 	public int take(boolean sleep) {
-		if (sleep && !strobe) {
+		while (sleep && !strobe) {
 			// TODO: sleep...
+			try {
+				Thread.sleep(10);
+			} catch (Exception ee) {}
 		}
 		int val = data;
 		strobe = false;
