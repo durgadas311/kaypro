@@ -14,6 +14,73 @@ WD1002-0.installed:
 	ST412 harddisk for WD1002, after running 2.2H "auto load".
 	(some verify errors occured during PIP)
 
+##### Disks to install the Kaypro 10 Winchester #####
+k10hald1.logdisk:
+	09/24/2003 10:51:23
+	Kaypro 10
+	Autoload Diskette #1
+	  CP/M 2.2H and Utilities
+
+k10hald2.logdisk:
+	09/24/2003 10:57:35
+	Kaypro 10
+	Autoload Diskette #2
+	  Wordstar and Mailmerge V3.3
+	    Micropro International Corp
+	    The Word Plus
+	    Wayne Holder, dba Oasis Systems
+
+k10hald3.logdisk:
+	09/24/2003 11:40:15
+	Kaypro 10
+	Autoload Diskette #3
+	  Microplan
+	    Chang Laboratories
+	  Microsoft BASIC 80 and selected games
+	    Microsoft, Inc.
+
+k10hald4.logdisk:
+	09/24/2003 11:50:31
+	Kaypro 10
+	Autoload Diskette #4
+	  C-BASIC
+	    Digital Research
+	  S-BASIC
+	    Kaypro Corp
+
+k10hald5.logdisk:
+	09/24/2003 19:40:56
+	Kaypro 10
+	Autoload Diskette #5
+	  Automite and Mite
+	    Mycroft Labs, Inc.
+	    Kaypro Corp
+
+k10hald6.logdisk:
+	09/24/2003 12:15:37
+	Kaypro 10
+	Autoload Diskette #6
+	  Datastar Version 1.45
+	  Infostar Version 1.02
+	  Reportstar
+	  Calcstar
+	    MicroPro International Corp.
+
+k10hald7.logdisk:
+	09/24/2003 18:06:46
+	Kaypro 10
+	Autoload Diskette #7
+	  dBase II Lessons
+	    Ashton-Tate
+
+k10hald8.logdisk:
+	09/24/2003 19:11:55
+	Kaypro 10
+	Autoload Diskette #8
+	  dBase II System
+	    Ashton-Tate
+#####################################################
+
 kay10a08.logdisk:
 	IMD 1.05: 23/09/2005  0:53:19
 	Kaypro 10 PC (Perfect Calc?)
@@ -83,69 +150,3 @@ kay10b0b.logdisk:
 	IMD 1.05: 23/09/2005  1:00:45
 	Kaypro 10 Games Disk 2 of 2
 	User 0 on Drive "B"
-
-k10hald1.logdisk:
-	09/24/2003 10:51:23
-	Kaypro 10
-	Autoload Diskette #1
-	  CP/M 2.2H and Utilities
-
-k10hald2.logdisk:
-	09/24/2003 10:57:35
-	Kaypro 10
-	Autoload Diskette #2
-	  Wordstar and Mailmerge V3.3
-	    Micropro International Corp
-	    The Word Plus
-	    Wayne Holder, dba Oasis Systems
-
-k10hald3.logdisk:
-	09/24/2003 11:40:15
-	Kaypro 10
-	Autoload Diskette #3
-	  Microplan
-	    Chang Laboratories
-	  Microsoft BASIC 80 and selected games
-	    Microsoft, Inc.
-
-k10hald4.logdisk:
-	09/24/2003 11:50:31
-	Kaypro 10
-	Autoload Diskette #4
-	  C-BASIC
-	    Digital Research
-	  S-BASIC
-	    Kaypro Corp
-
-k10hald5.logdisk:
-	09/24/2003 19:40:56
-	Kaypro 10
-	Autoload Diskette #5
-	  Automite and Mite
-	    Mycroft Labs, Inc.
-	    Kaypro Corp
-
-k10hald6.logdisk:
-	09/24/2003 12:15:37
-	Kaypro 10
-	Autoload Diskette #6
-	  Datastar Version 1.45
-	  Infostar Version 1.02
-	  Reportstar
-	  Calcstar
-	    MicroPro International Corp.
-
-k10hald7.logdisk:
-	09/24/2003 18:06:46
-	Kaypro 10
-	Autoload Diskette #7
-	  dBase II Lessons
-	    Ashton-Tate
-
-k10hald8.logdisk:
-	09/24/2003 19:11:55
-	Kaypro 10
-	Autoload Diskette #8
-	  dBase II System
-	    Ashton-Tate
-
