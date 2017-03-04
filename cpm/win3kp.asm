@@ -87,8 +87,8 @@ dpb0:	dw	nsec*fsec	; SPT
 	db	5,01fh,1	; BSH,BSM,EXM
 	dw	1125,1023	; DSM,DRM
 	db	0ffh,000h	; ALV0
-	dw	0,2		; CKS,OFF
-	db	4,003h		; PSH, PSM
+	dw	0,4		; CKS,OFF
+	db	2,003h		; PSH, PSM
 
 ; Controller is already done by now
 win$rw:
@@ -157,8 +157,7 @@ setup$win:
 	rrc		; in position for SDH
 	ora	b
 	mov	b,a	; ---DDHH-
-	lhld	@trk
-	mov	a,l
+	lda	@trk
 	ani	1
 	ora	b	; ---DDHHH
 	ori	wincfg	; eSSDDHHH
@@ -167,7 +166,9 @@ setup$win:
 	rz	; timeout
 	mvi	a,pcmpcyl
 	out	winpcmp
-	rarr	h	;CY clear from prev instrs
+	lhld	@trk
+	ora	a
+	rarr	h
 	rarr	l
 	mov	a,l
 	out	winlsb
@@ -258,7 +259,7 @@ winrest:
 	out sysctl
 	push psw
 ;
-	mov h,1		;hold reset for > 50 ms
+	mvi h,1		;hold reset for > 50 ms
 	lxi d,0
 winrest1:
         call    timer
@@ -268,7 +269,7 @@ winrest1:
 	res 1,a	;select controller (MR off)
 	out sysctl
 ;
-	mov h,3
+	mvi h,3
 	lxi d,6000h
 winrest11:
 	in winstat	;Check busy
@@ -389,7 +390,7 @@ winrdy:
 ;
 ;       Wait for device ready
 ;
-	mov h,5
+	mvi h,5
 	lxi d,0
 winrdy1:
 	in winstat		;check for ready
@@ -405,7 +406,7 @@ winbusy:
 ;
 ;       Wait for device not busy
 ;
-	mov h,7	;set up dead man counter
+	mvi h,7	;set up dead man counter
 	lxi d,0
 winbusy1:
 	in winstat	;get status
