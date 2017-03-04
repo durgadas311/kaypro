@@ -99,8 +99,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	private long mediaHead;
 	private long mediaLat;
 
-	private int blockCount;
-
 	// mode COMMAND
 	private byte[] cmdBuf = new byte[8];
 	private byte curCmd;
@@ -375,7 +373,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 
 	private long getOff() {
 		long off = (getCyl() * mediaHead + getHead()) * sectorsPerTrack + getSec();
-		off += blockCount; // where we left off last time...
 		off *= driveSecLen;
 		return off;
 	}
@@ -408,7 +405,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 
 	public int in(int port) {
 		port &= 7;
-		int val = cmdBuf[port];
+		int val = cmdBuf[port] & 0xff;
 		switch(port) {
 		case adr_Data_c:
 			getData();
@@ -433,7 +430,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		case adr_Cmd_c:
 			//cmdBuf[adr_Status_c] &= ~sts_SeekDone_c;
 			curCmd = (byte)val;
-			blockCount = 0;
 			processCmd();
 			return;
 		case adr_Data_c:
@@ -473,9 +469,17 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			return;
 		}
 		dataIx = 0;
-		if (++blockCount < getCount()) {
-			processCmd();
-			return;
+		if ((curCmd & cmd_MultiSec_c) != 0) {
+			if (cmdBuf[adr_SecCnt_c] > 0) {
+				--cmdBuf[adr_SecCnt_c];
+				++cmdBuf[adr_Sector_c];
+				cmdBuf[adr_Sector_c] %= mediaSpt;
+				// TODO: carry over to cylinder? head?
+			}
+			if (cmdBuf[adr_SecCnt_c] > 0) {
+				processCmd();
+				return;
+			}
 		}
 		setDone();
 	}
@@ -547,6 +551,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			getData(); // prime first byte
 			break;
 		case cmd_Write_c:
+			// Prepare for command... but must wait for data...
 			wrOff = getOff();
 			if (wrOff >= capacity) {
 				setError();
@@ -565,7 +570,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			// FALLTHROUGH
 		case cmd_FormatTrack_c:
 			// validate address, but otherwise just return success.
-			blockCount = 0;
 			off = getOff();
 			if (off >= capacity) {
 				setError();
@@ -595,12 +599,20 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				break;
 			}
 			dataIx = 0;
-			if (++blockCount >= getCount()) {
-				setDone();
-				break;
+			if ((curCmd & cmd_MultiSec_c) != 0) {
+				if (cmdBuf[adr_SecCnt_c] > 0) {
+					--cmdBuf[adr_SecCnt_c];
+					++cmdBuf[adr_Sector_c];
+					cmdBuf[adr_Sector_c] %= mediaSpt;
+					// TODO: carry over to cylinder? head?
+				}
+				if (cmdBuf[adr_SecCnt_c] > 0) {
+					cmdBuf[adr_Status_c] |= sts_Drq_c;
+					cmdBuf[adr_Status_c] |= sts_Busy_c;
+					break;
+				}
 			}
-			cmdBuf[adr_Status_c] |= sts_Drq_c;
-			cmdBuf[adr_Status_c] |= sts_Busy_c;
+			setDone();
 			break;
 		default:
 			break;
@@ -647,14 +659,14 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			"[6] S/D/H   %02x\n" +
 			"[7] status  %02x %02x (cmd)\n" +
 			"data index = %d\n",
-			cmdBuf[0],
-			cmdBuf[1], 0,
-			cmdBuf[2],
-			cmdBuf[3],
-			cmdBuf[4],
-			cmdBuf[5],
-			cmdBuf[6],
-			cmdBuf[7], curCmd,
+			cmdBuf[0] & 0xff,
+			cmdBuf[1] & 0xff, 0,
+			cmdBuf[2] & 0xff,
+			cmdBuf[3] & 0xff,
+			cmdBuf[4] & 0xff,
+			cmdBuf[5] & 0xff,
+			cmdBuf[6] & 0xff,
+			cmdBuf[7] & 0xff, curCmd & 0xff,
 			dataIx);
 		return ret;
 	}
