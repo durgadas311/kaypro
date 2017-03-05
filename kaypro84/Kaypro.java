@@ -164,6 +164,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDevice(sio1);
 		addDevice(sio2);
 		addDevice(new ParallelPrinter(props, gpp));
+		if (CPNetDevice.isConfigured(props)) {
+			addDevice(new CPNetDevice(props, lh, this));
+		}
 
 		s = props.getProperty("kaypro_disas");
 		if (s != null && s.equalsIgnoreCase("zilog")) {
