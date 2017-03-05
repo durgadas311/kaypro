@@ -9,14 +9,14 @@
   programs.  The  RSX may  be  removed,  allowing dynamic  switching
   between CP/NET (with reduced TPA) and normal operation.
 
-  CP/NET on CP/M 3 does not (currently) support networked console or
-  list devices.
+  CP/NET on CP/M 3 does not (currently) support networked console.
 
   ///2EXTENSIONS
 
                    EXTENSIONS TO NDOS FOR CP/M 3
 
-  The following BDOS functions are now supported on networked drives:
+  The  following  BDOS 3  functions  are  now supported on networked
+  drives:
 
      17 - SEARCH FIRST (enhancement)
      18 - SEARCH NEXT (enhancement)
@@ -26,12 +26,16 @@
      99 - TRUNCATE FILE
     101 - GET DIR LAEL BYTE
     102 - READ FILE DATE/PASSWORD MODE
+    105 - GET TIME AND DATE
 
   SEARCH  functions  were  enhanced  to  return  a  full  sector  of
   directory entries in  the case of searching with the  drive set to
   '?', as  is done by  DIR.COM with  the [FULL] option.  This allows
   retrieval of SFCB data from the last directory entry of each block
   (which is not otherwise returned).
+
+  GET TIME AND DATE does not require networked disks and is not used
+  by NDOS3, but may be used by other programs such as NTPDATE.
 
   ///2NDOS3
 
