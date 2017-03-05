@@ -2,19 +2,33 @@ kaypro-cpm22u.logdisk:
 	Kaypro CP/M 2.2u (for ROM 81-478a)
 
 kaypro-cpm22g.logdisk:
-	Kaypro CP/M 2.2G (for ROM ?)
+	Kaypro CP/M 2.2G (for ROM 81-292a)
 
 drm-cpm310.logdisk:
-	Custom CP/M 3 for modified hardware (ROM ?)
+	Custom CP/M 3 for modified 84X hardware (ROM 81-292a)
 
 WD1002-0.blank:
-	Black ST412 harddisk for WD1002
+	Blank ST412 harddisk for WD1002
 
 WD1002-0.installed:
 	ST412 harddisk for WD1002, after running 2.2H "auto load".
-	(some verify errors occured during PIP)
+
+drm-cpm310.logdisk:
+	Additional CP/M 3 files/commands.
+
+WD1002-0.cpm3
+	Kaypro 10X (ROM 81-302c) image with CP/M 3 installed.
+
+WD1002-0.cpnet3:
+	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
+	installed.
+
+blankddds.logdisk:
+	Blank Kaypro DD DS floppy image. May be copied to new
+	image files in lieu of FORMAT.
 
 ##### Disks to install the Kaypro 10 Winchester #####
+(CP/M 2.2H, requires ROM 81-302c)
 k10hald1.logdisk:
 	09/24/2003 10:51:23
 	Kaypro 10
