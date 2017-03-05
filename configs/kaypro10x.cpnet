@@ -1,0 +1,9 @@
+# Kaypro 10 modified for CP/M 3 and CP/NET
+kaypro_model = 10X
+monitor_rom = 81-302c.rom
+
+wd1002_drive1 = ST412
+floppy_drive1 = FDD_5_25_DS_ST
+
+cpnetdevice_clientid=8
+cpnetdevice_server00 = HostFileBdos

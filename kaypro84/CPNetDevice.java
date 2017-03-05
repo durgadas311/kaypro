@@ -149,7 +149,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	private boolean ledState = false;
 
 	private void startSend() {
-		if (!ledState) {
+		if (!ledState && led != null) {
 			led.set(true);
 			ledState = true;
 		}
@@ -161,7 +161,9 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == timer) {
 			timer.removeActionListener(this);
-			led.set(false);
+			if (led != null) {
+				led.set(false);
+			}
 			ledState = false;
 		}
 	}
