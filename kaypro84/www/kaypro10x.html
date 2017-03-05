@@ -21,5 +21,16 @@ would have been more work.
 on the <A HREF="http://sebhc.durgadas.com/kaypro">downloads</A>
 page, along with config file "kaypro10x".
 
+<P>CP/NET is also working for CP/M 3. Use disk image "WD1002-0.cpnet3"
+and config "kaypro10x.cpnet" (example). Allows access to host files
+as placed in ~/HostFileBdos/* subdirectories ("*" is "a" thru "p").
+Watch for line-endings, Linux uses only line-feed. The program "TR"
+may be used to copy file and translate line endings.
+
+<P><UL>
+<LI>TR A:=P:*.*[C] to translate Unix to CP/M
+<LI>TR P:=A:*.*[U] to translate CP/M to Unix
+</UL>
+
 </BODY>
 </HTML>
