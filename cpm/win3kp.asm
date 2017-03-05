@@ -166,7 +166,29 @@ setup$win:
 	rz	; timeout
 	mvi	a,pcmpcyl
 	out	winpcmp
+	; This is horrible, but since 302C ROM does it
+	; we also must to keep compatible on disk:
+	; if (trk > 7) trk += 4;
+	; else if (trk >= 4) trk += (trk - 4);
+	; trk >>= 1;
+	; putCyl(trk);
+	; TODO: check ROM version before doing this.
 	lhld	@trk
+	mov	a,l
+	ani	11111000b
+	ora	h
+	jrz	setup1
+	lxi	d,4
+	dad	d
+	jr	setup2
+setup1:
+	mov	a,l
+	cpi	4
+	jrc	setup2
+	sui	4
+	add	l
+	mov	l,a
+setup2:
 	ora	a
 	rarr	h
 	rarr	l

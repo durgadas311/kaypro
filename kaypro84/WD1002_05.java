@@ -175,6 +175,8 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 
 		int sectorSize = 512;
 
+		// NOTE: Kaypro 10 seems to expect LUN 1, not 0.
+		// Right now we don't check LUN.
 		timer = new javax.swing.Timer(500, this);
 		name = "WD1002-0";
 		driveMedia = name;
@@ -234,7 +236,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			} else {
 				fd.seek(fd.length() - buf.length);
 				int n = fd.read(buf);
-				if (n != buf.length || !checkHeader(buf)) {
+				if (n != buf.length || (n = checkHeader(buf)) < 0) {
 					System.err.format("WD1002_05: file %s is not GenericSASIDrive\n", driveMedia);
 					return;
 				}
@@ -246,7 +248,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 					System.err.format("Media/Drive mismatch: %s\n", driveMedia);
 					return;
 				}
-				System.err.format("Mounted existing media %s as %s", driveMedia, new String(buf));
+				System.err.format("Mounted existing media %s as %s\n", driveMedia, new String(buf, 0, n));
 			}
 		} catch (Exception ee) {
 			System.err.format("WD1002_05: Unable to open media %s\n", driveMedia);
@@ -282,7 +284,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		return etype;
 	}
 
-	private boolean checkHeader(byte[] buf) {
+	private int checkHeader(byte[] buf) {
 		int m = 0;
 		int e = 0;
 		while (buf[e] != '\n' && buf[e] != '\0' && e < buf.length) {
@@ -293,7 +295,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			}
 			if (e >= buf.length) {
 				// too harsh?
-				return false;
+				return -1;
 			}
 			// TODO: removable flag, others?
 			// NOTE: removable media requires many more changes.
@@ -339,12 +341,12 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				break;
 
 			default:
-				return false;
+				return -1;
 			}
 
 			e++;
 		}
-		return m == 0x1f;
+		return m == 0x1f ? e : -1;
 	}
 
 	private int getCyl() {
@@ -384,6 +386,9 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	public void gppNewValue(int gpio) {
 		if ((gpio & ctrl_Reset_c) != 0) {
 			reset(); // something else? more?
+		} else {
+			// technically, we shouldn't reset until here...
+			// or at least should not accept anything until now.
 		}
 	}
 
