@@ -113,6 +113,7 @@ here:	inir
 
 offline	db	0	; fatal error prevents use
 cmdbuf	db	0
+romid	db	0
 
 thread	equ	$
 	dseg
@@ -130,6 +131,8 @@ alv1:	ds	512
 init$win:
 	xra	a
 	sta	offline
+	lda	0050h	; gift from loader: ROM id
+	sta	romid
 	; TODO: move to login code, for each LUN...
 	call	winrest
 	ret
@@ -172,8 +175,10 @@ setup$win:
 	; else if (trk >= 4) trk += (trk - 4);
 	; trk >>= 1;
 	; putCyl(trk);
-	; TODO: check ROM version before doing this.
 	lhld	@trk
+	lda	romid
+	cpi	'3'
+	jrnz	setup2
 	mov	a,l
 	ani	11111000b
 	ora	h

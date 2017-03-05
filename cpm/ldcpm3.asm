@@ -1,4 +1,4 @@
-vers equ '0b' ; December 22, 1985  12:57  drm  "LDCPM3.ASM"
+vers equ '0c' ; March 5, 2017  08:39  drm  "LDCPM3.ASM"
 
 	maclib Z80
 
@@ -23,6 +23,40 @@ LOADER:
 ;	lxi	b,16
 ;	ldir
 ; *****
+; ROM 81-292 uses 0fd74h
+; U-ROM 81-478 uses 0fe9ah
+; ROM 81-302 uses 0fd5ch
+; Identify ROM by...
+; we can't map ROM in, we are in low memory.
+; can't call ROM, either.
+; U-ROM places '2.01' in 0fff8h...
+; 81-292 places copyout in 0fde5h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
+; 81-302 places copyout in 0f919h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
+	call	chkuni
+	lxi	h,0fe9ah
+	mvi	a,'U'
+	jrz	gotrom
+	lxi	h,0f919h
+	call	chksig
+	lxi	h,0fd5ch
+	mvi	a,'3'
+	jrz	gotrom
+	lxi	h,0fde5h
+	call	chksig
+	lxi	h,0fd74h
+	mvi	a,'2'
+	jrz	gotrom
+	lxi	d,badrom
+	mvi	c,msgout
+	call	bdos
+	jmp	cpm
+gotrom:
+	shld	romcrt
+	sta	romid
+	lxi	d,rommsg
+	mvi	c,msgout
+	call	bdos
+
 	mvi	c,reset
 	call	bdos
 	MVI	C,openf
@@ -69,13 +103,13 @@ nobnk:
 	di
 
 ; ***** this should be part of COLD BOOT in CPM3LDRK
-	lxi	h,0fd74h
+	lhld	romcrt
 	lxi	d,00040h
 	lxi	b,16
 	ldir
+	lda	romid
+	stax	d	; ROM identifer char at 0050h
 ; *****
-
-
 
 	lda	reslen
 	mov	b,a		;B=reslen
@@ -138,6 +172,38 @@ errmsg: MVI	C,msgout
 	CALL	bdos
 	jmp	cpm
 
+chkuni:
+	lxi	h,0fff8h
+	mov	a,m
+	inx	h
+	cpi	'2'
+	rnz
+	mov	a,m
+	inx	h
+	cpi	'.'
+	rnz
+	mov	a,m
+	inx	h
+	cpi	'0'
+	rnz
+	mov	a,m
+	inx	h
+	cpi	'1'
+	ret
+
+; HL = prospective location
+chksig:
+	lxi	d,signature
+	mvi	b,siglen
+chk0:	ldax	d
+	cmp	m
+	rnz
+	inx	h
+	inx	d
+	djnz	chk0
+	xra	a
+	ret
+
 cpm3$sys:
 	DB	0,'CPM3    SYS',0,0,0,0
 	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
@@ -156,5 +222,22 @@ cstart: dw	0
 resend: dw	0
 bnkend: dw	0
 
+signature:
+	in	014h
+	res	7,a
+	out	014h
+	ldir
+	in	014h
+	setb	7,a
+	out	014h
+	ret
+siglen	equ	$-signature
+
+badrom:	db	cr,lf,7,'Unknown ROM version!',cr,lf,'$'
+rommsg:	db	cr,lf,'Got ROM id '
+romid	db	'.',cr,lf,'$'
+romcrt	dw	0
+
 buffer: ds	0
+
 	end
