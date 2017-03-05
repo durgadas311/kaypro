@@ -37,10 +37,11 @@ public class VirtualKaypro {
 		if (model == null) {
 			model = "84";
 		}
-		String title = "Virtual Kaypro " + model + " Computer";
+		String title = "Virtual Kaypro " + model.toUpperCase() + " Computer";
 
 		KayproCrt crt = null;
-		// TODO: configure based on model...
+		// TODO: configure CRT based on model...
+		// For now, all supported models use compatible CRT.
 		if (crt == null) {
 			crt = new Kaypro84Crt(props);
 		}
