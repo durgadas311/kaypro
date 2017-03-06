@@ -1,4 +1,4 @@
-vers equ '0b' ; October 22, 1986  18:09  drm  "FDC3KP.ASM"
+vers equ '0c' ; March 6, 2017  17:26  drm  "FDC3KP.ASM"
 ;*********************************************************
 ; Floppy Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 1986 Douglas Miller
@@ -149,7 +149,9 @@ alv2:	ds	(400)/4
 
 init:
 	IN	fdcstat 	; CLEAR WD-1793 from power-on (or whatever)
-	RET
+	push	psw
+	jr	setmot	; set timeout in case no more activity
+	; RET
 
 login:
 	pushix		;save IX
@@ -379,6 +381,7 @@ done:	push	psw
 	jrnz	retrn
 	mvi	a,false 	;motor off false
 	sta	motor$off
+setmot:
 	lxi	d,motoff
 	mvi	c,15	;15 seconds
 	mvi	b,dev0	;I.D.
