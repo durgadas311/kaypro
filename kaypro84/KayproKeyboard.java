@@ -159,8 +159,8 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		int l = e.getKeyLocation();
 		if (l == KeyEvent.KEY_LOCATION_NUMPAD &&
 				c != KeyEvent.CHAR_UNDEFINED) {
-			if (altKeys.containsKey(c)) {
-				s = altKeys.get(c);
+			if (altKeys.containsKey((int)c)) {
+				s = altKeys.get((int)c);
 			}
 		}
   		// Assume if CTRL is down, must be ^J not ENTER...
