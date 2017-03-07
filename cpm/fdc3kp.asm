@@ -150,7 +150,7 @@ alv2:	ds	(400)/4
 init:
 	IN	fdcstat 	; CLEAR WD-1793 from power-on (or whatever)
 	push	psw
-	jr	setmot	; set timeout in case no more activity
+	jmp	setmot	; set timeout in case no more activity
 	; RET
 
 login:
