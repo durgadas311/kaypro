@@ -17,6 +17,14 @@ on the <A HREF="http://sebhc.durgadas.com/kaypro">downloads</A>
 page, along with config file "kaypro84x".
 Additional CP/M 3 distro files are in disk image "cpm3-extra.logdisk".
 
+<P><B>CAUTION:</B> Running Kaypro-specific programs under this version of CP/M 3
+can be risky. CP/M 3 does not use the ROM BIOS (in order to avoid the cost
+of the high memory being consumed by it), and so anything that calls the ROM while
+CP/M 3 is loaded and running may corrupt the high memory parts of CP/M 3.
+It is not known exactly which Kaypro programs call the ROM directly, but
+one suspicious one is MITE (MITE.COM, MINSTALL.COM, AUTOMITE.COM).
+Standard CP/M programs should be fine.
+
 <H3>Memory Modification</H3>
 
 <P>I acquired some 256Kx1 DRAM chips, which were pin-compatible with the

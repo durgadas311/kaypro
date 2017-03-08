@@ -21,6 +21,16 @@ would have been more work.
 on the <A HREF="http://sebhc.durgadas.com/kaypro">downloads</A>
 page, along with config file "kaypro10x".
 
+<P><B>CAUTION:</B> Running Kaypro-specific programs under this version of CP/M 3
+can be risky. CP/M 3 does not use the ROM BIOS (in order to avoid the cost
+of the high memory being consumed by it), and so anything that calls the ROM while
+CP/M 3 is loaded and running may corrupt the high memory parts of CP/M 3.
+It is not known exactly which Kaypro programs call the ROM directly, but
+one suspicious one is MITE (MITE.COM, MINSTALL.COM, AUTOMITE.COM).
+Standard CP/M programs should be fine.
+
+<H3>CP/NET</H3>
+
 <P>CP/NET is also working for CP/M 3. Use disk image "WD1002-0.cpnet3"
 and config "kaypro10x.cpnet" (example). Allows access to host files
 as placed in ~/HostFileBdos/* subdirectories ("*" is "a" thru "p").
@@ -37,9 +47,10 @@ CP/NET use "RSXRM NDOS3".
 
 <P><IMG SRC="kaypro10X-2.png">
 
-<P>CP/M 3 HELP has been extended to include CP/NET and local additions.
+<P>CP/M 3 HELP has been extended to include CP/NET and local utilities.
 
-<P>In both images, drive B: contains the remnants of building, including source code.
+<P>NOTE: In both images, drive B: contains the remnants of building the system,
+including source code.
 
 </BODY>
 </HTML>
