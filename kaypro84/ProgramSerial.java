@@ -54,7 +54,7 @@ System.err.format("MODEM LINES %04x\n", mdm);
 			try {
 				// This probably needs to be throttled...
 				int c = prog.proc.getInputStream().read();
-				uart.put(c);
+				uart.put(c, true);
 			} catch (Exception ee) {
 				ee.printStackTrace();
 				break;

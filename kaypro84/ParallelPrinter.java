@@ -160,13 +160,11 @@ public class ParallelPrinter
 
 	// No input allowed on this port
 	public boolean ready() { return false; }
-	public void put(int ch) { }
+	public void put(int ch, boolean sleep) { }
 
 	public String dumpDebug() {
 		String ret = String.format(
-			"DAT=%02x STB=%s\n",
-			data,
-			Boolean.toString(strobe));
+			"DAT=%02x STB=%s\n", data, strobe);
 		return ret;
 	}
 }

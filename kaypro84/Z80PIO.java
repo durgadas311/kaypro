@@ -128,7 +128,7 @@ public class Z80PIO implements IODevice, InterruptController {
 			if (pfx == null) {
 				return;
 			}
-			String s = props.getProperty(pfx + "att");
+			String s = props.getProperty(pfx + "_att");
 			if (s != null && s.length() > 1) {
 				if (s.charAt(0) == '>') { // redirect output to file
 					attachFile(s.substring(1));
@@ -374,18 +374,20 @@ public class Z80PIO implements IODevice, InterruptController {
 			return ready;
 		}
 		// Must NOT sleep
-		public synchronized void put(int ch) {
+		public synchronized void put(int ch, boolean sleep) {
 			switch (mode) {
 			case 0:
 				break;
 			case 1:
 			case 2:
+				// TODO: wait on !ready if 'sleep'
 				data = ch & 0xff;
 				ready = false;
 				// status?
 				chkIntr();
 				break;
 			case 3:
+				// no sleep here
 				data = (data & ~inputs) | (ch & inputs);
 				chkIntr();
 				break;

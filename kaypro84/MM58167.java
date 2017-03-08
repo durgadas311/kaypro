@@ -154,7 +154,7 @@ public class MM58167 implements IODevice, ActionListener {
 		intr = 0x80;
 		if (pio != null) {
 			// TODO: make bits configurable?
-			pio.put(intr);
+			pio.put(intr, false);
 		}
 		off = 0;
 		dirty = false;
@@ -187,7 +187,7 @@ public class MM58167 implements IODevice, ActionListener {
 		if (adr == 0x10) {
 			regs[adr] = 0;
 			intr &= ~0x40;
-			pio.put(intr);
+			pio.put(intr, false);
 		}
 		return val;
 	}
@@ -238,7 +238,7 @@ public class MM58167 implements IODevice, ActionListener {
 			}
 			regs[0x10] |= (1 << x);
 			intr |= 0x40;
-			pio.put(intr);
+			pio.put(intr, false);
 			break;
 		}
 	}

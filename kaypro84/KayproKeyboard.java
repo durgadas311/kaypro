@@ -121,13 +121,6 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		t.start();
 	}
 
-	public void sendBack(String s) {
-		byte[] bs = s.getBytes();
-		for (byte b : bs) {
-			_port.put(b & 0xff);
-		}
-	}
-
 	public void setPasteRate(int cps, int cr) {
 		if (cps >= 0) {
 			if (cps < 1) {
@@ -184,7 +177,8 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		}
 		// TODO: do we ever NOT consume event?
 		if (s >= 0) {
-			_port.put(s);
+			// We cannot sleep here, so risk overrun...
+			_port.put(s, false);
 			e.consume();
 		}
         }
@@ -203,14 +197,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				continue;
 			}
 			for (byte b : s.getBytes()) {
-				_port.put(b & 0xff);
-				try {
-					if (b == '\r') {
-						Thread.sleep(cr_delay);
-					} else {
-						Thread.sleep(paste_delay);
-					}
-				} catch (Exception ee) {}
+				_port.put(b & 0xff, true);
 			}
 		}
 	}

@@ -16,7 +16,7 @@ public interface VirtualUART {
 	int available();	// Num bytes available from UART Tx.
 	int take();		// Get byte from UART Tx, possibly sleep.
 	boolean ready();	// Can UART Rx accept byte without overrun?
-	void put(int ch);	// Put byte into UART Rx.
+	void put(int ch, boolean sleep);	// Put byte into UART Rx.
 	void setModem(int mdm);	// Change Modem Control Lines in to UART.
 	int getModem();		// Get all Modem Control Lines for UART.
 }

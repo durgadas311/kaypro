@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Vector;
 import java.util.Properties;
 import java.io.*;
+import java.util.concurrent.Semaphore;
 import java.lang.reflect.Constructor;
 
 public class Z80SIO implements IODevice {
@@ -131,12 +132,14 @@ public class Z80SIO implements IODevice {
 		private Z80SIOPort chA; // null on Ch A
 		private int intrs;
 		private int modem = -1;
+		private Semaphore wait;
 
 		public Z80SIOPort(Properties props, String pfx, int idx, Z80SIOPort alt) {
 			chA = alt;
 			attObj = null;
 			attFile = null;
 			index = idx;
+			wait = new Semaphore(0);
 			fifo = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 			fifi = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 			wr = new byte[8];
@@ -252,7 +255,7 @@ public class Z80SIO implements IODevice {
 			int x = port & 1;
 			int val = 0;
 			if (x == 0) {	// data
-				synchronized(this) {
+				synchronized (this) {
 					if (fifi.size() > 0) {
 						try {
 							val = fifi.take();
@@ -260,6 +263,7 @@ public class Z80SIO implements IODevice {
 						if (fifi.size() == 0) {
 							rr[0] &= ~rr0_rxr_c;
 							chkIntr();
+							wait.release();
 						}
 					}
 				}
@@ -287,7 +291,7 @@ public class Z80SIO implements IODevice {
 					} catch (Exception ee) {}
 				}
 				if (attFile == null || !excl) {
-					synchronized(this) {
+					synchronized (this) {
 						fifo.add(val);
 						rr[0] &= ~rr0_txp_c;
 						chkIntr();
@@ -412,7 +416,7 @@ public class Z80SIO implements IODevice {
 				int c = fifo.take();
 				// TODO: how does this work with baud rate?
 				if (fifo.size() == 0) {
-					synchronized(this) {
+					synchronized (this) {
 						rr[0] |= rr0_txp_c;
 						chkIntr();
 					}
@@ -428,13 +432,22 @@ public class Z80SIO implements IODevice {
 			// return (fifi.size() < N);
 			return (rr[0] & rr0_rxr_c) != 0;
 		}
-		// Must NOT sleep
-		public synchronized void put(int ch) {
+
+		public void put(int ch, boolean sleep) {
 			// TODO: prevent infinite growth?
-			fifi.add(ch & 0xff);
-			lastRx = System.nanoTime();
-			rr[0] |= rr0_rxr_c;
-			chkIntr();
+			// This must happen outside 'synchronized' block
+			while (sleep && !ready()) {
+				wait.drainPermits();
+				try {
+					wait.acquire();
+				} catch (Exception ee) {}
+			}
+			synchronized (this) {
+				fifi.add(ch & 0xff);
+				lastRx = System.nanoTime();
+				rr[0] |= rr0_rxr_c;
+				chkIntr();
+			}
 		}
 		public void setBaud(int baud) {
 			// TODO: implement something.
