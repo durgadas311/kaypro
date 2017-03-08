@@ -23,6 +23,9 @@ WD1002-0.cpnet3:
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
 	installed.
 
+kermit.logdisk:
+	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
+
 blankddds.logdisk:
 	Blank Kaypro DD DS floppy image. May be copied to new
 	image files in lieu of FORMAT.
