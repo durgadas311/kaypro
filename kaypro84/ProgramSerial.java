@@ -12,27 +12,22 @@ public class ProgramSerial extends InputStream implements Runnable {
 
 	public ProgramSerial(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
-		// WARNING! destructive to 'argv'!
+		// WARNING! destructive to caller's 'argv'!
 		argv.removeElementAt(0);
-		prog = new RunProgram(argv, this);
-		// Start program later, by modem control
-	}
-
-	private void start() {
+		prog = new RunProgram(argv, this, true);
 		if (prog.excp == null) {
 			Thread t = new Thread(this);
 			t.start();
 			// TODO: allow special program codes to change?
 			uart.setModem(VirtualUART.SET_CTS | VirtualUART.SET_DSR);
-} else {
-prog.excp.printStackTrace();
+		} else {
+			prog.excp.printStackTrace();
 		}
 	}
 
 	private void doModem(int mdm) {
-System.err.format("MODEM LINES %04x\n", mdm);
-		// if ... start();
-		// else stop();
+		// For test purposes:
+		System.err.format("MODEM LINES %04x\n", mdm);
 	}
 
 	public int read() {

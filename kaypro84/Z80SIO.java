@@ -211,6 +211,8 @@ public class Z80SIO implements IODevice {
 						props,
 						argv,
 						(VirtualUART)this);
+				System.err.format("%s-%c attached to \"%s\"\n",
+						name, index + 'A', s);
 			} catch (Exception ee) {
 				System.err.format("Invalid class in attachment: %s\n", s);
 				return;
@@ -359,6 +361,9 @@ public class Z80SIO implements IODevice {
 			rr[0] |= rr0_txp_c;
 			updateIntr(0);
 			// TODO: chkIntr()? must exclude TxE
+			// We essentially made space in Rx...
+			// wake up sleeper...
+			wait.release();
 		}
 
 		private int getIntr() {
@@ -430,7 +435,8 @@ public class Z80SIO implements IODevice {
 		public boolean ready() {
 			// TODO: allow some buffering?
 			// return (fifi.size() < N);
-			return (rr[0] & rr0_rxr_c) != 0;
+			// We are ready to PUT when RxR is 0...
+			return (rr[0] & rr0_rxr_c) == 0;
 		}
 
 		public void put(int ch, boolean sleep) {
@@ -513,8 +519,14 @@ public class Z80SIO implements IODevice {
 
 		public String dumpDebug() {
 			String ret = new String();
-			ret += String.format("ch %c, #fifo = %d, #fifi = %d\n",
-				index + 'A', fifo.size(), fifi.size());
+			ret += String.format("ch %c, #fifo = %d, #fifi = %d\n" +
+				"WR0=%02x WR1=%02x WR2=%02x WR3=%02x\n" +
+				"WR4=%02x WR5=%02x WR6=%02x WR7=%02x\n" +
+				"RR0=%02x RR1=%02x RR2=%02x RR3=%02x\n",
+				index + 'A', fifo.size(), fifi.size(),
+				wr[0], wr[1], wr[2], wr[3],
+				wr[4], wr[5], wr[6], wr[7],
+				rr[0], rr[1], rr[2], rr[3]);
 			// TODO: dump WR and RR...
 			return ret;
 		}
