@@ -22,7 +22,13 @@ public class Diablo630Serial extends InputStream implements Runnable {
 	}
 
 	public int read() {
-		return uart.take();
+		while (true) {
+			int c = uart.take();
+			if ((c & VirtualUART.GET_CHR) == 0) {
+				return c;
+			}
+			// ignore modem control changes...
+		}
 	}
 	public int available() {
 		return uart.available();

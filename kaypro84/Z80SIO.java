@@ -117,6 +117,7 @@ public class Z80SIO implements IODevice {
 		static final int rr0_brk_c = 0x80;
 
 		static final int wr5_dtr_c = 0x80;
+		static final int wr5_brk_c = 0x10;
 		static final int wr5_rts_c = 0x02;
 
 		private Object attObj;
@@ -129,6 +130,7 @@ public class Z80SIO implements IODevice {
 		private int index;
 		private Z80SIOPort chA; // null on Ch A
 		private int intrs;
+		private int modem = -1;
 
 		public Z80SIOPort(Properties props, String pfx, int idx, Z80SIOPort alt) {
 			chA = alt;
@@ -139,7 +141,7 @@ public class Z80SIO implements IODevice {
 			fifi = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 			wr = new byte[8];
 			rr = new byte[8]; // only 3 useable...
-			String s = props.getProperty(pfx + "att");
+			String s = props.getProperty(pfx + "_att");
 			if (s != null && s.length() > 1) {
 				if (s.charAt(0) == '>') { // redirect output to file
 					attachFile(s.substring(1));
@@ -315,6 +317,7 @@ public class Z80SIO implements IODevice {
 						// TODO: INT on next Rx char
 						break;
 					case 5:
+						updateModemOut();
 						updateIntr(intrs & ~2);
 						break;
 					case 6:
@@ -468,6 +471,29 @@ public class Z80SIO implements IODevice {
 				mdm |= VirtualUART.SET_DCD;
 			}
 			return mdm;
+		}
+
+		private void updateModemOut() {
+			int mdm = modem & ~VirtualUART.GET_ONLY;
+			if ((wr[5] & wr5_dtr_c) != 0) {
+				mdm |= VirtualUART.GET_DTR;
+			}
+			if ((wr[5] & wr5_rts_c) != 0) {
+				mdm |= VirtualUART.GET_RTS;
+			}
+			if ((wr[5] & wr5_brk_c) != 0) {
+				mdm |= VirtualUART.GET_BREAK;
+			}
+			int diff = mdm ^ modem;
+			modem = mdm;
+			mdm |= VirtualUART.GET_CHR;
+			if (diff != 0) {
+				try {
+					fifo.addFirst(mdm);
+				} catch (Exception ee) {
+					fifo.add(mdm);
+				}
+			}
 		}
 
 		public String getDeviceName() { return name; }

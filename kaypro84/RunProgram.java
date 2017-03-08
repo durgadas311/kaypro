@@ -2,6 +2,7 @@
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.Vector;
 
 public class RunProgram implements Runnable {
 	private static boolean _cygwin;
@@ -10,6 +11,7 @@ public class RunProgram implements Runnable {
 
 	public Process proc = null;
 	public Exception excp = null;
+	private String[] cmd;
 
 	private InputStream stdin;
 
@@ -45,19 +47,62 @@ public class RunProgram implements Runnable {
 
 	public static boolean isWindows() { return _windows; }
 
-	// start command and return handle
+	// start command from shell and return handle
 	public RunProgram(String cmd, InputStream in, boolean merge) {
 		stdin = in;
 		try {
-			String[] args = Arrays.copyOf(_shell, _shell.length + 1);
-			args[_shell.length] = cmd;
-			ProcessBuilder pcmd = new ProcessBuilder(args);
+			this.cmd = Arrays.copyOf(_shell, _shell.length + 1);
+			this.cmd[_shell.length] = cmd;
+			ProcessBuilder pcmd = new ProcessBuilder(this.cmd);
 			pcmd.redirectErrorStream(merge);
 			proc = pcmd.start();
 			Thread t = new Thread(this);
 			t.start();
 		} catch(Exception ee) {
 			excp = ee;
+		}
+	}
+
+	// setup command and return handle
+	public RunProgram(Vector<String> cmd, InputStream in) {
+		stdin = in;
+		this.cmd = cmd.toArray(new String[0]);
+		// Start listening for modem control lines
+		Thread t = new Thread(this);
+		t.start();
+	}
+
+	// start command and return handle
+	public RunProgram(Vector<String> cmd, InputStream in, boolean merge) {
+		stdin = in;
+		this.cmd = cmd.toArray(new String[0]);
+		try {
+			ProcessBuilder pcmd = new ProcessBuilder(this.cmd);
+			pcmd.redirectErrorStream(merge);
+			proc = pcmd.start();
+			Thread t = new Thread(this);
+			t.start();
+		} catch(Exception ee) {
+			excp = ee;
+		}
+	}
+
+	public void start(boolean merge) {
+		if (proc != null) {
+			return;
+		}
+		try {
+			ProcessBuilder pcmd = new ProcessBuilder(this.cmd);
+			pcmd.redirectErrorStream(merge);
+			proc = pcmd.start();
+			// Thread started earlier... never dies...
+		} catch(Exception ee) {
+			excp = ee;
+		}
+	}
+	public void stop() {
+		if (proc == null) {
+			return;
 		}
 	}
 

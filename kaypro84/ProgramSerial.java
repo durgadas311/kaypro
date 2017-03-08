@@ -10,19 +10,39 @@ public class ProgramSerial extends InputStream implements Runnable {
 	VirtualUART uart;
 	RunProgram prog;
 
-	public ProgramSerial(String arg, VirtualUART uart) {
+	public ProgramSerial(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
-		prog = new RunProgram(arg, this, true);
+		// WARNING! destructive to 'argv'!
+		argv.removeElementAt(0);
+		prog = new RunProgram(argv, this);
+		// Start program later, by modem control
+	}
+
+	private void start() {
 		if (prog.excp == null) {
 			Thread t = new Thread(this);
 			t.start();
 			// TODO: allow special program codes to change?
 			uart.setModem(VirtualUART.SET_CTS | VirtualUART.SET_DSR);
+} else {
+prog.excp.printStackTrace();
 		}
 	}
 
+	private void doModem(int mdm) {
+System.err.format("MODEM LINES %04x\n", mdm);
+		// if ... start();
+		// else stop();
+	}
+
 	public int read() {
-		return uart.take();
+		while (true) {
+			int c = uart.take();
+			if ((c & VirtualUART.GET_CHR) == 0) {
+				return c;
+			}
+			doModem(c);
+		}
 	}
 	public int available() {
 		return uart.available();
