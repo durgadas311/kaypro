@@ -1,0 +1,36 @@
+ROM 81-302c Winchester Disk layout
+
+---------- head ----------
+----A----       ----B-----
+0       1       2        3
+-       -       -        -
+0       1       0        1   cyl 0
+2       3       2        3   cyl 1
+4       4'      4        4'  cyl 2 - CP/M Directory starts
+5'      5       5'       5   cyl 3
+6       6'      6        6'  cyl 4
+7'      7       7'       7   cyl 5
+8       9       8        9   cyl 6
+10      11      10       11  cyl 7
+12      13      12       13  cyl 8
+...     ...     ...      ...     ...
+602     603     602      603 cyl 303
+604     605     604      605 cyl 304
+park****park****park****park cyl 305
+ (1278 DSM)      (1278 DSM)
+
+N' Mirrors of sectors on other head
+
+bt:	; boot params:
+	ds	2	; "jr $"
+	ds	2	; CCP address (curr dma adr*)
+	ds	2	; Run address (jump to)
+	ds	2	; Num records (128byte), 0-60
+	ds	504	; unused
+
+The standard DPB in the ROM is:
+	dw	68	; SPT (17 * 4)
+	db	5,31,1	; BSH,BLM,EXM
+	dw	1125,1023	; DSM,DRM
+	db	0ffh,000h	; ALV0
+	dw	0,4	; CKS (fixed disk), OFF

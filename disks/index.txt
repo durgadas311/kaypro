@@ -8,7 +8,11 @@ drm-cpm310.logdisk:
 	Custom CP/M 3 for modified 84X hardware (ROM 81-292a)
 
 WD1002-0.blank:
-	Blank ST412 harddisk for WD1002
+	Blank ST412 harddisk for WD1002 (ROMs 81-302c, 81-188e, 81-277)
+
+WD1002-0.U.blank:
+	Blank ST412 harddisk for WD1002, compatible with Universal ROM
+	(81-478a). Should also work on older ROMs.
 
 WD1002-0.installed:
 	ST412 harddisk for WD1002, after running 2.2H "auto load".

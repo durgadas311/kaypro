@@ -1,0 +1,82 @@
+Universal ROM 81-478a Winchester Disk layout
+
+---------- head ----------
+----A----       ----B-----
+0       1       2        3
+-       -       -        -
+0*      1*      sp       sp  cyl 0
+sp      sp      sp       sp  cyl 1
+sp      sp      sp       sp  cyl 2
+sp      sp      sp       sp  cyl 3
+sp      sp      sp       sp  cyl 4
+sp      sp      sp       sp  cyl 5
+sp      sp      0        1   cyl 6
+2       3       2        3   cyl 7 - CP/M directory/alloc begins
+4       5       4        5   cyl 8
+6       7       6        7   cyl 9
+...     ...     ...      ...     ...
+594     595     594      595 cyl 303
+596     597     596      597 cyl 304
+park****park****park****park cyl 305
+ (1252 DSM)      (1252 DSM)
+
+* Spares table is on cyl 0 hd 0 sec 16,
+  mirrored on cyl 0 hd 1 sec 16:
+
+Cylinder 0:
+
+0  head  1
+-        -
+bt       X   sec 0
+r0       X   sec 1
+r1       X   sec 2
+r2       X   sec 3
+r3       X   sec 4
+r4       X   sec 5
+r5       X   sec 6
+r6       X   sec 7
+r7       X   sec 8
+r8       X   sec 9
+r9       X   sec 10
+r10      X   sec 11
+r11      X   sec 12
+r12      X   sec 13
+r13      X   sec 14
+r14      X   sec 15
+sp       sp  sec 16
+
+bt:
+	ds	126	; boot params:
+			; ds 2	; "jr $"
+			; ds 2	; CCP address (curr dma adr*)
+			; ds 2	; Run address (jump to)
+			; ds 2	; Num records (128byte), 0-60
+			; ds 2	; saved: num recs*
+			; ds 2	; curr sec*
+			; ds 2	; curr trk*
+			; ds ...; unused
+	ds	2	; checksum (0-125)
+	ds	384	; unused
+
+	* Used in memory, not on disk
+
+r0-r14: (up to) 7K boot image (60 records max, 0x3c)
+X: unused, not available (to preserve spares)
+
+sp:
+	ds	158	; bitmap for all tracks, 1 bit per track (306 cyl * 4 hds)
+	ds	4 * 24	; spare xlat (4 bytes/track spared)
+	ds	48	; unused
+	ds	8	; size and offsets...
+	; d1size ds 2	; DSM (for DPB)
+	;        ds 2	; Cyl start addr (heads 0,1)
+	; d2size ds 2	; DSM (for DPB)
+	;        ds 2	; Cyl start addr (heads 2,3)
+	; d3size ds 4	; Potentially...
+
+The standard DPB in the ROM is:
+	dw	68	; SPT (17 * 4)
+	db	5,31,1	; BSH,BLM,EXM
+	dw	1125,1023	; DSM (overwritten),DRM
+	db	0ffh,000h	; ALV0
+	dw	0,2	; CKS (fixed disk), OFF
