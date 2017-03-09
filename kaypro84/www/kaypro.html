@@ -60,16 +60,24 @@ and may be developed as virtual hardware is created and/or software is available
 Currently, there are no restrictions on what ROM is used.
 The user must ensure the CP/M version is compatible.
 <P><TABLE BORDER>
-<TR><TH>ROM</TH><TH>CP/M Version(s)</TH></TR>
-<TR><TD>81-292a</TD><TD>2.2G, 2.20d</TD></TR>
-<TR><TD>81-302c</TD><TD>2.2H</TD></TR>
-<TR><TD>81-478a</TD><TD>2.2u</TD></TR>
+<TR><TH>ROM P/N</TH><TH>ROM Ver</TH><TH>Model(s)</TH><TH>CP/M Version(s)</TH></TR>
+<TR><TD>81-188e</TD><TD>1.9</TD><TD>10</TD><TD>2.2H</TD></TR>
+<TR><TD>81-277</TD><TD>1.9E(F)</TD><TD>10</TD><TD>2.2H</TD></TR>
+<TR><TD>81-292a</TD><TD>n/a</TD><TD>2X, 84</TD><TD>2.2G, 2.2H, 2.20d</TD></TR>
+<TR><TD>81-302c</TD><TD>1.9E</TD><TD>10</TD><TD>2.2H</TD></TR>
+<TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 84</TD><TD>2.2u1</TD></TR>
 </TABLE>
 <P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
 were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
 plus the ROMs changed how they interpret the boot loader sector
 (e.g. 81-478a requires a checksum on the
 boot sector which older boot images do not have).
+
+<P>CP/M 2.20d was a special version I derived from 2.2G, I think mainly to use
+as a loader for CP/M 3. I need to look through the source code to see what
+my reasons were for making that.
+
+<P>The above matrix is based on a trivial boot test and "DIR".
 
 <P>The Virtual Computer is configured using a "properties file", plain text.
 The downloads page has some examples in the "configs" subdirectory.
