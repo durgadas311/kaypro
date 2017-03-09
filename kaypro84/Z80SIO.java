@@ -442,8 +442,8 @@ public class Z80SIO implements IODevice {
 		public void put(int ch, boolean sleep) {
 			// TODO: prevent infinite growth?
 			// This must happen outside 'synchronized' block
+			wait.drainPermits();
 			while (sleep && !ready()) {
-				wait.drainPermits();
 				try {
 					wait.acquire();
 				} catch (Exception ee) {}
