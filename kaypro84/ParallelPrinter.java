@@ -87,10 +87,11 @@ public class ParallelPrinter
 					argv.getClass(),
 					VirtualPPort.class);
 			// funky "new" avoids "argument type mismatch"...
-			attObj = ctor.newInstance(
+			Object obj = ctor.newInstance(
 					props,
 					argv,
 					(VirtualPPort)this);
+			attach(obj);
 		} catch (Exception ee) {
 			System.err.format("Invalid class in attachment: %s\n", s);
 			return;
@@ -148,7 +149,7 @@ public class ParallelPrinter
 
 	public int take(boolean sleep) {
 		wait.drainPermits();
-		while (sleep && !strobe) {
+		while (sleep && attObj != null && !strobe) {
 			try {
 				wait.acquire();
 			} catch (Exception ee) {}
@@ -161,6 +162,21 @@ public class ParallelPrinter
 	// No input allowed on this port
 	public boolean ready() { return false; }
 	public void put(int ch, boolean sleep) { }
+
+	public boolean attach(Object periph) {
+		if (attObj != null) {
+			return false;
+		}
+		attObj = periph;
+		return true;
+	}
+	public void detach() {
+		// Wake up sleepers, dereference object.
+		// Must null attObj first to prevent looping
+		System.err.format("%s detaching peripheral\n", getDeviceName());
+		attObj = null;
+		wait.release();
+	}
 
 	public String dumpDebug() {
 		String ret = String.format(

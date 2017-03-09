@@ -33,6 +33,10 @@ public class ProgramSerial extends InputStream implements Runnable {
 	public int read() {
 		while (true) {
 			int c = uart.take();
+			if (c < 0) { // EOF
+				uart.detach(); // will close() do this?
+				return c;
+			}
 			if ((c & VirtualUART.GET_CHR) == 0) {
 				return c;
 			}
@@ -41,6 +45,9 @@ public class ProgramSerial extends InputStream implements Runnable {
 	}
 	public int available() {
 		return uart.available();
+	}
+	public void close() {
+		uart.detach();
 	}
 
 	// This thread reads program stdout and sends to UART
@@ -52,6 +59,7 @@ public class ProgramSerial extends InputStream implements Runnable {
 				uart.put(c, true);
 			} catch (Exception ee) {
 				ee.printStackTrace();
+				uart.detach(); // repetative?
 				break;
 			}
 		}

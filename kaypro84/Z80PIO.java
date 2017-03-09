@@ -189,12 +189,13 @@ public class Z80PIO implements IODevice, InterruptController {
 				Constructor<?> ctor = clazz.getConstructor(
 						Properties.class,
 						argv.getClass(),
-						VirtualUART.class);
+						VirtualPPort.class);
 				// funky "new" avoids "argument type mismatch"...
-				attObj = ctor.newInstance(
+				Object obj = ctor.newInstance(
 						props,
 						argv,
-						(VirtualUART)this);
+						(VirtualPPort)this);
+				attach(obj);
 			} catch (Exception ee) {
 				System.err.format("Invalid class in attachment: %s\n", s);
 				return;
@@ -353,9 +354,9 @@ public class Z80PIO implements IODevice, InterruptController {
 			switch (mode) {
 			case 0:
 			case 2:
-				if (sleep && !avail) {
-					// TODO: sleep
-				}
+//				while (sleep && attObj != null && !avail) {
+//					// TODO: sleep
+//				}
 				val = data;
 				avail = false;
 				// TODO: strobe
@@ -381,6 +382,9 @@ public class Z80PIO implements IODevice, InterruptController {
 			case 1:
 			case 2:
 				// TODO: wait on !ready if 'sleep'
+//				while (sleep && attObj != null && !ready) {
+//					// TODO: sleep
+//				}
 				data = ch & 0xff;
 				ready = false;
 				// status?
@@ -392,6 +396,22 @@ public class Z80PIO implements IODevice, InterruptController {
 				chkIntr();
 				break;
 			}
+		}
+
+		public boolean attach(Object periph) {
+			if (attObj != null) {
+				return false;
+			}
+			attObj = periph;
+			return true;
+		}
+		public void detach() {
+			// Wake up any sleepers, dereference object.
+			System.err.format("%s-%c detaching peripheral\n",
+				getDeviceName(), index + 'A');
+			attObj = null; // must precede wakeups
+			// iwait.release();
+			// owait.release();
 		}
 
 		public String getDeviceName() { return name; }

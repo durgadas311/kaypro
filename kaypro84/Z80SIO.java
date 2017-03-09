@@ -207,12 +207,17 @@ public class Z80SIO implements IODevice {
 						argv.getClass(),
 						VirtualUART.class);
 				// funky "new" avoids "argument type mismatch"...
-				attObj = ctor.newInstance(
+				Object obj = ctor.newInstance(
 						props,
 						argv,
 						(VirtualUART)this);
-				System.err.format("%s-%c attached to \"%s\"\n",
+				if (attach(obj)) {
+					System.err.format("%s-%c attached to \"%s\"\n",
 						name, index + 'A', s);
+				} else {
+					System.err.format("%s-%c failed to attached\n",
+						name, index + 'A');
+				}
 			} catch (Exception ee) {
 				System.err.format("Invalid class in attachment: %s\n", s);
 				return;
@@ -295,7 +300,10 @@ public class Z80SIO implements IODevice {
 				if (attFile == null || !excl) {
 					synchronized (this) {
 						fifo.add(val);
-						rr[0] &= ~rr0_txp_c;
+						if (attObj != null) {
+							rr[0] &= ~rr0_txp_c;
+						}
+						// TODO: force Tx INT?
 						chkIntr();
 					}
 				}
@@ -418,9 +426,9 @@ public class Z80SIO implements IODevice {
 		// Must sleep if nothing available...
 		public int take() {
 			try {
-				int c = fifo.take();
+				int c = fifo.take(); // might sleep here...
 				// TODO: how does this work with baud rate?
-				if (fifo.size() == 0) {
+				if (fifo.size() == 0 || attObj == null) {
 					synchronized (this) {
 						rr[0] |= rr0_txp_c;
 						chkIntr();
@@ -428,6 +436,7 @@ public class Z80SIO implements IODevice {
 				}
 				return c;
 			} catch(Exception ee) {
+				// let caller do detach?
 				return -1;
 			}
 		}
@@ -443,10 +452,13 @@ public class Z80SIO implements IODevice {
 			// TODO: prevent infinite growth?
 			// This must happen outside 'synchronized' block
 			wait.drainPermits();
-			while (sleep && !ready()) {
+			while (sleep && attObj != null && !ready()) {
 				try {
 					wait.acquire();
 				} catch (Exception ee) {}
+			}
+			if (attObj == null) {
+				return;
 			}
 			synchronized (this) {
 				fifi.add(ch & 0xff);
@@ -490,6 +502,24 @@ public class Z80SIO implements IODevice {
 				mdm |= VirtualUART.SET_DCD;
 			}
 			return mdm;
+		}
+		public boolean attach(Object periph) {
+			if (attObj != null) {
+				return false;
+			}
+			attObj = periph;
+			return true;
+		}
+		public void detach() {
+			System.err.format("%s-%c detaching peripheral\n",
+						name, index + 'A');
+			attObj = null;
+			wait.release();
+			try {
+				fifo.addFirst(-1);
+			} catch (Exception ee) {
+				fifo.add(-1);
+			}
 		}
 
 		private void updateModemOut() {

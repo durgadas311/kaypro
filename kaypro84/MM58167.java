@@ -46,6 +46,7 @@ public class MM58167 implements IODevice, ActionListener {
 		// pretend time already set...
 		getTime();
 		regs[12] = 1; // trick TIME.COM
+		att.attach(this);
 	}
 
 	private void getTime() {

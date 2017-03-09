@@ -115,8 +115,12 @@ public class RunProgram implements Runnable {
 				proc.getOutputStream().flush();
 			} catch (Exception ee) {
 				ee.printStackTrace();
+				try {
+					stdin.close();
+				} catch (Exception eee) {}
 				break;
 			}
 		}
+		// TODO: terminate and detach...
 	}
 }

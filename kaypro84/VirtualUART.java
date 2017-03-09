@@ -19,4 +19,6 @@ public interface VirtualUART {
 	void put(int ch, boolean sleep);	// Put byte into UART Rx.
 	void setModem(int mdm);	// Change Modem Control Lines in to UART.
 	int getModem();		// Get all Modem Control Lines for UART.
+	boolean attach(Object periph);
+	void detach();		// Peripheral no longer usable
 }

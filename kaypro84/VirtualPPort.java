@@ -5,4 +5,6 @@ public interface VirtualPPort {
 	int take(boolean sleep); // Get byte from Port (allow sleep)
 	boolean ready();	// Port accepting input
 	void put(int ch, boolean sleep);	// Send byte to port input
+	boolean attach(Object periph);
+	void detach();		// Peripheral no longer usable
 }

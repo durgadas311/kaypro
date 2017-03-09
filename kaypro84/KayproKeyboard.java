@@ -119,6 +119,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		fifo = new java.util.concurrent.LinkedBlockingDeque<String>();
 		Thread t = new Thread(this);
 		t.start();
+		port.attach(this);
 	}
 
 	public void setPasteRate(int cps, int cr) {
