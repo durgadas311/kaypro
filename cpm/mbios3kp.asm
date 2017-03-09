@@ -1,4 +1,4 @@
-vers equ '0u' ; June 28, 1986  11:30  drm "MBIOS3KP.ASM"
+vers equ '0v' ; March 8, 2017  18:15  drm "MBIOS3KP.ASM"
 ;****************************************************************
 ; Main BIOS module for CP/M 3 (CP/M plus) on the KAYPRO computer*
 ; Copyright (c) 1985 Douglas Miller				*
@@ -585,6 +585,10 @@ thread	equ	$
 	dseg	; this part can be banked
 @login: ds	2	;position is assumed by special BNKBDOS3.SPR...
 			; must be first item in DSEG.
+
+hlast:	dw	hstart
+hleft:	dw	bnktop-hstart
+
 boot:	lxi	sp,stack
 	lxi	h,@vect
 	mov	a,h
@@ -1264,16 +1268,37 @@ gh2:	dcr	b
 	srlr	a
 	jr	gh2
 gh3:	sta	@pspt	;physical sectors per track
-	lda	@adrv	;allocate hash buffer by logical drive number
-	lxi	h,hstart
-	lxi	b,hsize
-	inr	a
-gh0:	dcr	a
-	jrz	gh1
+	lxi	h,+22	; HASH
+	dad	d
+	mov	a,m
+	inx	h
+	ora	m
+	jnz	ghz	; already have HASH
+	pop	b
+	push	b
+	lxi	h,+7	; DRM
 	dad	b
-	jr	gh0
-gh1:	mov	c,l
-	mov	b,h
+	mov	a,m
+	inx 	h
+	mov	h,m
+	mov	l,a
+	inx	h	; HL = num dir ent
+	dad	h
+	dad	h
+	; for Kaypro there should always be enough space...
+	mov	c,l
+	mov	b,h	; BC = size of HASH needed
+	lhld	hleft
+	ora	a
+	dsbc	b
+	jrc	nohash
+	shld	hleft
+	lhld	hlast
+	push	h
+	dad	b
+	shld	hlast
+	pop	b	; HASH alloc'd for this drive
+gh0:
 	lxi	h,+22
 	dad	d	;point to hash address
 	mov	m,c	;set hash buffer address for this drive.
@@ -1281,6 +1306,7 @@ gh1:	mov	c,l
 	mov	m,b
 	inx	h
 	mvi	m,hbnk	;set hash bank also.
+ghz:
 	xchg	;put DPH in (HL) for BDOS
 	mov	e,m
 	inx	h
@@ -1288,6 +1314,10 @@ gh1:	mov	c,l
 	dcx	h
 	pop	b	;BC=dpb
 	ret
+
+nohash:
+	lxi	b,0ffffh
+	jr	gh0
 
 setup$dph:
 	ora	a	;reset [CY]

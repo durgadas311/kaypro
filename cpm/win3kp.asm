@@ -1,4 +1,4 @@
-vers equ '0a' ; March 1, 2017  19:20  drm  "WIN3KP.ASM"
+vers equ '0b' ; March 8, 2017  18:15  drm  "WIN3KP.ASM"
 ;*********************************************************
 ; Winchester Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 2017 Douglas Miller
@@ -87,7 +87,7 @@ dpb0:	dw	nsec*fsec	; SPT
 	db	5,01fh,1	; BSH,BSM,EXM
 	dw	1125,1023	; DSM,DRM
 	db	0ffh,000h	; ALV0
-	dw	0,4		; CKS,OFF
+	dw	08000h,4	; CKS,OFF
 	db	2,003h		; PSH, PSM
 
 ; Controller is already done by now
@@ -118,14 +118,15 @@ romid	db	0
 thread	equ	$
 	dseg
 
+; HASH/HBANK is set by main bios...
 dphtbl:
 	dw	0,0,0,0,0,0,dpb0,0,alv0,@dircb,@dtacb,0
-	db	0
+	db	0	; HBANK
 	dw	0,0,0,0,0,0,dpb0,0,alv1,@dircb,@dtacb,0
-	db	0
+	db	0	; HBANK
 
-alv0:	ds	512
-alv1:	ds	512
+alv0:	ds	512	; really only need about 283
+alv1:	ds	512	;
 
 ; driver init
 init$win:
