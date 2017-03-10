@@ -56,12 +56,14 @@ bt:
 			; ds 2	; curr trk*
 			; ds ...; unused
 	ds	2	; checksum (0-125)
-	ds	384	; unused
+	ds	3*128	; Start of boot image (records 0-2)
 
 	* Used in memory, not on disk
 
-r0-r14: (up to) 7K boot image (60 records max, 0x3c)
+r0-r14: Rest of boot image (63 records max, 0x3f)
 X: unused, not available (to preserve spares)
+
+TBD: Is boot track mirrored?
 
 sp:
 	ds	158	; bitmap for all tracks, 1 bit per track (306 cyl * 4 hds)

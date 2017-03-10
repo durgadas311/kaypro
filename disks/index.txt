@@ -17,8 +17,8 @@ WD1002-0.U.blank:
 WD1002-0.installed:
 	ST412 harddisk for WD1002, after running 2.2H "auto load".
 
-drm-cpm310.logdisk:
-	Additional CP/M 3 files/commands.
+WD1002-0.U.cpm2:
+	ST412 harddisk for WD1002 and Universal ROM, with CP/M 2.2u1.
 
 WD1002-0.cpm3
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 installed.
@@ -26,6 +26,9 @@ WD1002-0.cpm3
 WD1002-0.cpnet3:
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
 	installed.
+
+drm-cpm310.logdisk:
+	Additional CP/M 3 files/commands.
 
 kermit.logdisk:
 	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
