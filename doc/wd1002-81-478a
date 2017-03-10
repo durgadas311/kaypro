@@ -66,13 +66,17 @@ X: unused, not available (to preserve spares)
 sp:
 	ds	158	; bitmap for all tracks, 1 bit per track (306 cyl * 4 hds)
 	ds	4 * 24	; spare xlat (4 bytes/track spared)
+			; ds 2 = bad track HHCCCCCCCCCCCCCC
+			; ds 2 = replacement track HHCCCCCCCCCCCCCC
 	ds	48	; unused
 	ds	8	; size and offsets...
 	; d1size ds 2	; DSM (for DPB)
 	;        ds 2	; Cyl start addr (heads 0,1)
 	; d2size ds 2	; DSM (for DPB)
 	;        ds 2	; Cyl start addr (heads 2,3)
-	; d3size ds 4	; Potentially...
+	;;; d3size ds 4	; Potentially...
+	ds	200	; unused
+	ds	2	; checksum (0-510)
 
 The standard DPB in the ROM is:
 	dw	68	; SPT (17 * 4)
