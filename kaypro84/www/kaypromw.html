@@ -1,0 +1,67 @@
+<HTML>
+<HEAD>
+<TITLE>Virtual Kaypro Magic Wand Guide</TITLE>
+</HEAD>
+<BODY>
+<H2>Virtual Kaypro Magic Wand Guide</H2>
+
+The terminal module used for Magic Wand interprets the following
+character codes:
+
+<TABLE BORDER>
+<TR><TH>Code</TH><TH>Function</TH></TR>
+<TR><TD>^E</TD><TD>Cursor Up</TD></TR>
+<TR><TD>^X</TD><TD>Cursor Down</TD></TR>
+<TR><TD>^S</TD><TD>Cursor Left</TD></TR>
+<TR><TD>^D</TD><TD>Cursor Right</TD></TR>
+<TR><TD>^A</TD><TD>Home Line/Screen</TD></TR>
+<TR><TD>^O</TD><TD>Line Scroll Fwd</TD></TR>
+<TR><TD>^N</TD><TD>Line Scroll Back</TD></TR>
+<TR><TD>^F</TD><TD>Page Fwd</TD></TR>
+<TR><TD>^G</TD><TD>Page Back</TD></TR>
+<TR><TD>^T</TD><TD>Top of Text</TD></TR>
+<TR><TD>^B</TD><TD>Bottom of Text</TD></TR>
+<TR><TD>^P</TD><TD>Char Insert</TD></TR>
+<TR><TD>^Q</TD><TD>Full Insert</TD></TR>
+<TR><TD>^H*</TD><TD BGCOLOR=lightblue>Backspace</TD></TR>
+<TR><TD>^Y</TD><TD>Char Delete</TD></TR>
+<TR><TD>DEL</TD><TD BGCOLOR=lightblue>Delete Word</TD></TR>
+<TR><TD>^U</TD><TD>Line Delete</TD></TR>
+<TR><TD>^V</TD><TD>Start Search/Replace</TD></TR>
+<TR><TD>^W</TD><TD>Repeat Search/Replace</TD></TR>
+<TR><TD>^R</TD><TD>Set Block Marker</TD></TR>
+<TR><TD>^L*</TD><TD BGCOLOR=lightblue>Set Form Feed</TD></TR>
+<TR><TD>^J*</TD><TD BGCOLOR=lightblue>Set Line Feed</TD></TR>
+</TABLE>
+
+<P>* Codes have same meaning as for ASCII
+<P>DEL = ASCII 'DEL' code, 07FH.
+<P>Functions show in blue do not have a special function key,
+although they may have a standard key dedicated for their code.
+
+<P>CP/M 3 maps the keypad by default for use with Magic Wand.
+The following shows the function of the keypad keys in Magic Wand.
+
+<TABLE BORDER>
+<TR><TD>UP</TD><TD>DOWN</TD><TD>LEFT</TD><TD>RIGHT</TD></TR>
+<TR><TD COLSPAN=4>&nbsp;</TD></TR>
+<TR><TD>HOME</TD><TD>LINE<BR>BACK</TD><TD>PAGE<BR>BACK</TD><TD>TOP</TD></TR>
+<TR><TD>SET<BR>BLOCK</TD><TD>LINE<BR>FWD</TD><TD>PAGE<BR>FWD</TD><TD>BOTTOM</TD></TR>
+<TR><TD>START<BR>SEARCH</TD><TD>REPT<BR>SEARCH</TD><TD>CHAR<BR>DEL</TD><TD ROWSPAN=2>FULL<BR>INS</TD></TR>
+<TR><TD COLSPAN=2>CHAR INS</TD>         <TD>LINE<BR>DEL</TD>         </TR>
+</TABLE>
+
+<P>This results in the key mapping of:
+<TABLE BORDER>
+<TR><TD>^E</TD><TD>^X</TD><TD>^S</TD><TD>^D</TD></TR>
+<TR><TD COLSPAN=4>&nbsp;</TD></TR>
+<TR><TD>^A</TD><TD>^N</TD><TD>^G</TD><TD>^T</TD></TR>
+<TR><TD>^R</TD><TD>^O</TD><TD>^F</TD><TD>^B</TD></TR>
+<TR><TD>^V</TD><TD>^W</TD><TD>^Y</TD><TD ROWSPAN=2>^Q</TD></TR>
+<TR><TD COLSPAN=2>^P</TD> <TD>^U</TD>         </TR>
+</TABLE>
+
+
+
+</BODY>
+</HTML>
