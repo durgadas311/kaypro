@@ -36,7 +36,6 @@ public class ServerDispatch {
 		nodes[cid] = true;
 		prefix += "server";
 		int pflen = prefix.length();
-//		CpnetSocketClient ssrv = null;
 		for (String prop : props.stringPropertyNames()) {
 			// property syntax: cpnetdevice_server## = ClassId [args...]
 			// where '##' is serverId in hex.
@@ -81,9 +80,9 @@ public class ServerDispatch {
 					// One instance of SocketServer could handle
 					// multiple/all servers... But, each server
 					// instance is so small that it makes no sense.
-//					NetworkServer nws = new CpnetSocketClient(props,
-//						args, sid, cid, lstn);
-//					addServer(sid, nws);
+					NetworkServer nws = new CpnetSocketClient(props,
+						args, sid, cid, lstn);
+					addServer(sid, nws);
 				}
 			}
 		}
