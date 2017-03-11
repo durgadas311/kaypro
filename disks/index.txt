@@ -7,6 +7,9 @@ kaypro-cpm22g.logdisk:
 drm-cpm310.logdisk:
 	Custom CP/M 3 for modified 84X hardware (ROM 81-292a)
 
+cpnet-dist.logdisk:
+	CP/NET utilities, not specific to CP/M version.
+
 WD1002-0.blank:
 	Blank ST412 harddisk for WD1002 (ROMs 81-302c, 81-188e, 81-277)
 
@@ -30,8 +33,12 @@ WD1002-0.cpnet3:
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
 	installed.
 
-drm-cpm310.logdisk:
+cpm3-extra.logdisk:
 	Additional CP/M 3 files/commands.
+
+cpm3src.logdisk:
+	CP/M 3 and CP/NET 3 source code (incl. ROMs 81-302c, 81-478a)
+	Also some new CP/NET utilities.
 
 magicwand.logdisk:
 	Magic Wand and TW (The Word - spell check). MW setup for
