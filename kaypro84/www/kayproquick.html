@@ -94,5 +94,21 @@ The command
 <UL><PRE>RSXRM NDOS3</PRE></UL>
 will tell CP/NET to stop and remove itself.
 
+<P>Directories "a" through "p" may be created on the host system
+under "~/HostFileBdos", and may be mapped in CP/NET as the corresponding
+drives on "the server". In addition, the config file may specify another
+top-level directory other than "~/HostFileBdos", and there may be multiple
+servers each using a different top-level directory, allowing many more repositories
+for files. The CP/NET server implementation does not (can not) access files outside
+of the designated top-level directory, but use caution to ensure that
+a configuration is what you intended and that important files on your computer
+are not destroyed.
+
+<P>It is also possible to setup CP/NET servers on remote machines, using your
+host computer's network to access them.
+Documentation for this exists under the Virtual H89 project.
+Using this scheme, it would be possible to setup a collection (network) of
+distributed CP/M file shares.
+
 </BODY>
 </HTML>
