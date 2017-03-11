@@ -149,7 +149,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 	}
 
 	public void setPasteRate(int cps, int cr) {
-		if (cps >= 0) {
+		if (cps > 0) {
 			if (cps < 1) {
 				cps = 1;
 			}
@@ -159,7 +159,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 			}
 			paste_delay = dly;
 		}
-		if (cr >= 0) {
+		if (cr > 0) {
 			cr_delay = cr;
 		}
 	}
