@@ -33,6 +33,10 @@ WD1002-0.cpnet3:
 drm-cpm310.logdisk:
 	Additional CP/M 3 files/commands.
 
+magicwand.logdisk:
+	Magic Wand and TW (The Word - spell check). MW setup for
+	Kaypro CRT and Juki printer. Custom keypad mapping for CP/M 3.
+
 kermit.logdisk:
 	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
 
