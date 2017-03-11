@@ -1,4 +1,4 @@
-vers equ '0v' ; March 8, 2017  18:15  drm "MBIOS3KP.ASM"
+vers equ '1a' ; March 10, 2017  17:11  drm "MBIOS3KP.ASM"
 ;****************************************************************
 ; Main BIOS module for CP/M 3 (CP/M plus) on the KAYPRO computer*
 ; Copyright (c) 1985 Douglas Miller				*

@@ -1,4 +1,4 @@
-vers equ '0b' ; March 8, 2017  18:15  drm  "WIN3KP.ASM"
+vers equ '0c' ; March 10, 2017  17:18  drm  "WIN3KP.ASM"
 ;*********************************************************
 ; Winchester Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 2017 Douglas Miller
@@ -72,18 +72,31 @@ string: DB	'KAYPRO ',0,'Winchester Disk Interface ',0,'3.10'
 	dw	vers
 	db	'$'
 
+winlun	equ	00001000b	; Kaypro convention
+winpt0	equ	00000000b
+winpt1	equ	00000010b
+winpt2	equ	00000100b
+winpt3	equ	00000110b
 ; Both partitions use cyls 0-305, but different heads.
 ; head = (PTN << 1) + (track & 1)
 ; track >>= 1
-modtbl: ; -PTN  LUN--------addr-------------
- DB   10000000b,00000000b,00000000B,00000000B ; 
+modtbl: ; -PTN  cfg-byte-template    ---not-used--------
+ DB   10000000b,wincfg+winlun+winpt0,00000000B,00000000B
    db 11111111b,11111111b,11111111b,11111111b
- DB   10000001b,00000000b,00000000B,00000000B ;
+ DB   10000001b,wincfg+winlun+winpt1,00000000B,00000000B
    db 11111111b,11111111b,11111111b,11111111b
 
 ; currently, both (all) partitions are identical,
 ; due to head-slice algorithm for partitioning.
+; But, Universal ROM pulls DSM from partition info on disk,
+; So each could be different... Also, ROM version selects OFF...
 dpb0:	dw	nsec*fsec	; SPT
+	db	5,01fh,1	; BSH,BSM,EXM
+	dw	1125,1023	; DSM,DRM
+	db	0ffh,000h	; ALV0
+	dw	08000h,4	; CKS,OFF
+	db	2,003h		; PSH, PSM
+dpb1:	dw	nsec*fsec	; SPT
 	db	5,01fh,1	; BSH,BSM,EXM
 	dw	1125,1023	; DSM,DRM
 	db	0ffh,000h	; ALV0
@@ -122,11 +135,22 @@ thread	equ	$
 dphtbl:
 	dw	0,0,0,0,0,0,dpb0,0,alv0,@dircb,@dtacb,0
 	db	0	; HBANK
-	dw	0,0,0,0,0,0,dpb0,0,alv1,@dircb,@dtacb,0
+	dw	0,0,0,0,0,0,dpb1,0,alv1,@dircb,@dtacb,0
 	db	0	; HBANK
 
 alv0:	ds	512	; really only need about 283
 alv1:	ds	512	;
+
+ptnoff	equ	302	; offset in sector of ptn tbl
+partns:
+d0dsm:	dw	0
+d0cyl:	dw	0
+d1dsm:	dw	0
+d1cyl:	dw	0
+partnz	equ	$-partns
+ptnend	equ	zsec-ptnoff-partnz
+
+curptn:	dw	0	; cyl offset of current partition
 
 ; driver init
 init$win:
@@ -136,6 +160,52 @@ init$win:
 	sta	romid
 	; TODO: move to login code, for each LUN...
 	call	winrest
+	; TODO: Universal ROM uses track xlat (spares) table...
+	; For virtual hardware it should not matter.
+	; But, partition info is also stored there. Need that now.
+	lda	romid
+	cpi	'U'
+	rnz	; done if not Universal ROM
+	lxi	h,2	; new OFF
+	shld	dpb0+13
+	shld	dpb1+13
+	lda	modtbl+1	; spares must be on "drive 0"
+	out	winsdh
+	call	winrdy
+	jz	disable
+	xra	a
+	out	winlsb
+	out	winmsb	; Cyl 0
+	inr	a
+	out	winsc	; 1 sector
+	mvi	a,nsec-1
+	out	winsec	; last sector on track
+	mvi	a,rdcmd
+	out	wincmd
+	call	winbusy
+	jz	disable
+	; TODO: checksum verification...
+	; surgically read partition info from buffer...
+	lxi	b,ptnoff
+initw0:
+	in	windta
+	dcx	b
+	mov	a,b
+	ora	c
+	jrnz	initw0
+	mvi	b,partnz
+	mvi	c,windta
+	lxi	h,partns
+	inir
+	mvi	b,ptnend	; rest of  sector
+initw1:
+	in	windta
+	dcr	b
+	jrnz	initw1
+	lhld	d0dsm
+	shld	dpb0+5
+	lhld	d1dsm
+	shld	dpb1+5
 	ret
 
 login$win:
@@ -146,25 +216,36 @@ login$win:
 	; TODO: check init flag (per LUN, not partition)
 	; and call winrest (anything else?).
 	; Could always select LUN and test READY.
+	lda	romid
+	cpi	'U'
+	mvi	a,0
+	rnz
+	lhld	@cmode
+	mov	a,m
+	ani	00000011b	; ptn
+	add	a
+	add	a	; 4 bytes per drive
+	inr	a
+	inr	a	; +2 for cyl offset
+	mov	e,a
+	mvi	d,0
+	lxi	h,partns
+	dad	d
+	mov	a,m
+	inx	h
+	mov	h,m
+	mov	l,a
+	shld	curptn	; cyl offset of current partition
+	xra	a
 	ret
 
 setup$win:
 	lhld	@cmode
-	mov	a,m	; PTN
-	ani	00000011b	; max 4 partitions
-	add	a
-	mov	b,a	; -----HH-
 	inx	h
-	mov	a,m	; LUN
-	ani	01100000b	; only 4 LUNs, not 8
-	rrc
-	rrc		; in position for SDH
-	ora	b
-	mov	b,a	; ---DDHH-
+	mov	b,m	; SDH template eSSDDHH-
 	lda	@trk
 	ani	1
-	ora	b	; ---DDHHH
-	ori	wincfg	; eSSDDHHH
+	ora	b	; eSSDDHHH
 	out	winsdh
 	call	winrdy
 	rz	; timeout
@@ -172,10 +253,13 @@ setup$win:
 	out	winpcmp
 	; This is horrible, but since 302C ROM does it
 	; we also must to keep compatible on disk:
-	; if (trk > 7) trk += 4;
-	; else if (trk >= 4) trk += (trk - 4);
-	; trk >>= 1;
-	; putCyl(trk);
+	;    if (trk > 7) trk += 4;
+	;    else if (trk >= 4) trk += (trk - 4);
+	; For universal ROM:
+	;    if (trk > 1 || ptn > 0) trk += 12;
+	; All:
+	;    putHd((trk & 1) | (ptn << 1));
+	;    putCyl(trk >> 1);
 	lhld	@trk
 	lda	romid
 	cpi	'3'
@@ -192,12 +276,27 @@ setup1:
 	cpi	4
 	jrc	setup2
 	sui	4
-	add	l
+	add	l	; CARRY not possible
 	mov	l,a
 setup2:
-	ora	a
-	rarr	h
-	rarr	l
+	srlr	h
+	rarr	l	; from here on, use cyl
+	lda	romid
+	cpi	'U'
+	jrnz	setup3	; probably wrong, but should not have WD1002
+	; B is still eSSDDHH- from above
+	lded	curptn	; cyl offset
+	dad	d
+	mov	a,l
+	ora	h	; cyl 0 is special case
+	jrnz	setup4
+	mov 	a,b
+	ani	00000110b
+	jz	setup3		; partition 0 no xlat
+setup4:
+	lxi	d,6
+	dad	d
+setup3:
 	mov	a,l
 	out	winlsb
 	mov	a,h
@@ -303,7 +402,7 @@ winrest11:
 	in winstat	;Check busy
 	bit 7,a	;
 	jrz winrest3	;go on if not busy
-;       
+
         call    timer	;else count down
 	jrnz winrest11
 ;
@@ -320,7 +419,7 @@ winrest3:
 ;
 	ana a	;believe all others
 	jrnz disable	;abort if an error shown
-;       
+
 winrest31:
 	call	winpsel
 ;
@@ -380,7 +479,7 @@ timer:
 	dcx d
 	mov a,d
 	ora e
-	rnz 
+	rnz
 	dcr h
 	ret
 
@@ -408,7 +507,7 @@ winoff1:
 	out wincmd
 ;
         ret		;return to caller
-winoff2:        
+winoff2:
 	mvi a,nosel	;now deselect the drive
 	out winsdh
 ;
