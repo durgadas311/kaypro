@@ -449,11 +449,9 @@ winpsel:
 ;
 ;       WD 1002 physical select routine
 ;
-	; TODO: get LUN from somewhere... (head too?)
-	; for now, assume only LUN 0.
+	; for now, assume "drive 0" has valid LUN
 ;
-	xra a
-	ori wincfg	;select ecc and sector size options
+	lda	modtbl+1	; fully-formed SDH byte from "drive 0"
 ;
 	out winsdh	;and issue the select
         ret		;return to caller

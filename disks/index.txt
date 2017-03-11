@@ -1,3 +1,5 @@
+##### Floppy images #####
+
 kaypro-cpm22u.logdisk:
 	Kaypro CP/M 2.2u (for ROM 81-478a)
 
@@ -9,6 +11,27 @@ drm-cpm310.logdisk:
 
 cpnet-dist.logdisk:
 	CP/NET utilities, not specific to CP/M version.
+
+cpm3-extra.logdisk:
+	Additional CP/M 3 files/commands.
+
+cpm3src.logdisk:
+	CP/M 3 and CP/NET 3 source code (incl. ROMs 81-302c, 81-478a)
+	Also some new CP/NET utilities.
+
+magicwand.logdisk:
+	Magic Wand and TW (The Word - spell check). MW setup for
+	Kaypro CRT and Juki printer. Custom keypad mapping for CP/M 3.
+
+kermit.logdisk:
+	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
+
+blankddds.logdisk:
+	Blank Kaypro DD DS floppy image. May be copied to new
+	image files in lieu of FORMAT.
+
+##### For harddisk images, either copy into "WD1002-1" or #####
+      add property to config file giving (path and) name.
 
 WD1002-0.blank:
 	Blank ST412 harddisk for WD1002 (ROMs 81-302c, 81-188e, 81-277)
@@ -33,25 +56,7 @@ WD1002-0.cpnet3:
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
 	installed.
 
-cpm3-extra.logdisk:
-	Additional CP/M 3 files/commands.
-
-cpm3src.logdisk:
-	CP/M 3 and CP/NET 3 source code (incl. ROMs 81-302c, 81-478a)
-	Also some new CP/NET utilities.
-
-magicwand.logdisk:
-	Magic Wand and TW (The Word - spell check). MW setup for
-	Kaypro CRT and Juki printer. Custom keypad mapping for CP/M 3.
-
-kermit.logdisk:
-	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
-
-blankddds.logdisk:
-	Blank Kaypro DD DS floppy image. May be copied to new
-	image files in lieu of FORMAT.
-
-##### Disks to install the Kaypro 10 Winchester #####
+##### Floppy Disks to install the Kaypro 10 Winchester #####
 (CP/M 2.2H, requires ROM 81-302c)
 k10hald1.logdisk:
 	09/24/2003 10:51:23

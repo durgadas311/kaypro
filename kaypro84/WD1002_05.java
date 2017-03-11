@@ -102,6 +102,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	// mode COMMAND
 	private byte[] cmdBuf = new byte[8];
 	private byte curCmd;
+	private byte preComp;
 	// mode DATA_IN/DATA_OUT
 	private byte[] dataBuf;
 	private int dataLength;
@@ -176,9 +177,9 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		int sectorSize = 512;
 
 		// NOTE: Kaypro 10 seems to expect LUN 1, not 0.
-		// Right now we don't check LUN.
+		// TODO: support more than one LUN
 		timer = new javax.swing.Timer(500, this);
-		name = "WD1002-0";
+		name = "WD1002-1";
 		driveMedia = name;
 		String s = props.getProperty("wd1002_drive1");
 		if (s != null) {
@@ -188,6 +189,11 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				// Front panel name, not media name
 				name = ss[1];
 			}
+		}
+		s = props.getProperty("wd1002_disk1");
+		if (s != null) {
+			// TODO: any parameters follow?
+			driveMedia = s;
 		}
 		// Always show drive on front panel, even if not usable
 		leds_m = lh.registerLED(name);
@@ -365,8 +371,12 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		return cmdBuf[adr_SDH_c] & 0x07;
 	}
 
+	private int getLUN(byte b) {
+		return (b & 0x18) >> 3;
+	}
+
 	private int getLUN() {
-		return (cmdBuf[adr_SDH_c] & 0x18) >> 3;
+		return getLUN(cmdBuf[adr_SDH_c]);
 	}
 
 	private int getSSZ() {
@@ -431,6 +441,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		switch(port) {
 		case adr_Precomp_c:
 			// anything?
+			preComp = (byte)val;
 			return;
 		case adr_Cmd_c:
 			//cmdBuf[adr_Status_c] &= ~sts_SeekDone_c;
@@ -439,6 +450,15 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			return;
 		case adr_Data_c:
 			putData(val);
+			break;
+		case adr_SDH_c:
+			// NOTE: Kaypro 10 seems to expect LUN 1, not 0.
+			// TODO: support more than one LUN
+			if (getLUN((byte)val) == 1) {
+				cmdBuf[adr_Status_c] |= sts_Ready_c;
+			} else {
+				cmdBuf[adr_Status_c] &= ~sts_Ready_c;
+			}
 			break;
 		}
 		cmdBuf[port] = (byte)val;
@@ -513,6 +533,11 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		long e;
 
 		if (driveFd == null) {
+			setError();
+			return;
+		}
+		// NOTE: Kaypro 10 seems to expect LUN 1, not 0.
+		if (getLUN() != 1) {
 			setError();
 			return;
 		}
@@ -665,7 +690,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			"[7] status  %02x %02x (cmd)\n" +
 			"data index = %d\n",
 			cmdBuf[0] & 0xff,
-			cmdBuf[1] & 0xff, 0,
+			cmdBuf[1] & 0xff, preComp & 0xff,
 			cmdBuf[2] & 0xff,
 			cmdBuf[3] & 0xff,
 			cmdBuf[4] & 0xff,

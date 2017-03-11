@@ -58,7 +58,11 @@
 #
 #wd1002_drive1 = ST412
 #	Winchester harddisk model (may require software changes).
-#	Only one drive currently supported.
+#	Only one drive currently supported. Kaypro 10 seems hard-wired
+#	for LUN 1.
+#wd1002_disk1 = WD1002-1
+#	Winchester harddisk image file. File will be created if needed,
+#	however ROMs expect more initialization before they recognize it.
 #
 #data_att = (special)
 #kbd_att = (special)
