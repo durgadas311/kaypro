@@ -121,7 +121,7 @@ public class ParallelPrinter
 	}
 
 	public int gppInputs() {
-		return (strobe ? ctrl_PRBSY_c : 0);
+		return (strobe && attObj != null ? ctrl_PRBSY_c : 0);
 	}
 
 	public int interestedBits() {

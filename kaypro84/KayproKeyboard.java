@@ -10,8 +10,8 @@ import javax.sound.sampled.*;
 public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 	VirtualUART _port;
 	java.util.concurrent.LinkedBlockingDeque<String> fifo;
-	int paste_delay = 33;	// mS, 1000/cps
-	int cr_delay = 100;	// mS
+	int paste_delay = 0;	// mS, 1000/cps
+	int cr_delay = 0;	// mS
 	KeyboardBeep _kbd;
 	static final Map<Integer, Integer> altKeys;
 	static {
@@ -117,6 +117,32 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		_port = port;
 		_kbd = new KeyboardBeep(props);
 		fifo = new java.util.concurrent.LinkedBlockingDeque<String>();
+		String s = props.getProperty("kaypro_paste_rate");
+		int cps = 0;
+		int crd = 0;
+		if (s != null) {
+			try {
+				cps = Integer.valueOf(s);
+			} catch (Exception ee) {
+				cps = 33;
+				System.err.format("Bad paste rate \"%s\", using %d\n",
+									s, cps);
+			}
+		}
+		s = props.getProperty("kaypro_paste_cr_delay");
+		if (s != null) {
+			try {
+				crd = Integer.valueOf(s);
+			} catch (Exception ee) {
+				crd = cps > 0 ? 3 * (1000 / cps) : 100;
+				System.err.format("Bad paste CR delay \"%s\", using %d\n",
+									s, crd);
+			}
+		}
+		if (cps > 0 && crd <= 0) {
+			crd = 3 * (1000 / cps);
+		}
+		setPasteRate(cps, crd);
 		Thread t = new Thread(this);
 		t.start();
 		port.attach(this);
@@ -197,6 +223,13 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 			}
 			for (byte b : s.getBytes()) {
 				_port.put(b & 0xff, true);
+				if (paste_delay > 0) try {
+					if (b == '\r') {
+						Thread.sleep(cr_delay);
+					} else {
+						Thread.sleep(paste_delay);
+					}
+				} catch (Exception ee) {}
 			}
 		}
 	}
