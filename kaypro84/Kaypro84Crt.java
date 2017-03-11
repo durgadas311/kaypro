@@ -294,6 +294,8 @@ public class Kaypro84Crt extends KayproCrt
 		ch &= 0x09ff;
 		if (ch > 0xff) {
 			ch |= 0xe000;
+		} else if (ch < 0x20) {
+			ch |= 0x0100;
 		}
 		return (char)ch;
 	}
