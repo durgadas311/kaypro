@@ -41,6 +41,12 @@ public class KayproOperator implements ActionListener, Runnable
 	JPanel trace_lo_pn;
 	JPanel trace_hi_pn;
 	JPanel trace_sec_pn;
+	JPanel dmppg_pn;
+	JPanel dump_pg_pn;
+	JPanel dump_bnk_pn;
+	JTextArea dump_pg;
+	JTextArea dump_bnk;
+	JCheckBox dump_rom;
 	static final int OPTION_CANCEL = 0;
 	static final int OPTION_YES = 1;
 
@@ -64,6 +70,8 @@ public class KayproOperator implements ActionListener, Runnable
 		_mdia = new HashMap<Integer, String>();
 		_mnus = new HashMap<Integer, JMenuItem>();
 		_cmds = new java.util.concurrent.LinkedBlockingDeque<Integer>();
+		String model = props.getProperty("kaypro_model");
+
 		JMenuBar _mb = new JMenuBar();
 
 		_sys_mu = new JMenu("System");
@@ -98,7 +106,7 @@ public class KayproOperator implements ActionListener, Runnable
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
 		_page_key = _key++;
-		mi = new JMenuItem("Dump Page 0", _page_key);
+		mi = new JMenuItem("Dump Page", _page_key);
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
 		// More added when computer connected
@@ -139,6 +147,29 @@ public class KayproOperator implements ActionListener, Runnable
 		trace_pn.add(trace_lo_pn);
 		trace_pn.add(trace_hi_pn);
 		trace_pn.add(trace_sec_pn);
+
+		// Dialog for dump page...
+		dmppg_pn = new JPanel();
+		dmppg_pn.setLayout(new BoxLayout(dmppg_pn, BoxLayout.Y_AXIS));
+		if (model != null && model.length() > 2 && model.endsWith("X")) {
+			dump_bnk = new JTextArea();
+			dump_bnk.setPreferredSize(new Dimension(30, 20));
+			dump_bnk_pn = new JPanel();
+			dump_bnk_pn.add(new JLabel("Bank (0-3):"));
+			dump_bnk_pn.add(dump_bnk);
+			dmppg_pn.add(dump_bnk_pn);
+		}
+		dump_pg = new JTextArea();
+		dump_pg.setPreferredSize(new Dimension(50, 20));
+		dump_pg_pn = new JPanel();
+		dump_pg_pn.add(new JLabel("Page (00-FF):"));
+		dump_pg_pn.add(dump_pg);
+		dmppg_pn.add(dump_pg_pn);
+		dump_rom = new JCheckBox("ROM Enabled");
+		// For some reason, BoxLayout does like "un-wrapped" objects...
+		JPanel pn = new JPanel();
+		pn.add(dump_rom);
+		dmppg_pn.add(pn);
 
 		// must be done before conditional returns below...
 		Thread th = new Thread(this);
@@ -274,6 +305,99 @@ public class KayproOperator implements ActionListener, Runnable
 		}
 	}
 
+	private void doTraceDialog() {
+		JOptionPane trace_dia;
+		trace_dia = new JOptionPane(trace_pn, JOptionPane.QUESTION_MESSAGE,
+					JOptionPane.YES_NO_OPTION, null, trace_btns);
+		trace_cyc.setText("");
+		trace_lo.setText("");
+		trace_hi.setText("");
+		trace_sec.setText("1");
+		Dialog dlg = trace_dia.createDialog(_main, "Trace CPU");
+		dlg.setVisible(true);
+		Object res = trace_dia.getValue();
+		_main.requestFocus();
+		if (trace_btns[OPTION_CANCEL].equals(res)) {
+			return;
+		}
+		if (!trace_btns[OPTION_YES].equals(res)) {
+			return;
+		}
+		int msecs = 0;
+		String cmd = "trace ";
+		if (trace_cyc.getText().length() > 0) {
+			// let's hope it is numeric...
+			cmd += "cycles " + trace_cyc.getText();
+		} else if (trace_lo.getText().length() > 0) {
+			// let's hope it is hexadecimal...
+			cmd += "pc " + trace_lo.getText() +
+				" " + trace_hi.getText();
+		} else if (trace_sec.getText().length() > 0) {
+			try {
+				float s = Float.valueOf(trace_sec.getText());
+				msecs = (int)Math.ceil(s * 1000);
+			} catch (Exception ee) {}
+			if (msecs == 0) {
+				return;
+			}
+			cmd += "on";
+		}
+		Vector<String> r = _cmdr.sendCommand(cmd);
+		if (!r.get(0).equals("ok")) {
+			error(_main, cmd, join(r));
+			return;
+		}
+		if (msecs == 0) {
+			return;
+		}
+		try {
+			Thread.sleep(msecs);
+		} catch(Exception ee) {}
+		r = _cmdr.sendCommand("trace off");
+		if (!r.get(0).equals("ok")) {
+			error(_main, "Trace OFF", join(r));
+		}
+	}
+
+	private void doDumpPageDialog() {
+		JOptionPane dmppg_dia;
+		dmppg_dia = new JOptionPane(dmppg_pn, JOptionPane.QUESTION_MESSAGE,
+					JOptionPane.YES_NO_OPTION, null, trace_btns);
+		if (dump_bnk != null) {
+			dump_bnk.setText("");
+		}
+		dump_pg.setText("");
+		dump_rom.setSelected(false);
+		Dialog dlg = dmppg_dia.createDialog(_main, "Dump Page");
+		dlg.setVisible(true);
+		Object res = dmppg_dia.getValue();
+		_main.requestFocus();
+		if (trace_btns[OPTION_CANCEL].equals(res)) {
+			return;
+		}
+		if (!trace_btns[OPTION_YES].equals(res)) {
+			return;
+		}
+		String cmd = "dump page ";
+		if (dump_pg.getText().length() <= 0) {
+			return;
+		}
+		if (dump_rom.isSelected()) {
+			cmd += "rom ";
+		}
+		if (dump_bnk != null && dump_bnk.getText().length() > 0) {
+			cmd += dump_bnk.getText() + " ";
+		}
+		// let's hope it is numeric...
+		cmd += dump_pg.getText();
+		Vector<String> r = _cmdr.sendCommand(cmd);
+		if (!r.get(0).equals("ok")) {
+			error(_main, cmd, join(r));
+		} else {
+			handleResp("Dump Page " + dump_pg.getText(), r);
+		}
+	}
+
 	public void actionPerformed(ActionEvent e) {
 		if (!(e.getSource() instanceof JMenuItem)) {
 			System.err.println("unknown event source type");
@@ -310,56 +434,7 @@ public class KayproOperator implements ActionListener, Runnable
 			}
 			if (key == _tracecust_key) {
 				// pop-up dialog, get parameters...
-				JOptionPane trace_dia;
-				trace_dia = new JOptionPane(trace_pn, JOptionPane.QUESTION_MESSAGE, JOptionPane.YES_NO_OPTION, null, trace_btns);
-				trace_cyc.setText("");
-				trace_lo.setText("");
-				trace_hi.setText("");
-				trace_sec.setText("1");
-				Dialog dlg = trace_dia.createDialog(_main, "Trace CPU");
-				dlg.setVisible(true);
-				Object res = trace_dia.getValue();
-				_main.requestFocus();
-				if (trace_btns[OPTION_CANCEL].equals(res)) {
-					continue;
-				}
-				if (!trace_btns[OPTION_YES].equals(res)) {
-					continue;
-				}
-				int msecs = 0;
-				String cmd = "trace ";
-				if (trace_cyc.getText().length() > 0) {
-					// let's hope it is numeric...
-					cmd += "cycles " + trace_cyc.getText();
-				} else if (trace_lo.getText().length() > 0) {
-					// let's hope it is hexadecimal...
-					cmd += "pc " + trace_lo.getText() +
-						" " + trace_hi.getText();
-				} else if (trace_sec.getText().length() > 0) {
-					try {
-						float s = Float.valueOf(trace_sec.getText());
-						msecs = (int)Math.ceil(s * 1000);
-					} catch (Exception ee) {}
-					if (msecs == 0) {
-						continue;
-					}
-					cmd += "on";
-				}
-				Vector<String> r = _cmdr.sendCommand(cmd);
-				if (!r.get(0).equals("ok")) {
-					error(_main, cmd, join(r));
-					continue;
-				}
-				if (msecs == 0) {
-					continue;
-				}
-				try {
-					Thread.sleep(msecs);
-				} catch(Exception ee) {}
-				r = _cmdr.sendCommand("trace off");
-				if (!r.get(0).equals("ok")) {
-					error(_main, "Trace OFF", join(r));
-				}
+				doTraceDialog();
 				continue;
 			}
 			if (key == _traceon_key) {
@@ -404,12 +479,7 @@ public class KayproOperator implements ActionListener, Runnable
 				continue;
 			}
 			if (key == _page_key) {
-				Vector<String> r = _cmdr.sendCommand("dump page 0");
-				if (!r.get(0).equals("ok")) {
-					error(_main, "Dump Page 0", join(r));
-				} else {
-					handleResp("Dump Page 0", r);
-				}
+				doDumpPageDialog();
 				continue;
 			}
 			if (key == _rf_key) {

@@ -16,7 +16,7 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 		mem = new byte[65536];
 	}
 
-	public int read(int address) {
+	public int read(boolean rom, int bank, int address) {
 		address &= 0xffff; // necessary?
 		if (rom && address < 0x8000) {
 			if (address <= monMask) {
@@ -25,6 +25,10 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 			return 0;
 		}
 		return mem[address & 0xffff] & 0xff;
+	}
+
+	public int read(int address) {
+		return read(rom, 0, address);
 	}
 	public void write(int address, int value) {
 		if (rom && address < 0x8000) {

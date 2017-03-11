@@ -443,8 +443,13 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 					ret.add(disas.disas(cpu.getRegPC()) + "\n");
 				}
 				if (args[1].equalsIgnoreCase("page") && args.length > 2) {
-					//ret.add(dumpPage(args[2]));
-					ret.add(dumpPage("fd"));
+					String s = dumpPage(args);
+					if (s == null) {
+						err.add("syntax");
+						err.addAll(Arrays.asList(args));
+						return err;
+					}
+					ret.add(s);
 				}
 				if (args[1].equalsIgnoreCase("mach")) {
 					ret.add(dumpDebug());
@@ -670,11 +675,28 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		stopWait.release();
 	}
 
-	public String dumpPage(String pgnum) {
+	public String dumpPage(String[] args) {
 		String str = "";
 		int pg = 0;
+		int bnk = 0;
+		int i = 2;
+		boolean rom = false;
+		if (args[i].equalsIgnoreCase("rom")) {
+			rom = true;
+			++i;
+		}
+		if (args.length - i > 1) {
+			try {
+				bnk = Integer.valueOf(args[i++]);
+			} catch (Exception ee) {
+				return ee.getMessage();
+			}
+		}
+		if (args.length - i < 1) {
+			return null;
+		}
 		try {
-			pg = Integer.valueOf(pgnum, 16);
+			pg = Integer.valueOf(args[i++], 16);
 		} catch (Exception ee) {
 			return ee.getMessage();
 		}
@@ -683,7 +705,15 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		while (adr < end) {
 			str += String.format("%04x:", adr);
 			for (int x = 0; x < 16; ++x) {
-				str += String.format(" %02x", mem.read(adr + x));
+				str += String.format(" %02x", mem.read(rom, bnk, adr + x));
+			}
+			str += "  ";
+			for (int x = 0; x < 16; ++x) {
+				int c = mem.read(rom, bnk, adr + x);
+				if (c < ' ' || c > '~') {
+					c = '.';
+				}
+				str += String.format("%c", (char)c);
 			}
 			str += '\n';
 			adr += 16;

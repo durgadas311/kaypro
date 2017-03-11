@@ -18,7 +18,7 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 		gpp.addGppListener(this);
 	}
 
-	public int read(int address) {
+	public int read(boolean rom, int bank, int address) {
 		address &= 0xffff; // necessary?
 		if (rom && address < 0x8000) {
 			if (address <= monMask) {
@@ -27,9 +27,13 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 			return 0;
 		}
 		if (address < commPage) {
-			address |= rdBank << 16;
+			address |= bank << 16;
 		}
 		return mem[address & 0x3ffff] & 0xff;
+	}
+	public int read(int address) {
+		int bank = (address < commPage ? rdBank : 0);
+		return read(rom, bank, address);
 	}
 	public void write(int address, int value) {
 		if (rom && address < 0x8000) {
