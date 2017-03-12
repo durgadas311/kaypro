@@ -1,6 +1,6 @@
 VPATH = drm cpnet
 
-all: help.hlp
+all: makehelp help.hlp
 
 HELPS = commands.help \
 	cntrlchars.help \
@@ -26,6 +26,7 @@ HELPS = commands.help \
 	login.help \
 	logoff.help \
 	mac.help \
+	mode.help \
 	netstat.help \
 	network.help \
 	ntpdate.help \
@@ -49,6 +50,5 @@ HELPS = commands.help \
 
 help.hlp: $(HELPS)
 	cat $^ | unix2dos >help.dat
-	@echo "Use HELP [CREATE] on CP/M3 to convert help.dat to help.hlp"
-#	./makehelp help.dat >$@
-#	@rm help.dat
+	./makehelp help.dat >$@
+	@echo "If needed, use HELP [CREATE] on CP/M3 to convert help.dat to help.hlp"

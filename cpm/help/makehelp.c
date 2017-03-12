@@ -92,5 +92,8 @@ int main(int argc, char **argv) {
 	}
 	// now dump the help text...
 	write(1, buf, buflen);
+	// and at least one ^Z...
+	*buf = 0x1a;
+	write(1, buf, 1);
 	return 0;
 }
