@@ -55,13 +55,11 @@ WD1002-0.U.cpm2:
 
 WD1002-0.cpm3
 	Kaypro 10X (ROM 81-302c) image with CP/M 3 installed.
+	Includes CP/NET 3.
 
 WD1002-0.U.cpm3
 	Kaypro 10X (Universal ROM 81-478a) image with CP/M 3 installed.
-
-WD1002-0.cpnet3:
-	Kaypro 10X (ROM 81-302c) image with CP/M 3 and CP/NET 3
-	installed.
+	Includes CP/NET 3.
 
 ##### Floppy Disks to install the Kaypro 10 Winchester #####
 (CP/M 2.2H, requires ROM 81-302c)
