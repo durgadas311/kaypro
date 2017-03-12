@@ -439,12 +439,14 @@ public class Kaypro84Crt extends KayproCrt
 		return sa;
 	}
 
+	// Note, p1 points to *next* line, in order to draw
+	// proper highlight. But here we need to avoid copy
+	// of an extra line.
 	private String getRegion(Point p0, Point p1) {
 		String s = "";
-		p1.setLocation(regs[1], (int)p1.getY());
 		int x = (int)p0.getX();
 		int a0 = getAddress(p0);
-		int a1 = getAddress(p1);
+		int a1 = getAddress(p1) - regs[1];
 		while (a0 != a1) {
 			int c = ram[a0] & 0x0ff;
 			if (c > '~' || c < ' ') {
@@ -458,7 +460,7 @@ public class Kaypro84Crt extends KayproCrt
 			++a0;
 			a0 &= 0x07ff;
 		}
-		return s;
+		return s.replaceAll(" +\n", "\n");
 	}
 
 	// TODO: does this need to reconstruct graphics/reverse-video
