@@ -1,4 +1,4 @@
-vers equ '0c' ; March 10, 2017  17:18  drm  "WIN3KP.ASM"
+vers equ '0d' ; March 11, 2017  21:35  drm  "WIN3KP.ASM"
 ;*********************************************************
 ; Winchester Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 2017 Douglas Miller
@@ -9,6 +9,7 @@ vers equ '0c' ; March 10, 2017  17:18  drm  "WIN3KP.ASM"
 	extrn @dph,@rdrv,@side,@trk,@sect,@dma,@dbnk,@dstat
 	extrn @dtacb,@dircb,@scrbf,@rcnfg,@cmode
 	extrn ?bnksl,?timot,?getdp
+	extrn ?halloc
 
 false	equ	0
 true	equ	not false
@@ -133,10 +134,10 @@ thread	equ	$
 
 ; HASH/HBANK is set by main bios...
 dphtbl:
-	dw	0,0,0,0,0,0,dpb0,0,alv0,@dircb,@dtacb,0
-	db	0	; HBANK
-	dw	0,0,0,0,0,0,dpb1,0,alv1,@dircb,@dtacb,0
-	db	0	; HBANK
+	dw	0,0,0,0,0,0,dpb0,0,alv0,@dircb,@dtacb,0ffffh
+d0h:	db	0	; HBANK
+	dw	0,0,0,0,0,0,dpb1,0,alv1,@dircb,@dtacb,0ffffh
+d1h:	db	0	; HBANK
 
 alv0:	ds	512	; really only need about 283
 alv1:	ds	512	;
@@ -152,8 +153,13 @@ ptnend	equ	zsec-ptnoff-partnz
 
 curptn:	dw	0	; cyl offset of current partition
 
-; driver init
+; driver init. DRM+1 is fixed at 1024
 init$win:
+	lxi	b,1024*4
+	lxi	d,d0h-2
+	call	?halloc
+	lxi	d,d1h-2
+	call	?halloc
 	xra	a
 	sta	offline
 	lda	0050h	; gift from loader: ROM id

@@ -1,4 +1,4 @@
-vers equ '0c' ; March 6, 2017  17:26  drm  "FDC3KP.ASM"
+vers equ '0d' ; March 11, 2017  21:36  drm  "FDC3KP.ASM"
 ;*********************************************************
 ; Floppy Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 1986 Douglas Miller
@@ -9,6 +9,7 @@ vers equ '0c' ; March 6, 2017  17:26  drm  "FDC3KP.ASM"
 	extrn @dph,@rdrv,@side,@trk,@sect,@dma,@dbnk,@dstat
 	extrn @dtacb,@dircb,@scrbf,@rcnfg,@cmode
 	extrn ?bnksl,?timot,?getdp
+	extrn ?halloc
 
 false	equ	0
 true	equ	not false
@@ -132,12 +133,12 @@ thread	equ	$	;must be last statement in "cseg"
 
 	dseg		;put most everything in banked memory...
 
-dphtbl: dw 0,0,0,0,0,0,dpb0,csv0,alv0,@dircb,@dtacb,0	      ;hash buffers
-	db 0	;(hash buffer bank number)		      ;are allocated
-	dw 0,0,0,0,0,0,dpb1,csv1,alv1,@dircb,@dtacb,0	      ;by main BIOS
-	db 0						      ;during LOGIN.
-	dw 0,0,0,0,0,0,dpb2,csv2,alv2,@dircb,@dtacb,0
-	db 0
+dphtbl: dw 0,0,0,0,0,0,dpb0,csv0,alv0,@dircb,@dtacb,0ffffh
+d0h:	db 0	;(hash buffer bank number)
+	dw 0,0,0,0,0,0,dpb1,csv1,alv1,@dircb,@dtacb,0ffffh
+d1h:	db 0
+	dw 0,0,0,0,0,0,dpb2,csv2,alv2,@dircb,@dtacb,0ffffh
+d2h:	db 0
 
 csv0:	ds	(256)/4    ;max dir entries: 256
 csv1:	ds	(256)/4
@@ -147,7 +148,17 @@ alv0:	ds	(400)/4    ;max dsk blocks: 400
 alv1:	ds	(400)/4
 alv2:	ds	(400)/4
 
+; Max DRM+1 is 256 (getdp3kp.asm)
 init:
+	; TODO: detect Kaypro 10 (only one floppy) and do not init all 3.
+	lxi	b,256*4
+	lxi	d,d0h-2
+	call	?halloc
+	lxi	d,d1h-2
+	call	?halloc
+	lxi	d,d2h-2
+	call	?halloc
+	;
 	IN	fdcstat 	; CLEAR WD-1793 from power-on (or whatever)
 	push	psw
 	jmp	setmot	; set timeout in case no more activity

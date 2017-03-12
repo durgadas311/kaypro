@@ -1,4 +1,4 @@
-vers equ '1a' ; March 10, 2017  17:11  drm "MBIOS3KP.ASM"
+vers equ '1b' ; March 11, 2017  21:34  drm "MBIOS3KP.ASM"
 ;****************************************************************
 ; Main BIOS module for CP/M 3 (CP/M plus) on the KAYPRO computer*
 ; Copyright (c) 1985 Douglas Miller				*
@@ -39,6 +39,7 @@ ccp	equ 0100h	; Console Command Processor gets loaded into the TPA
 	public ?timot
 	public ?dvtbl,?drtbl
 	public ?bnksl,?stbnk
+	public ?halloc
 
 *********************************************************
 **  I/O port base addresses
@@ -1268,45 +1269,6 @@ gh2:	dcr	b
 	srlr	a
 	jr	gh2
 gh3:	sta	@pspt	;physical sectors per track
-	lxi	h,+22	; HASH
-	dad	d
-	mov	a,m
-	inx	h
-	ora	m
-	jnz	ghz	; already have HASH
-	pop	b
-	push	b
-	lxi	h,+7	; DRM
-	dad	b
-	mov	a,m
-	inx 	h
-	mov	h,m
-	mov	l,a
-	inx	h	; HL = num dir ent
-	dad	h
-	dad	h
-	; for Kaypro there should always be enough space...
-	mov	c,l
-	mov	b,h	; BC = size of HASH needed
-	lhld	hleft
-	ora	a
-	dsbc	b
-	jrc	nohash
-	shld	hleft
-	lhld	hlast
-	push	h
-	dad	b
-	shld	hlast
-	pop	b	; HASH alloc'd for this drive
-gh0:
-	lxi	h,+22
-	dad	d	;point to hash address
-	mov	m,c	;set hash buffer address for this drive.
-	inx	h
-	mov	m,b
-	inx	h
-	mvi	m,hbnk	;set hash bank also.
-ghz:
 	xchg	;put DPH in (HL) for BDOS
 	mov	e,m
 	inx	h
@@ -1314,10 +1276,6 @@ ghz:
 	dcx	h
 	pop	b	;BC=dpb
 	ret
-
-nohash:
-	lxi	b,0ffffh
-	jr	gh0
 
 setup$dph:
 	ora	a	;reset [CY]
@@ -1341,6 +1299,28 @@ setup$dph:
 	lxi	b,17
 	ldir
 	ora	a	;reset [CY]
+	ret
+
+; Allocate space from hash pool.
+; Does nothing if space exhausted (caller must init for "no hash")
+; BC = size of hash, DE = &DPH.HASH
+; Preserves BC, A
+?halloc:
+	lhld	hleft
+	ora	a
+	dsbc	b
+	rc	; no space
+	shld	hleft
+	lhld	hlast
+	xchg
+	mov	m,e
+	inx	h
+	mov	m,d
+	inx	h
+	mvi	m,hbnk
+	xchg
+	dad	b
+	shld	hlast
 	ret
 
 home:	lxi b,0 	; same as set track zero
