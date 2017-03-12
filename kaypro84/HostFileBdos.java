@@ -932,10 +932,10 @@ ee.printStackTrace();
 				"%04x %04x " +
 				"... %02x %06x\n",
 				fnc, len, msgbuf[cpnMsg] & 0xff,
-				fcb.drv, fcb.name,
-				fcb.ext, fcb.s1, fcb.s2, fcb.rc,
+				fcb.drv & 0xff, fcb.name,
+				fcb.ext & 0xff, fcb.s1 & 0xff, fcb.s2 & 0xff, fcb.rc & 0xff,
 				fcb.fd, fcb.fd_,
-				fcb.cr, fcb.rr);
+				fcb.cr & 0xff, fcb.rr);
 			return;
 		}
 		System.err.format("MSG %02x: %d: %02x %02x [...]\n",
@@ -1871,7 +1871,7 @@ ee.printStackTrace();
 		} catch (Exception ee) {
 			rc = -1;
 		}
-		if (fcb.cr > 127) {
+		if ((fcb.cr & 0xff) > 127) {
 			fcb.cr = 0; // cr
 			++fcb.ext;
 			fcb.ext &= 0x1f;
@@ -1916,14 +1916,14 @@ ee.printStackTrace();
 		} catch (Exception ee) {
 			rc = -1;
 		}
-		if (fcb.cr > 127) {
+		if ((fcb.cr & 0xff) > 127) {
 			fcb.cr = 0;
 			fcb.rc = 0;
 			++fcb.ext;
 			fcb.ext &= 0x1f;
 		}
 		++fcb.cr;
-		if (fcb.rc < fcb.cr) {
+		if ((fcb.rc & 0xff) < (fcb.cr & 0xff)) {
 			fcb.rc = fcb.cr;
 		}
 		if (rc < 0) {
