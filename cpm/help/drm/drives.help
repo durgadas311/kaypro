@@ -1,0 +1,21 @@
+
+  ///1DRIVES
+
+  Syntax:
+
+      DRIVES
+
+  Explanation:
+
+  The DRIVES  Command displays  the logical-physical drive  table in
+  the BIOS.
+
+  Example:
+
+      A>DRIVES
+
+      DRIVES v3.103
+
+      A: = (50)  KAYPRO Winchester Disk Interface 3.100d
+      B: = (51)  KAYPRO Winchester Disk Interface 3.100d
+      C: = (33)  KAYPRO Floppy Disk Controller 3.100d

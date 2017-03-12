@@ -1,4 +1,4 @@
-vers equ '0c' ; March 5, 2017  08:39  drm  "LDCPM3.ASM"
+vers equ '0d' ; March 12, 2017  16:02  drm  "LDCPM3.ASM"
 
 	maclib Z80
 
@@ -17,6 +17,7 @@ cr	equ	13
 
 	org	100h
 LOADER:
+	lxi	sp,stack
 ; ***** this should be part of COLD BOOT in CPM3LDRK
 ;	lxi	h,0fd74h
 ;	lxi	d,00040h
@@ -33,26 +34,18 @@ LOADER:
 ; 81-292 places copyout in 0fde5h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 ; 81-302 places copyout in 0f919h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 	call	chkuni
-	lxi	h,0fe9ah
-	mvi	a,'U'
-	jrz	gotrom
+	jz	rom20
 	lxi	h,0f919h
 	call	chksig
-	lxi	h,0fd5ch
-	mvi	a,'3'
-	jrz	gotrom
+	jz	rom19
 	lxi	h,0fde5h
 	call	chksig
-	lxi	h,0fd74h
-	mvi	a,'2'
-	jrz	gotrom
+	jz	romXX
 	lxi	d,badrom
 	mvi	c,msgout
 	call	bdos
 	jmp	cpm
 gotrom:
-	shld	romcrt
-	sta	romid
 	lxi	d,rommsg
 	mvi	c,msgout
 	call	bdos
@@ -134,6 +127,9 @@ nobnk:
 	dcx	d
 	lddr
 nobnk0:
+	; Before running OS, patch logical-physical drive table.
+	call	setlpd
+	;
 	lhld	cstart
 	pchl
 
@@ -204,14 +200,68 @@ chk0:	ldax	d
 	xra	a
 	ret
 
+rom20:
+	lxi	h,0fe9ah
+	shld	romcrt
+	mvi	a,'U'
+	sta	romid
+	lda	0fff7h
+	cpi	0ffh	; floppy-only
+	lxi	h,lpdfpy	; floppy only
+	jrz	romZZ$1
+	lda	0fff4h	; drive A
+	ani	00001100b
+	; common code
+romZZ$0:
+	lxi	h,lpdwin0	; win, floppy
+	jrz	romZZ$1
+	lxi	h,lpdwin1	; floppy, win
+romZZ$1:
+	shld	lptbl
+	jmp	gotrom
+
+rom19:	; 81-302c, 81-277, 81-188, version series 1.9
+	lxi	h,0fd5ch
+	shld	romcrt
+	mvi	a,'3'
+	sta	romid
+	; get floppy/win determinination
+	; 0f700h: cur dsk type, 0=win, (ff) floppy
+	; 0f701h: drive A type...
+	; 0f702h: cur SPT?
+	lda	0f701h
+	ora	a
+	jr	romZZ$0
+
+romXX:	; 81-292a, no visible version - floppy-only
+	lxi	h,0fd74h
+	shld	romcrt
+	mvi	a,'2'
+	sta	romid
+	lxi	h,lpdfpy	; floppy only
+	shld	lptbl
+	jmp	gotrom
+
+setlpd:
+	; locate lptbl... update it
+	lhld	cstart	; assume this is BIOS base
+	lxi	d,100	; offset to logical-physical drive table
+	dad	d
+	mov	e,m
+	inx	h
+	mov	d,m
+	lhld	lptbl
+	mov	a,h
+	ora	l
+	rz
+	lxi	b,3	; TODO: allow more drives?
+	ldir
+	ret
+
 cpm3$sys:
 	DB	0,'CPM3    SYS',0,0,0,0
 	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	DB	0,0,0,0
-
-nofile: DB	cr,lf,'error: File not found: CPM3.SYS',cr,lf,'$'
-
-rderr:	DB	cr,lf,'error: Read failure: CPM3.SYS',cr,lf,'$'
 
 topres: db	0
 reslen: db	0
@@ -222,6 +272,7 @@ cstart: dw	0
 resend: dw	0
 bnkend: dw	0
 
+; This code is located in high RAM for certain ROM versions
 signature:
 	in	014h
 	res	7,a
@@ -233,10 +284,24 @@ signature:
 	ret
 siglen	equ	$-signature
 
-badrom:	db	cr,lf,7,'Unknown ROM version!',cr,lf,'$'
-rommsg:	db	cr,lf,'Got ROM id '
-romid	db	'.',cr,lf,'$'
-romcrt	dw	0
+badrom:	db	7,'Unknown ROM version!',cr,lf,'$'
+rommsg:	db	'LDCPM3 vers 3.10'
+	dw	vers
+	db	' - Got ROM id '
+romid:	db	'.',cr,lf,'$'
+romcrt:	dw	0
+lptbl:	dw	0
+
+lpdwin0:	db	50,51,33
+lpdwin1:	db	33,50,51
+lpdfpy:		db	33,34,35
+
+nofile: DB	cr,lf,'error: File not found: CPM3.SYS',cr,lf,'$'
+
+rderr:	DB	cr,lf,'error: Read failure: CPM3.SYS',cr,lf,'$'
+
+	ds	64
+stack:	ds	0
 
 buffer: ds	0
 

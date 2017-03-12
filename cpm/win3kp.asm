@@ -1,4 +1,4 @@
-vers equ '0d' ; March 11, 2017  21:35  drm  "WIN3KP.ASM"
+vers equ '0e' ; March 12, 2017  16:15  drm  "WIN3KP.ASM"
 ;*********************************************************
 ; Winchester Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 2017 Douglas Miller
@@ -10,6 +10,7 @@ vers equ '0d' ; March 11, 2017  21:35  drm  "WIN3KP.ASM"
 	extrn @dtacb,@dircb,@scrbf,@rcnfg,@cmode
 	extrn ?bnksl,?timot,?getdp
 	extrn ?halloc
+	extrn @lptbl
 
 false	equ	0
 true	equ	not false
@@ -155,6 +156,23 @@ curptn:	dw	0	; cyl offset of current partition
 
 ; driver init. DRM+1 is fixed at 1024
 init$win:
+	lxi	h,@lptbl
+	mvi	c,16
+initw3:
+	mov	a,m
+	sui	dev0
+	cpi	ndev
+	jc	initw2
+	inx	h
+	dcr	c
+	jnz	initw3
+	ret	; no HDD drives in system, do nothing.
+	; alternatively, could check for existence of hardware.
+	; for example, AND inputs from ports 80-87 and if 0FFH
+	; then ahrdware does not exist.
+
+initw2:	; if we allow dynamic addition of drives (changes to lptbl),
+	; then this needs to be triggered in login$win by an init flag.
 	lxi	b,1024*4
 	lxi	d,d0h-2
 	call	?halloc

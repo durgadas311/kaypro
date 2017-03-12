@@ -10,6 +10,7 @@ HELPS = commands.help \
 	date.help \
 	device.help \
 	dir.help \
+	drives.help \
 	dskreset.help \
 	dump.help \
 	ed.help \
