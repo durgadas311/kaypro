@@ -12,6 +12,13 @@ drm-cpm310.logdisk:
 cpnet-dist.logdisk:
 	CP/NET utilities, not specific to CP/M version.
 
+cpnet12.logdisk:
+	CP/NET 1.2 distro with SNIOS for virtual CPNet Device.
+	Contains custom CCP.SPR along with original CCPDRI.SPR.
+	Copy these files to your CP/M 2.2 working disk and type
+	CPNETLDR to start CP/Net. Requires the CPNetDevice be
+	configured in the config file.
+
 cpm3-extra.logdisk:
 	Additional CP/M 3 files/commands.
 
