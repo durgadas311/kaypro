@@ -63,7 +63,7 @@ public class VirtualKaypro {
 			pn = front;
 		}
 
-		Kaypro kaypro = new Kaypro(props, lh, crt);
+		Kaypro kaypro = new Kaypro(props, lh, (KayproCrt)crt);
 		// All LEDs should be registered now...
 		KayproOperator op = new KayproOperator(front_end, props, crt, lh);
 		op.setCommander(kaypro.getCommander());

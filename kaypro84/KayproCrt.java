@@ -6,4 +6,5 @@ import javax.swing.*;
 public abstract class KayproCrt extends JPanel
 		implements IODevice, ScreenDumper {
 	abstract void setPasteListener(PasteListener lstn);
+	abstract void showSleep(boolean sleeping);
 }

@@ -20,6 +20,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private Vector<InterruptController> intrs;
 	private Memory mem = null;
 	private SystemPort gpp;
+	private KayproCrt crt;
 	private boolean running;
 	private boolean stopped;
 	private Semaphore stopWait;
@@ -33,6 +34,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private int intMask;
 	private boolean nmiState;
 	private boolean isHalted;
+	private boolean sleeping;
 	private Vector<ClockListener> clks;
 	private Z80Disassembler disas;
 	private ReentrantLock cpuLock;
@@ -44,7 +46,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private long backlogTime = 10000000;	// 10ms backlog limit
 	private long backlogNs;
 
-	public Kaypro(Properties props, LEDHandler lh, IODevice crt) {
+	public Kaypro(Properties props, LEDHandler lh, KayproCrt crt) {
 		String s;
 		intRegistry = new int[8];
 		intLines = new int[8];
@@ -56,12 +58,14 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		stopped = true;
 		stopWait = new Semaphore(0);
 		cpuLock = new ReentrantLock();
+		sleeping = false;
 		cpu = new Z80(this);
 		ios = new HashMap<Integer, IODevice>();
 		devs = new Vector<IODevice>();
 		dsks = new Vector<DiskController>();
 		clks = new Vector<ClockListener>();
 		intrs = new Vector<InterruptController>();
+		this.crt = crt;
 		// Do this early, so we can log messages appropriately.
 		s = props.getProperty("kaypro_log");
 		if (s != null) {
@@ -381,7 +385,15 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			return ret;
 		}
 		try {
-			cpuLock.lock(); // This might sleep waiting for CPU to finish 1mS
+			if (!sleeping) {
+				cpuLock.lock(); // might wait for CPU to finish 1mS
+			}
+			if (args[0].equalsIgnoreCase("sleep")) {
+				sleeping = (args.length < 2 ||
+					args[1].equalsIgnoreCase("on"));
+				crt.showSleep(sleeping);
+				return ret;
+			}
 			if (args[0].equalsIgnoreCase("reset")) {
 				reset();
 				return ret;
@@ -469,7 +481,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			err.add(cmd);
 			return err;
 		} finally {
-			cpuLock.unlock();
+			if (!sleeping) {
+				cpuLock.unlock();
+			}
 		}
 	}
 

@@ -16,9 +16,12 @@ public class KayproOperator implements ActionListener, Runnable
 	LEDHandler _ledhandler = null;
 	JMenuBar _mb;
 	JMenu _sys_mu;
+	JMenu _dbg_mu;
 	JMenu _dev_mu;
 	int _reset_key;
 	int _sdump_key;
+	int _sleep_key;
+	JMenuItem _sleep_mi;
 	int _tracecust_key;
 	int _traceon_key;
 	int _traceoff_key;
@@ -59,6 +62,7 @@ public class KayproOperator implements ActionListener, Runnable
 	private java.util.concurrent.LinkedBlockingDeque<Integer> _cmds;
 	static final String rule = "--------------------------------------------------------------------------------";
 	private boolean dumpToLog = false;
+	private boolean sleeping = false;
 
 	KayproOperator(JFrame main, Properties props, ScreenDumper sd, LEDHandler lh) {
 		_main = main;
@@ -80,40 +84,57 @@ public class KayproOperator implements ActionListener, Runnable
 		mi = new JMenuItem("Screen Dump", _sdump_key);
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
-		_tracecust_key = _key++;
-		mi = new JMenuItem("Trace (custom)", _tracecust_key);
+		_sleep_key = _key++;
+		mi = new JMenuItem("Sleep", _sleep_key);
+		_sleep_mi = mi;
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
-		_traceon_key = _key++;
-		mi = new JMenuItem("Trace ON", _traceon_key);
+		_reset_key = _key++;
+		mi = new JMenuItem("Reset", _reset_key);
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
-		_traceoff_key = _key++;
-		mi = new JMenuItem("Trace OFF", _traceoff_key);
+		_quit_key = _key++;
+		mi = new JMenuItem("Quit", _quit_key);
 		mi.addActionListener(this);
 		_sys_mu.add(mi);
-		dumpToLog = false;
-		_dump_key = _key++;
-		_dump_mi = new JMenuItem("Dump To Log", _dump_key);
-		_dump_mi.addActionListener(this);
-		_sys_mu.add(_dump_mi);
-		_cpu_key = _key++;
-		mi = new JMenuItem("Dump CPU", _cpu_key);
-		mi.addActionListener(this);
-		_sys_mu.add(mi);
-		_mach_key = _key++;
-		mi = new JMenuItem("Dump Machine", _mach_key);
-		mi.addActionListener(this);
-		_sys_mu.add(mi);
-		_page_key = _key++;
-		mi = new JMenuItem("Dump Page", _page_key);
-		mi.addActionListener(this);
-		_sys_mu.add(mi);
-		// More added when computer connected
 		_mb.add(_sys_mu);
 
 		_dev_mu = new JMenu("Disks");
 		_mb.add(_dev_mu);
+
+		_dbg_mu = new JMenu("Debug");
+		_tracecust_key = _key++;
+		mi = new JMenuItem("Trace (custom)", _tracecust_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		_traceon_key = _key++;
+		mi = new JMenuItem("Trace ON", _traceon_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		_traceoff_key = _key++;
+		mi = new JMenuItem("Trace OFF", _traceoff_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		dumpToLog = false;
+		_dump_key = _key++;
+		_dump_mi = new JMenuItem("Dump To Log", _dump_key);
+		_dump_mi.addActionListener(this);
+		_dbg_mu.add(_dump_mi);
+		_cpu_key = _key++;
+		mi = new JMenuItem("Dump CPU", _cpu_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		_mach_key = _key++;
+		mi = new JMenuItem("Dump Machine", _mach_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		_page_key = _key++;
+		mi = new JMenuItem("Dump Page", _page_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		// More added when computer connected
+		_mb.add(_dbg_mu);
+
 		main.setJMenuBar(_mb);
 
 		// Dialog for trace (custom)...
@@ -211,16 +232,8 @@ public class KayproOperator implements ActionListener, Runnable
 			mi = new JMenuItem("Dump " + dev, key);
 			mi.setText("Dump " + dev);
 			mi.addActionListener(this);
-			_sys_mu.add(mi);
+			_dbg_mu.add(mi);
 		}
-		_reset_key = _key++;
-		mi = new JMenuItem("Reset", _reset_key);
-		mi.addActionListener(this);
-		_sys_mu.add(mi);
-		_quit_key = _key++;
-		mi = new JMenuItem("Quit", _quit_key);
-		mi.addActionListener(this);
-		_sys_mu.add(mi);
 	}
 
 	// This only refreshes the media in the drives, not the drives.
@@ -430,6 +443,21 @@ public class KayproOperator implements ActionListener, Runnable
 			if (key == _sdump_key) {
 				String crt = _sdmp.dumpScreen(-1);
 				System.err.format("%s\n%s%s\n", rule, crt, rule);
+				continue;
+			}
+			if (key == _sleep_key) {
+				String slp = !sleeping ? "on" : "off";
+				Vector<String> r = _cmdr.sendCommand("sleep " + slp);
+				if (!r.get(0).equals("ok")) {
+					error(_main, "Sleep", join(r));
+				} else {
+					sleeping = !sleeping;
+					if (sleeping) {
+						_sleep_mi.setText("Wake");
+					} else {
+						_sleep_mi.setText("Sleep");
+					}
+				}
 				continue;
 			}
 			if (key == _tracecust_key) {

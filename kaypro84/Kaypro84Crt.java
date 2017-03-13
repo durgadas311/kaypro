@@ -42,6 +42,7 @@ public class Kaypro84Crt extends KayproCrt
 	boolean curs_rev = true;
 	int blink = 0;
 	boolean crt_en = false;
+	boolean asleep = false;
 	javax.swing.Timer timer;
 	Dimension _dim;
 	int bd_width;
@@ -167,6 +168,11 @@ public class Kaypro84Crt extends KayproCrt
 
 	public void setPasteListener(PasteListener lstn) {
 		paster = lstn;
+	}
+
+	public void showSleep(boolean sleeping) {
+		asleep = sleeping;
+		repaint();
 	}
 
 	public void reset() {
@@ -396,7 +402,7 @@ public class Kaypro84Crt extends KayproCrt
 	public void paint(Graphics g) {
 		super.paint(g);
 		int blnk = blink;
-		if (!crt_en) {
+		if (!crt_en || asleep) {
 			return;
 		}
 		Graphics2D g2d = (Graphics2D)g;
@@ -510,6 +516,9 @@ public class Kaypro84Crt extends KayproCrt
 
 	public void actionPerformed(ActionEvent e) {
 		if (e.getSource() == timer) {
+			if (!crt_en || asleep) {
+				return;
+			}
 			blink = (blink + 1) & 0x03;
 			if (dragCount > 0) {
 				--dragCount;
