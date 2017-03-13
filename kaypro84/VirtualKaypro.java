@@ -33,11 +33,11 @@ public class VirtualKaypro {
 		} catch(Exception ee) {
 			config = null;
 		}
-		String model = props.getProperty("kaypro_model");
-		if (model == null) {
-			model = "84";
+		Interruptor.Model model = Kaypro.setModel(props);
+		if (model == Interruptor.Model.UNKNOWN) {
+			System.exit(1);
 		}
-		String title = "Virtual Kaypro " + model.toUpperCase() + " Computer";
+		String title = "Virtual Kaypro " + model.name().substring(1) + " Computer";
 
 		KayproCrt crt = null;
 		// TODO: configure CRT based on model...
@@ -53,19 +53,24 @@ public class VirtualKaypro {
 		front_end.setFocusTraversalKeysEnabled(false);
 		JPanel pn;
 		LEDHandler lh;
-		if (model.startsWith("10")) {
-			Kaypro10FrontSide front = new Kaypro10FrontSide(front_end, crt, props);
-			lh = front;
-			pn = front;
-		} else {
-			KayproFrontSide front = new KayproFrontSide(front_end, crt, props);
-			lh = front;
-			pn = front;
+		Kaypro10FrontSide front;
+		switch (model) {
+		case K10:
+		case K10X:
+			Kaypro10FrontSide k10 = new Kaypro10FrontSide(front_end, crt, props);
+			lh = k10;
+			pn = k10;
+			break;
+		default:
+			KayproFrontSide fs = new KayproFrontSide(front_end, crt, props);
+			lh = fs;
+			pn = fs;
+			break;
 		}
 
 		Kaypro kaypro = new Kaypro(props, lh, (KayproCrt)crt);
 		// All LEDs should be registered now...
-		KayproOperator op = new KayproOperator(front_end, props, crt, lh);
+		KayproOperator op = new KayproOperator(front_end, props, crt, lh, model);
 		op.setCommander(kaypro.getCommander());
 
 		front_end.addKeyListener(kaypro.getKeyboard());

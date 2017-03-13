@@ -64,7 +64,8 @@ public class KayproOperator implements ActionListener, Runnable
 	private boolean dumpToLog = false;
 	private boolean sleeping = false;
 
-	KayproOperator(JFrame main, Properties props, ScreenDumper sd, LEDHandler lh) {
+	KayproOperator(JFrame main, Properties props, ScreenDumper sd, LEDHandler lh,
+			Interruptor.Model model) {
 		_main = main;
 		_sdmp = sd;
 		_ledhandler = lh;
@@ -74,7 +75,6 @@ public class KayproOperator implements ActionListener, Runnable
 		_mdia = new HashMap<Integer, String>();
 		_mnus = new HashMap<Integer, JMenuItem>();
 		_cmds = new java.util.concurrent.LinkedBlockingDeque<Integer>();
-		String model = props.getProperty("kaypro_model");
 
 		JMenuBar _mb = new JMenuBar();
 
@@ -172,7 +172,8 @@ public class KayproOperator implements ActionListener, Runnable
 		// Dialog for dump page...
 		dmppg_pn = new JPanel();
 		dmppg_pn.setLayout(new BoxLayout(dmppg_pn, BoxLayout.Y_AXIS));
-		if (model != null && model.length() > 2 && model.endsWith("X")) {
+		if (model == Interruptor.Model.K10X ||
+				model == Interruptor.Model.K84X) {
 			dump_bnk = new JTextArea();
 			dump_bnk.setPreferredSize(new Dimension(30, 20));
 			dump_bnk_pn = new JPanel();

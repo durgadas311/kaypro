@@ -31,6 +31,7 @@ public class KayproFloppy extends WD1793
 	private int numDisks_m = 2;
 	private int interesting = ctrl_DSxN_c | ctrl_Side_c |
 			ctrl_Motor_c | ctrl_SetMFMRecordingN_c;
+	private boolean forceReady = true;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
 			Interruptor intr, SystemPort gpio, int numDrives) {
@@ -50,6 +51,10 @@ public class KayproFloppy extends WD1793
 		String s;
 		Arrays.fill(drives_m, null);
 		Arrays.fill(leds_m, null);
+		if (intr.getModel() == Interruptor.Model.K4X ||
+				intr.getModel() == Interruptor.Model.KROBIE) {
+			forceReady = false;
+		}
 
 		// First identify what drives are installed.
 		GenericFloppyDrive drv;
@@ -209,7 +214,7 @@ public class KayproFloppy extends WD1793
 	public int in(int addr) {
 		int val = 0;
 		val = super.in(addr);
-		if (addr == 0x10) {
+		if (addr == 0x10 && forceReady) {
 			val &= ~stat_NotReady_c; // always READY
 		}
 		return val;

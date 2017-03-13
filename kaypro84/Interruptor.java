@@ -1,6 +1,9 @@
 // Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
 
 public interface Interruptor {
+	enum Model { UNKNOWN, K2X, K84, K4X, KROBIE, K10,
+			K84X, K10X, // Extentions for CP/M 3
+	};
 	int registerINT(int irq);
 	void raiseINT(int irq, int src);
 	void lowerINT(int irq, int src);
@@ -14,4 +17,5 @@ public interface Interruptor {
 	boolean isTracing();
 	void startTracing();
 	void stopTracing();
+	Model getModel();
 }

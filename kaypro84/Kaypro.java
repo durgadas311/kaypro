@@ -45,6 +45,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private long intervalNs = 1000000;	// 1ms
 	private long backlogTime = 10000000;	// 10ms backlog limit
 	private long backlogNs;
+	private static Interruptor.Model model = Interruptor.Model.UNKNOWN;
 
 	public Kaypro(Properties props, LEDHandler lh, KayproCrt crt) {
 		String s;
@@ -88,9 +89,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		} else {
 			System.err.format("Using configuration from %s\n", s);
 		}
-		String model = props.getProperty("kaypro_model");
-		if (model == null) {
-			model = "84";
+		setModel(props); // just in case...
+		if (model == Interruptor.Model.UNKNOWN) {
+			System.exit(1);
 		}
 
 		s = props.getProperty("kaypro_trace");
@@ -111,35 +112,39 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		IODevice cpn = null;
 		int nFlpy = 2;
 		String defRom = "81-478a.rom";	// The "Universal ROM" (CP/M 2.2u)
-		if (model.equals("10")) {
+		Memory84X m84x;
+		switch (model) {
+		case K10:
 			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
 			needWin = true;
 			needPio = false; // No RTC (PIO) in model 10...
 			nFlpy = 1;
-		} else if (model.equals("10X")) {
+			break;
+		case K10X:
 			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
 			needWin = true;
 			needPio = true;	// not authentic...
-			Memory84X m84x = new Memory84X(props, gpp, defRom);
+			m84x = new Memory84X(props, gpp, defRom);
 			addDevice(m84x);
 			mem = m84x;
 			nFlpy = 1;
-		} else if (model.equals("84") ||
-				model.equals("4/84")) {
+			break;
+		case K84:
 			needPio = true;
-		} else if (model.equalsIgnoreCase("84X") ||
-				model.equalsIgnoreCase("2XX")) {
+			break;
+		case K84X:
 			defRom = "81-292a.rom";	// reqd for CP/M 2.20d loader
 			needPio = true;
 			// It is also an IODevice...
-			Memory84X m84x = new Memory84X(props, gpp, defRom);
+			m84x = new Memory84X(props, gpp, defRom);
 			addDevice(m84x);
 			mem = m84x;
 			nFlpy = 4;
 			needWin = false; // cannot have WD1002!
-		} else if (model.equalsIgnoreCase("2X") ||
-				model.equals("2/84")) {
+			break;
+		case K2X:
 			defRom = "81-292a.rom";	// reqd for CP/M 2.2G
+			break;
 		}
 		if (mem == null) {
 			mem = new KayproMemory(props, gpp, defRom);
@@ -178,6 +183,36 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		} else {
 			disas = new Z80DisassemblerMAC80(mem);
 		}
+	}
+
+	public static Interruptor.Model setModel(Properties props) {
+		if (model != Interruptor.Model.UNKNOWN) {
+			return model;
+		}
+		String s = props.getProperty("kaypro_model");
+		if (s == null) {
+			model = Interruptor.Model.K84;
+		} else if (s.equalsIgnoreCase("10")) {
+			model = Interruptor.Model.K10;
+		} else if (s.equalsIgnoreCase("10X")) {
+			model = Interruptor.Model.K10X;
+		} else if (s.equalsIgnoreCase("2X") ||
+				s.equalsIgnoreCase("2/84")) {
+			model = Interruptor.Model.K2X;
+		} else if (s.equalsIgnoreCase("84") ||
+				s.equalsIgnoreCase("4/84")) {
+			model = Interruptor.Model.K84;
+		} else if (s.equalsIgnoreCase("84X") ||
+				s.equalsIgnoreCase("2XX")) {
+			model = Interruptor.Model.K84X;
+		} else if (s.equalsIgnoreCase("4X")) {
+			model = Interruptor.Model.K4X;
+		} else if (s.equalsIgnoreCase("ROBIE")) {
+			model = Interruptor.Model.KROBIE;
+		} else {
+			System.err.format("Unknown model: %s\n", s);
+		}
+		return model;
 	}
 
 	public void reset() {
@@ -359,6 +394,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	}
 	public void stopTracing() {
 		tracing = false;
+	}
+	public Interruptor.Model getModel() {
+		return model;
 	}
 
 	/////////////////////////////////////////////
