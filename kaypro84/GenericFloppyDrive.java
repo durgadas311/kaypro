@@ -306,7 +306,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 	}
 
 	public boolean isReady() {
-		return disk_m != null && disk_m.isReady();
+		return motor_m && disk_m != null && disk_m.isReady();
 	}
 
 	public boolean isWriteProtect() {
