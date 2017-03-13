@@ -58,6 +58,7 @@ class LabeledRoundLED extends LEDPane {
 class K10LEDPanel extends JPanel {
 	LEDPane[] panes;
 	LED[] leds;
+	int nLeds;
 	public static final Font font = new Font("SansSerif", Font.BOLD, 10);
 	// From photo, BG = new Color(141, 156, 163);
 	// From photo, LN = new Color(193, 206, 214);
@@ -66,6 +67,7 @@ class K10LEDPanel extends JPanel {
 	int wd;
 	int ht;
 	int dh;
+	JPanel ledPn;
 
 	public K10LEDPanel(int w, int h, int rows, Color bg, Color bh) {
 		super();
@@ -98,15 +100,19 @@ class K10LEDPanel extends JPanel {
 			new String[]{"10 MB", "READY"}, LED.Colors.RED);
 		gb.setConstraints(led1, gc);
 		add(led1);
+		ledPn = led1;
 		++gc.gridx;
 		LabeledRectLED led2 = new LabeledRectLED(w / 3, h, bh, font, "floppy", LED.Colors.RED);
 		gb.setConstraints(led2, gc);
 		add(led2);
 		++gc.gridx;
-		panes[0] = led1;
-		leds[0] = led1.getLED();
-		panes[1] = led2;
-		leds[1] = led2.getLED();
+		nLeds = 0;
+		panes[nLeds] = led1;
+		leds[nLeds] = led1.getLED();
+		++nLeds;
+		panes[nLeds] = led2;
+		leds[nLeds] = led2.getLED();
+		++nLeds;
 	}
 
 	public void paint(Graphics g) {
@@ -130,6 +136,20 @@ class K10LEDPanel extends JPanel {
 		} else {
 			return null;
 		}
+	}
+
+	public void newPane(String name, LED[] leds) {
+		JPanel p = new JPanel();
+		p.setPreferredSize(new Dimension(wd, 20));
+		p.setOpaque(false);
+		ledPn.add(p);
+		p = new JPanel();
+		p.setOpaque(false);
+		for (int y = 0; y < leds.length; ++y) {
+			p.add(leds[y]);
+		}
+		ledPn.add(p);
+		ledPn.add(new JLabel(name));
 	}
 
 	public void putMap(String drive, JMenuItem mi) {
@@ -251,7 +271,7 @@ public class Kaypro10FrontSide extends JPanel
 
 		
 		// TODO: scan properties and count number of drives?
-		_ledspace = new K10LEDPanel(nmwid, dim.height + 2 * (gaps + offset), 2,
+		_ledspace = new K10LEDPanel(nmwid, dim.height + 2 * (gaps + offset), 8,
 					new Color(141, 156, 163),
 					new Color(161, 176, 183, 128));
 		_ledy = 0;
@@ -296,6 +316,11 @@ public class Kaypro10FrontSide extends JPanel
 		if (pn != null) {
 			pn.setName(drive);
 			leds[0] = _ledspace.getLED(x);
+		} else {
+			for (int y = 0; y < num; ++y) {
+				leds[y] = new RectLED(colors[y]);
+			}
+			_ledspace.newPane(drive, leds);
 		}
 		// TODO: might return zero LEDs, a problem for drevices.
 		return leds;
