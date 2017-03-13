@@ -27,14 +27,19 @@ LOADER:
 ; ROM 81-292 uses 0fd74h
 ; U-ROM 81-478 uses 0fe9ah
 ; ROM 81-302 uses 0fd5ch
+; ROM 81-326 uses 0f800h
 ; Identify ROM by...
 ; we can't map ROM in, we are in low memory.
 ; can't call ROM, either.
 ; U-ROM places '2.01' in 0fff8h...
 ; 81-292 places copyout in 0fde5h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 ; 81-302 places copyout in 0f919h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
+; 81-326 places copyout in 0f822h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 	call	chkuni
 	jz	rom20
+	lxi	h,0f822h
+	call	chksig
+	jz	rom17
 	lxi	h,0f919h
 	call	chksig
 	jz	rom19
@@ -220,6 +225,12 @@ romZZ$1:
 	shld	lptbl
 	jmp	gotrom
 
+rom17:	; 81-326, version 1.7R
+	lxi	h,0f800h
+	shld	romcrt
+	mvi	a,'2'	; correct?
+	jr	romXX$0	; floppy-only
+
 rom19:	; 81-302c, 81-277, 81-188, version series 1.9
 	lxi	h,0fd5ch
 	shld	romcrt
@@ -237,6 +248,7 @@ romXX:	; 81-292a, no visible version - floppy-only
 	lxi	h,0fd74h
 	shld	romcrt
 	mvi	a,'2'
+romXX$0:
 	sta	romid
 	lxi	h,lpdfpy	; floppy only
 	shld	lptbl

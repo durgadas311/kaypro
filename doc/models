@@ -1,0 +1,24 @@
+Model	Speed	CRT	GPP	Centr	SIO	WinI/F	PIO/RTC/Modem
+2,4	2.5	cust	PIO	PIO	1	N	N
+2/84,2X	4	6545	Y	Y	2	Y	opt
+4/84	4	6545	Y	Y	2	Y	Y
+4X	4	6545	Y	Y	2	Y	Y
+10	4	6545	Y	Y	2	Y	N
+ROBIE	4	6545	Y	Y	2	Y	Y
+
+All use FD1793 floppy controller
+1 Serial port consumed for Keyboard.
+1 Serial port consumed by Modem, if present.
+
+Models 2,4 are not (100%) software compatible with others.
+
+2/83	2.2F	81-149c, 81-232a	a.k.a "2", "II"?
+4/83	2.2F	81-232a			a.k.a "4"?
+4/83+88	2.2F	81-232a			a.k.a "4"?
+2/84	2.2G	81-292a
+4/84	2.2G	81-292a
+4/84+88	2.2G	81-292a
+2X	2.2G	81-292a
+4X	2.2G	81-326e	(81-326 = 1.7R)
+ROBIE	2.2G	81-326e
+10	2.2H	81-302c	**** not mentioned in doc

@@ -1,0 +1,39 @@
+PIO-B           TMS99531                TMS99532             SIO2-B
+
+STB <----------- PND                     RCVD --------------> RXTB
+0 -------------> digit 0                 XMTD <-------------- TXDB
+1 -------------> digit 1                 A/O <--------------- DTRB
+2 -------------> digit 2                 SQT <--------------- RTSB
+3 -------------> digit 3                 DCD ---------------> DCDB
+4 -------------> TT/P -----------------> ATE           +----> CTSB
+5 -------------------------------------> ALB           |
+6 ------+                                              |
+7 ---------------> DP                                  |
+        |                  telephonics                 |
+        +----------------> HOOK   RING ----------------+
+
+
+HOOK = telephone hook, 0 = "off hook" == connected
+RING = telephone ringing detected, 0 = RING (CTSB is active low)
+
+TMS99531
+--------
+PND = ready to receive digit(1)
+DP = strobe digit into dialer(1)
+TT/P = toush-tone(0) or pulse-dial(1)
+
+TMS99532
+--------
+A/O = answer(0) or originate(1) (DTRB is active low)
+SQT = squelch, 1 = Tx squelched (RTSB is active low)
+ATE = answer tone enabled(0) - 2100Hz
+ALB = loopback(1)
+
+
+PIO-B
+-----
+
+  7     6     5     4     3     2     1     0
+ DP   HOOK   ALB   TT/P   ------ digit ------
+
+INT = read to dial next digit

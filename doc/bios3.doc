@@ -1,0 +1,90 @@
+Documentation on CP/M Plus 3.1 BIOS by Douglas R Miller
+
+January 2, 1986  12:15
+March 13, 2017   18:12
+
+The BIOS consists of a Main Bios module, I/O module(s), and Support
+modules.  Each module exists in .REL form on the distribution disk. They
+are described below:
+
+	MBIOS3KP.REL	Main BIOS module
+	END.REL 	Termination for I/O modules
+	LPTBL.REL	Logical-to-Physical drive translation table
+	GETDP3KP.REL	Disk formats support routines
+	SCB.REL 	System Control Block definitions
+
+I/O modules:
+	FDC3KP.REL	KAYPRO Floppy Disk Controller
+	CRT.REL 	KAYPRO CRT controller
+	KEYBD.REL	Keyboard interface and keypad conversion
+	SERIAL.REL	Z80-SIO Serial ports (exc. keyboard)
+	CENTR.REL	Parallel printer port
+
+The LINK procedure is:
+
+LINK BNKBIOS3=MBIOS3KP,FDC3KP,CRT,KEYBD,SERIAL,CENTR,END,LPTBL,GETDP3KP,SCB[B,OS,$SZ]
+
+One important feature of the BIOS is that it supports many floppy
+disk formats.  This is accomplished through the use of mode bytes
+that define the specific paramters that determine the disk format.
+The module GETDP3KP contains tables of mode bytes and standard DRI Disk
+Parameter Blocks and a routine for selecting the appropriate mode and
+DPB. The first two mode bytes select the media format.  The second two
+mode bytes select drive and media type as follows:
+
+  7   6   5   4   3   2   1   0   7   6   5   4   3   2   1   0
+ "0"  -----------------------FORMAT----------------------------
+
+  7   6   5   4   3   2   1   0   7   6   5   4   3   2   1   0
+ SIZ DDS DDT DDD  STEPR   TRK0F  CNF MDS MDT MDD  --DSALG--  SEC
+
+FORMAT	A bitmap indicating the current media format. See GETDP3KP.ASM.
+SIZ	Diskette size, 1=8inch, 0=5.25inch.
+DDS	Drive Double Sided, 1=drive has two heads.
+DDT	Drive Double Track, 1=drive is 96 tracks per inch (0=48tpi).
+DDD	Drive (controller) can do Double Density (MFM).
+STEPR	Step Rate, dependant on drive size according to
+	constraints of Western Digitals floppy controller chips.
+TRK0F	Track Zero Format, bit-1 for side 1, bit-0 for side 0.
+	1=different, 0=same as rest of disk.
+	NOTE: side 0 uses SD 128 byte sectors,
+	      side 1 uses DD 256 byte sectors.
+CNF	Configure from disk, 1= track 0/side 0/sector 0 contains
+	information on media format.
+MDS	Media Double Sided, 1=DS.
+MDT	Media Double Track, 1=DT.
+MDD	Media Double Density, 1=DD.
+DSALG	Double Sided algorithm, if MDS=1 then these 3 bits define
+	how to access the second side:
+	 0  Wrap: do all tracks on side 0, then side 1 backwards.
+	 1  Alternate: odd tracks are on side 1.
+	 2  Alternate II: side 1 sectors are numbered SPT - 2*SPT-1.
+	 3  Continue: Sectors >SPT are on side 1, same track.
+	 4  Continue II: side 1 sectors are numbered SPT - 2*SPT-1.
+	 5  (not defined)
+	 6  (not defined)
+	 7  (not defined)
+SEC	Sector numbering offset, 0 = sectors start with 0,
+				 1 = sectors start with 1.
+
+The last 4 mode bytes form a mask, with "1" indicating bits that
+cannot be altered by MODE.COM - these bits are also not used when
+searching for a matching mode description.
+
+For the winchester disk (logical drives), the first two mode bytes are
+as follows:
+
+  7   6   5   4   3   2   1   0   7   6   5   4   3   2   1   0
+ "1"  .   .   .   .   .   -PTN-   ---CFG---   -LUN-   ---HEAD--
+
+PTN	Partition, or logical drive, number.
+CFG	WD1002 drive config bits, Kaypro 10 uses 101.
+LUN	Drive LUN on WD1002. Kaypro 10 uses 01.
+HEAD	Base head used for partition, Drive 0 = 000, Drive 1 = 010.
+
+Note, the second mode byte forms a "template" for the data sent to the
+WD1002 "SDH" register. The LSB is provided by the LSB of the track number.
+
+Kaypro 10 uses a "vertical slice" partitioning scheme, where each platter
+(pair of heads) represents a partition. Changing this scheme requires
+a driver rewrite, but also would require a ROM rewrite to permit booting.
