@@ -65,10 +65,10 @@ The user must ensure the CP/M version is compatible.
 <TR><TH>ROM P/N</TH><TH>ROM Ver</TH><TH>Model(s)</TH><TH>CP/M Version(s)</TH></TR>
 <TR><TD>81-188e</TD><TD>1.9</TD><TD>10</TD><TD>2.2H</TD></TR>
 <TR><TD>81-277</TD><TD>1.9E(F)</TD><TD>10</TD><TD>2.2H</TD></TR>
-<TR><TD>81-292a</TD><TD>n/a</TD><TD>2X, 84</TD><TD>2.2G, 2.2H, 2.20d</TD></TR>
-<TR><TD>81-302c</TD><TD>1.9E</TD><TD>10</TD><TD>2.2H</TD></TR>
-<TR><TD>81-326</TD><TD>1.7R</TD><TD>4X, ROBIE(?)</TD><TD>2.2G</TD></TR>
-<TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 84</TD><TD>2.2u1</TD></TR>
+<TR><TD>81-292a</TD><TD>n/a</TD><TD>2X, 2/84, 4/84</TD><TD>2.2G, 2.2H, 2.20d</TD></TR>
+<TR><TD>81-302c</TD><TD>1.9E</TD><TD>10</TD><TD>2.2G, 2.2H</TD></TR>
+<TR><TD>81-326</TD><TD>1.7R</TD><TD>4X</TD><TD>2.2G, 2.2H</TD></TR>
+<TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 2/84, 4/84, ROBIE</TD><TD>2.2u1</TD></TR>
 </TABLE>
 <P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
 were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
@@ -80,7 +80,36 @@ boot sector which older boot images do not have).
 as a loader for CP/M 3. I need to look through the source code to see what
 my reasons were for making that.
 
-<P>The above matrix is based on a trivial boot test and "DIR".
+<P>The above matrix is based on "Kaypro Technical Manual 1484-F
+and a trivial boot test and "DIR". The manual also describes these model
+features:
+
+<P><TABLE BORDER>
+<TR><TH>Model</TH><TH>CRTC</TH><TH>Centr</TH><TH>SIO Ports</TH><TH>Modem/RTC</TH><TH>Floppy</TH><TH>Winch</TH><TH>CPU</TH></TR>
+<TR><TD>2 (II)</TD><TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD></TR>
+<TR><TD>4</TD><TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD></TR>
+<TR><TD>2/84, 2X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
+<TR><TD>4/84</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
+<TR><TD>4X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xQD</TD><TD></TD><TD>4MHz</TD></TR>
+<TR><TD>10</TD><TD>6545</TD><TD>Y</TD><TD>2</TD><TD></TD><TD>1xDD</TD><TD>10M</TD><TD>4MHz</TD></TR>
+<TR><TD>10+</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>1xDD</TD><TD>10M</TD><TD>4MHz</TD></TR>
+<TR><TD>ROBIE</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xQD</TD><TD></TD><TD>4MHz</TD></TR>
+<TR><TD>12X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>1xQD</TD><TD>10M</TD><TD>4MHz</TD></TR>
+<TR><TD>New 2</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
+<TR><TD>1</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
+</TABLE>
+<P>* One serial port for Keyboard; if 4 total then one dedicated to Modem
+(regardless of whether installed). Modem and RTC use a Z80-PIO which is otherwise
+not installed.
+<P>Models 2 and 4 use Z80-PIOs for Centr and system port. Half of each is unused.
+<P>There seemed to be a lot of fluidity in model designations, and
+later production seemed to use newer, different, boards. There seemed to be
+an effort to converge the entire 8-bit product line into a single motherboard
+design, and schematics show a later design that would work in all models
+and require only a jumper to select between standard and high-density floppies,
+along with optionally populating modem/rtc and/or winchester interface sections.
+Theoretically, case designs had to change as well, for example early model 10s
+(or model 2) had a different backside connector arrangement.
 
 <P>The Virtual Computer is configured using a "properties file", plain text.
 The downloads page has some examples in the "configs" subdirectory.
