@@ -7,7 +7,8 @@ public interface Interruptor {
 			K4X,
 			KROBIE,
 			K10,
-			K10X,
+			K10X,	// aka "10 W/MODEM and CLOCK"
+			K2XX,	// aka "2X W/MODEM and CLOCK"
 			K12X,
 			K84E,	// K2X + 256K RAM, RTC
 			K10E,	// K10 + 256K RAM, RTC

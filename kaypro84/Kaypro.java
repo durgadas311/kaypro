@@ -187,6 +187,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 				s.equalsIgnoreCase("2/84")) {
 			model = Interruptor.Model.K2X;
 			enh = Interruptor.Model.K84E;
+		} else if (s.equalsIgnoreCase("2XX")) {
+			model = Interruptor.Model.K2XX;
 		} else if (s.equalsIgnoreCase("84") ||
 				s.equalsIgnoreCase("4/84")) {
 			model = Interruptor.Model.K84;
@@ -212,19 +214,16 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			nFlpy = 1;
 			break;
 
-		case K10X:	// "10 W/MODEM and CLOCK"
-			defRom = "81-478a.rom";
-			needWin = true;
-			needPio = true;
-			nFlpy = 1;
-			break;
-
 		case K12X:
-			defRom = "81-478a.rom";
 			needHD = true;
+			// FALLTHROUGH
+		case K10X:	// "10 W/MODEM and CLOCK"
 			needWin = true;
-			needPio = true;
 			nFlpy = 1;
+			// FALLTHROUGH
+		case K2XX:	// "2X W/MODEM and CLOCK"
+			defRom = "81-478a.rom";
+			needPio = true;
 			break;
 
 		case K4X:
