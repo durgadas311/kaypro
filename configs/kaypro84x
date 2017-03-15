@@ -1,5 +1,5 @@
 # As modified by DRM, circa 1986
-kaypro_model = 84X
+kaypro_model = 84E
 monitor_rom = 81-292a.rom
 
 floppy_drive1 = FDD_5_25_DS_ST A

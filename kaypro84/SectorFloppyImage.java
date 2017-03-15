@@ -355,12 +355,12 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 			return GenericFloppyFormat.ERROR;
 		}
 		if (inSector < 0) {
-			if (sector == 0xff || sector == 0xfe) {
+			if ((sector & 0xfc) == 0xfc) {
 				dataPos_m = 0;
 				// some programs, like Heath CP/M FORMAT,
 				// don't recognize a full track length so have to
 				// avoid accepting all bytes.
-				dataLen_m = getTrackLen((sector & 1) != 0) - 10;
+				dataLen_m = getTrackLen(sector & 3) - 10;
 				return GenericFloppyFormat.INDEX_AM;
 			} else if (cacheSector(side, track, sector)) {
 				dataPos_m = 0;
@@ -370,7 +370,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 			// For multi-sector write, "end of track"
 			return GenericFloppyFormat.INDEX_AM;
 		}
-		if (sector == 0xff || sector == 0xfe) {
+		if ((sector & 0xfc) == 0xfc) {
 			// passively ignore write track data
 			if (dataPos_m < dataLen_m) {
 				++dataPos_m;

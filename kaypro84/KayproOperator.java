@@ -76,6 +76,8 @@ public class KayproOperator implements ActionListener, Runnable
 		_mnus = new HashMap<Integer, JMenuItem>();
 		_cmds = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 
+		Kaypro.setModel(props); // just in case...
+
 		JMenuBar _mb = new JMenuBar();
 
 		_sys_mu = new JMenu("System");
@@ -172,8 +174,7 @@ public class KayproOperator implements ActionListener, Runnable
 		// Dialog for dump page...
 		dmppg_pn = new JPanel();
 		dmppg_pn.setLayout(new BoxLayout(dmppg_pn, BoxLayout.Y_AXIS));
-		if (model == Interruptor.Model.K10X ||
-				model == Interruptor.Model.K84X) {
+		if (Kaypro.has256K()) {
 			dump_bnk = new JTextArea();
 			dump_bnk.setPreferredSize(new Dimension(30, 20));
 			dump_bnk_pn = new JPanel();

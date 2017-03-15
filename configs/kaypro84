@@ -1,6 +1,6 @@
 # Kaypro 2X with upgraded motherboard - ~Oct 1986
-kaypro_model = 84
-#monitor_rom = 81-478a.rom # default
+kaypro_model = 84E
+monitor_rom = 81-478a.rom
 
 floppy_drive1 = FDD_5_25_DS_ST A
 floppy_drive2 = FDD_5_25_DS_ST B

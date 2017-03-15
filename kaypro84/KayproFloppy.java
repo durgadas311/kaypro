@@ -34,7 +34,7 @@ public class KayproFloppy extends WD1793
 	private boolean forceReady = true;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
-			Interruptor intr, SystemPort gpio, int numDrives) {
+			Interruptor intr, SystemPort gpio, int numDrives, boolean HD) {
 		super(BasePort_c + Wd1793_Offset_c, intr);
 		super.setController(this);
 		this.intr = intr;
@@ -51,17 +51,33 @@ public class KayproFloppy extends WD1793
 		String s;
 		Arrays.fill(drives_m, null);
 		Arrays.fill(leds_m, null);
-		if (intr.getModel() == Interruptor.Model.K4X ||
-				intr.getModel() == Interruptor.Model.KROBIE) {
+		// TODO: force all drives same type...
+		if (HD) {
 			forceReady = false;
 		}
 
 		// First identify what drives are installed.
+		int n = 0;
 		GenericFloppyDrive drv;
 		for (int x = 0; x < numDisks_m; ++x) {
 			String prop = String.format("floppy_drive%d", x + 1);
 			s = props.getProperty(prop);
 			if (s != null) {
+				++n;
+				drv = installDrive(x, s);
+				// TODO: validate with 'HD'
+				if (lh != null && drv != null) {
+					leds_m[x] = lh.registerLED(drv.getDriveName());
+				}
+			}
+		}
+		if (n <= 0) {
+			if (HD) {
+				s = "FDD_5_25_DS_QT";
+			} else {
+				s = "FDD_5_25_DS_ST";
+			}
+			for (int x = 0; x < numDisks_m; ++x) {
 				drv = installDrive(x, s);
 				if (lh != null && drv != null) {
 					leds_m[x] = lh.registerLED(drv.getDriveName());

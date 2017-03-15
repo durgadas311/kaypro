@@ -1,4 +1,4 @@
-kaypro_model = 10X
+kaypro_model = 10E
 monitor_rom = 81-302c.rom
 
 wd1002_drive1 = ST412

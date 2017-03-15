@@ -47,6 +47,13 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private long backlogNs;
 	private static Interruptor.Model model = Interruptor.Model.UNKNOWN;
 
+	private static boolean needPio = false; // PIO + RTC (+ MODEM)
+	private static boolean needWin = false;
+	private static boolean needHD = false;
+	private static boolean need256K = false;
+	private static int nFlpy = 2;
+	private static String defRom = "81-478a.rom";	// The "Universal ROM" (CP/M 2.2u)
+
 	public Kaypro(Properties props, LEDHandler lh, KayproCrt crt) {
 		String s;
 		intRegistry = new int[8];
@@ -107,46 +114,13 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDevice(crt);
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
 		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
-		boolean needPio = false; // PIO + RTC (+ MODEM)
-		boolean needWin = false;
 		IODevice cpn = null;
-		int nFlpy = 2;
-		String defRom = "81-478a.rom";	// The "Universal ROM" (CP/M 2.2u)
-		Memory84X m84x;
-		switch (model) {
-		case K10:
-			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
-			needWin = true;
-			needPio = false; // No RTC (PIO) in model 10...
-			nFlpy = 1;
-			break;
-		case K10X:
-			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
-			needWin = true;
-			needPio = true;	// not authentic...
-			m84x = new Memory84X(props, gpp, defRom);
-			addDevice(m84x);
-			mem = m84x;
-			nFlpy = 1;
-			break;
-		case K84:
-			needPio = true;
-			break;
-		case K84X:
-			defRom = "81-292a.rom";	// reqd for CP/M 2.20d loader
-			needPio = true;
+		if (need256K) {
 			// It is also an IODevice...
-			m84x = new Memory84X(props, gpp, defRom);
+			Memory84X m84x = new Memory84X(props, gpp, defRom);
 			addDevice(m84x);
 			mem = m84x;
-			nFlpy = 4;
-			needWin = false; // cannot have WD1002!
-			break;
-		case K2X:
-			defRom = "81-292a.rom";	// reqd for CP/M 2.2G
-			break;
-		}
-		if (mem == null) {
+		} else {
 			mem = new KayproMemory(props, gpp, defRom);
 		}
 		// Order of instantiation is vital, establishes interrupt daisy-chain.
@@ -162,7 +136,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (needWin) {
 			addDiskDevice(new WD1002_05(props, lh, this, gpp));
 		}
-		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
+		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy, needHD));
 		baudA.addBaudListener(sio1.clockA());
 		sio1.clockB().setBaud(300 * 16);
 		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
@@ -186,25 +160,37 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	}
 
 	public static Interruptor.Model setModel(Properties props) {
+		boolean enhanced = false;
+		Interruptor.Model enh = Interruptor.Model.UNKNOWN;
 		if (model != Interruptor.Model.UNKNOWN) {
 			return model;
 		}
 		String s = props.getProperty("kaypro_model");
 		if (s == null) {
-			model = Interruptor.Model.K84;
-		} else if (s.equalsIgnoreCase("10")) {
+			return Interruptor.Model.K84;
+		}
+		if (s.endsWith("E") || s.endsWith("e")) {
+			enhanced = true;
+			s = s.substring(0, s.length() - 1);
+		}
+		if (s.equalsIgnoreCase("10")) {
 			model = Interruptor.Model.K10;
+			enh = Interruptor.Model.K10E;
 		} else if (s.equalsIgnoreCase("10X")) {
 			model = Interruptor.Model.K10X;
+			enh = Interruptor.Model.K10E;
+		} else if (s.equalsIgnoreCase("12X")) {
+			model = Interruptor.Model.K12X;
+		} else if (s.equalsIgnoreCase("10E")) {
+			model = Interruptor.Model.K10E;
 		} else if (s.equalsIgnoreCase("2X") ||
 				s.equalsIgnoreCase("2/84")) {
 			model = Interruptor.Model.K2X;
+			enh = Interruptor.Model.K84E;
 		} else if (s.equalsIgnoreCase("84") ||
 				s.equalsIgnoreCase("4/84")) {
 			model = Interruptor.Model.K84;
-		} else if (s.equalsIgnoreCase("84X") ||
-				s.equalsIgnoreCase("2XX")) {
-			model = Interruptor.Model.K84X;
+			enh = Interruptor.Model.K84E;
 		} else if (s.equalsIgnoreCase("4X")) {
 			model = Interruptor.Model.K4X;
 		} else if (s.equalsIgnoreCase("ROBIE")) {
@@ -212,8 +198,61 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		} else {
 			System.err.format("Unknown model: %s\n", s);
 		}
+		if (enhanced) {
+			model = enh; // might be UNKNOWN...
+		}
+		switch (model) {
+		case K10E:
+			need256K = true;
+			needPio = true;
+			// FALLTHROUGH
+		case K10:
+			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
+			needWin = true;
+			nFlpy = 1;
+			break;
+
+		case K10X:	// "10 W/MODEM and CLOCK"
+			defRom = "81-478a.rom";
+			needWin = true;
+			needPio = true;
+			nFlpy = 1;
+			break;
+
+		case K12X:
+			defRom = "81-478a.rom";
+			needHD = true;
+			needWin = true;
+			needPio = true;
+			nFlpy = 1;
+			break;
+
+		case K4X:
+			defRom = "81-326.rom";
+			needHD = true;
+			needPio = true;
+			break;
+
+		case KROBIE:
+			defRom = "81-478a.rom";
+			needHD = true;
+			needPio = true;
+			break;
+
+		case K84E:
+			need256K = true;
+			nFlpy = 3;
+			// FALLTHROUGH
+		case K84:
+			needPio = true;
+			// FALLTHROUGH
+		case K2X:
+			defRom = "81-292a.rom";
+			break;
+		}
 		return model;
 	}
+	public static boolean has256K() { return need256K; }
 
 	public void reset() {
 		boolean wasRunning = running;

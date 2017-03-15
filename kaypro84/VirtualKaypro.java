@@ -11,27 +11,35 @@ public class VirtualKaypro {
 
 	public static void main(String[] args) {
 		Properties props = new Properties();
-		String config;
-		config = System.getenv("KAYPRO_CONFIG");
+		String config = null;
 		if (args.length > 0) {
-			config = args[0];
-		}
-		if (config == null) {
-			config = "vkayprorc";
-			File f = new File(config);
+			File f = new File(args[0]);
 			if (f.exists()) {
 				config = f.getAbsolutePath();
 			} else {
-				config = System.getProperty("user.home") + "/." + config;
+				props.setProperty("kaypro_model", args[0]);
+			}
+		} else {
+			config = System.getenv("KAYPRO_CONFIG");
+			if (config == null) {
+				config = "vkayprorc";
+				File f = new File(config);
+				if (f.exists()) {
+					config = f.getAbsolutePath();
+				} else {
+					config = System.getProperty("user.home") + "/." + config;
+				}
 			}
 		}
-		try {
-			FileInputStream cfg = new FileInputStream(config);
-			props.setProperty("configuration", config);
-			props.load(cfg);
-			cfg.close();
-		} catch(Exception ee) {
-			config = null;
+		if (config != null) {
+			try {
+				FileInputStream cfg = new FileInputStream(config);
+				props.setProperty("configuration", config);
+				props.load(cfg);
+				cfg.close();
+			} catch(Exception ee) {
+				config = null;
+			}
 		}
 		Interruptor.Model model = Kaypro.setModel(props);
 		if (model == Interruptor.Model.UNKNOWN) {
@@ -57,6 +65,8 @@ public class VirtualKaypro {
 		switch (model) {
 		case K10:
 		case K10X:
+		case K10E:
+		case K12X:
 			Kaypro10FrontSide k10 = new Kaypro10FrontSide(front_end, crt, props);
 			lh = k10;
 			pn = k10;

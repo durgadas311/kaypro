@@ -1,5 +1,5 @@
 # Kaypro 10 modified for CP/M 3 and CP/NET
-kaypro_model = 10X
+kaypro_model = 10E
 monitor_rom = 81-302c.rom
 
 wd1002_drive1 = ST412

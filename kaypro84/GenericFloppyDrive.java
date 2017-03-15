@@ -13,8 +13,8 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		FDD_8_DS,
 	};
 
-	static final int fastRpm_c	600;	// TODO: what is correct?
-	static final int slowRpm_c	300;	// ('')
+	static final int fastRpm_c = 600;	// TODO: what is correct?
+	static final int slowRpm_c = 300;	// ('')
 
 	private int numTracks_m;
 	private int numHeads_m;

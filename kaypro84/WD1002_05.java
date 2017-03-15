@@ -189,6 +189,8 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				// Front panel name, not media name
 				name = ss[1];
 			}
+		} else {
+			driveType = ST412;
 		}
 		s = props.getProperty("wd1002_disk1");
 		if (s != null) {
