@@ -27,7 +27,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 	private int dataLen_m;
 
 	private boolean writeProtect_m;
-	private boolean doubleDensity_m;
+	private int densityFactor_m;
 	private long trackLen_m;
 	private int numTracks_m;
 	private int numSectors_m;
@@ -58,7 +58,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		dataPos_m = 0;
 		dataLen_m = 0;
 		writeProtect_m = true;
-		doubleDensity_m = false;
+		densityFactor_m = 0;
 		numTracks_m = 0;
 		numSectors_m = 0;
 		numSides_m = 0;
@@ -95,7 +95,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		}
 		hypoTrack_m = (drive.getNumTracks() > numTracks_m);
 		hyperTrack_m = (drive.getNumTracks() < numTracks_m);
-		trackLen_m = getTrackLen(doubleDensity_m);
+		trackLen_m = getTrackLen(densityFactor_m);
 		secLenCode_m = Integer.numberOfTrailingZeros(secSize_m); // 128==7, 1024==10
 		if (secLenCode_m < 11) {
 			secLenCode_m -= 7;	// 128==0, 256=1, 512=2, 1024==3
@@ -111,13 +111,13 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		System.err.format(
 			"mounted %d\" floppy %s: sides=%d tracks=%d spt=%d DD=%s R%s\n",
 			mediaSize_m, imageName_m, numSides_m, numTracks_m, numSectors_m,
-			doubleDensity_m ? "yes" : "no", writeProtect_m ? "O" : "W");
+			densityFactor_m > 0 ? "yes" : "no", writeProtect_m ? "O" : "W");
 	}
 
-	private int getTrackLen(boolean dd) {
+	private int getTrackLen(int df) {
 		int tl = (mediaSize_m == 5 ? 3200 : 6400);
-		if (dd) {
-			tl *= 2;
+		if (df > 0) {
+			tl *= df;
 		}
 		return tl;
 	}
@@ -181,7 +181,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 				break;
 			case 'd':
 				m |= 0x20;
-				doubleDensity_m = (p != 0);
+				densityFactor_m = p * 2;	// p = 0, 1, or 2
 				break;
 			case 'i':
 				m |= 0x40;
@@ -414,7 +414,7 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		return writeProtect_m;
 	}
 	public boolean doubleDensity() {
-		return doubleDensity_m;
+		return densityFactor_m > 0;
 	}
 	public int mediaSize() {
 		return mediaSize_m;

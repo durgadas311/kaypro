@@ -699,6 +699,8 @@ public class WD1793 implements ClockListener {
 			return;
 		}
 		curPos_m = charPos;
+
+		// Process any active Type I command...
 		switch (curCommand_m) {
 		case restoreCmd:
 		{

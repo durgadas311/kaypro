@@ -8,9 +8,13 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		FDD_5_25_SS_DT,
 		FDD_5_25_DS_ST,
 		FDD_5_25_DS_DT,
+		FDD_5_25_DS_QT,
 		FDD_8_SS,
 		FDD_8_DS,
 	};
+
+	static final int fastRpm_c	600;	// TODO: what is correct?
+	static final int slowRpm_c	300;	// ('')
 
 	private int numTracks_m;
 	private int numHeads_m;
@@ -41,7 +45,10 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		// Can this change on-the-fly?
 		ticksPerSec_m = 2048000; // TODO: abstract this
 
-		if (type == DriveType.FDD_5_25_DS_ST || type == DriveType.FDD_5_25_DS_DT || type == DriveType.FDD_8_DS) {
+		if (type == DriveType.FDD_5_25_DS_ST ||
+				type == DriveType.FDD_5_25_DS_DT ||
+				type == DriveType.FDD_5_25_DS_QT ||
+				type == DriveType.FDD_8_DS) {
 			numHeads_m = 2;
 		} else {
 			numHeads_m = 1;
@@ -56,25 +63,37 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 			driveRpm_m = 300;
 			rawSDBytesPerTrack_m = 3200;
 
-			if (type == DriveType.FDD_5_25_SS_DT || type == DriveType.FDD_5_25_DS_DT || type == DriveType.FDD_8_DS) {
+			if (type == DriveType.FDD_5_25_DS_QT) {
+				// uses 8" datarate...
+				rawSDBytesPerTrack_m = 6400; // not used aynwhere...
+				numTracks_m = 160;
+				driveRpm_m = -1;
+			} else if (type == DriveType.FDD_5_25_SS_DT ||
+					type == DriveType.FDD_5_25_DS_DT) {
 				numTracks_m = 80;
 			} else {
 				numTracks_m = 40;
 			}
 		}
+		motor_m = (mediaSize_m == 8);
+		head_m = (mediaSize_m == 5);
 		cycleCount_m = 0;
-		ticksPerRev_m = (ticksPerSec_m * 60) / driveRpm_m;
 		// The index jacket hole is about 10 degrees wide on 8" disk...
 		// Assuming media hole is about 1/2 = 4740 cycles (H89).
 		// The index jacket hole is about 12-15 degrees wide on 5" disk...
 		// Assuming media hole is about 1/2 = 6800-7900 cycles.
 		// Approximating 5 degrees all media types should be fine.
+		if (driveRpm_m <= 0) {
+			motor_m = true;	// motor always on, but fast or slow
+			// must be recomputed when motor speed changes
+			ticksPerRev_m = (ticksPerSec_m * 60) / slowRpm_c;
+		} else {
+			ticksPerRev_m = (ticksPerSec_m * 60) / driveRpm_m;
+		}
 		ticksPerIndex_m = (ticksPerRev_m / 360) * 5;
 		ticksPerSector_m = 0; // soft sectored until we know different
 		headSel_m = 0;
 		track_m = 0;
-		motor_m = (mediaSize_m == 8);
-		head_m = (mediaSize_m == 5);
 	}
 
 	static public GenericFloppyDrive getInstance(String type, String name) {
@@ -89,8 +108,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		} else if (type.equals("FDD_5_25_DS_DT")) {
 			etype = DriveType.FDD_5_25_DS_DT;
 		} else if (type.equals("FDD_5_25_DS_QT")) {
-			// TODO: DriveTec two-speed, 192-tpi drives...
-			return null;
+			etype = DriveType.FDD_5_25_DS_QT;
 		} else if (type.equals("FDD_8_SS")) {
 			etype = DriveType.FDD_8_SS;
 		} else if (type.equals("FDD_8_DS")) {
@@ -123,6 +141,16 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		}
 		// The rest only applies to hard-sectored diskettes
 		ticksPerSector_m = ticksPerRev_m / hs;
+	}
+
+	private void setSpeed(int rpm) {
+		// We can only get here is dual-speed soft-sectored
+		ticksPerRev_m = (ticksPerSec_m * 60) / rpm;
+		ticksPerIndex_m = (ticksPerRev_m / 360) * 5;
+		if (disk_m == null) {
+			return;
+		}
+		ticksPerByte = ticksPerRev_m / disk_m.trackLen();
 	}
 
 	public boolean getTrackZero() {
@@ -301,7 +329,12 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 
 	public void motor(boolean on) {
 		if (mediaSize_m == 5) {
-			motor_m = on;
+			if (driveRpm_m <= 0) {
+				int rpm = on ? fastRpm_c : slowRpm_c;
+				setSpeed(rpm);
+			} else {
+				motor_m = on;
+			}
 		}
 	}
 

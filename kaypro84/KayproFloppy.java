@@ -140,10 +140,6 @@ public class KayproFloppy extends WD1793
 			}
 			//System.err.format("Drive select %d\n", next);
 		}
-		if ((diff & ctrl_Motor_c) != 0 &&
-				next >= 0 && leds_m[next] != null) {
-			leds_m[next].set((controlReg_m & ctrl_Motor_c) != 0);
-		}
 		if (next >= 0 && drives_m[next] != null) {
 			drives_m[next].selectSide((controlReg_m & ctrl_Side_c) == 0 ? 1 : 0);
 			drives_m[next].motor((controlReg_m & ctrl_Motor_c) != 0);
