@@ -31,7 +31,7 @@ public class KayproFloppy extends WD1793
 	private int numDisks_m = 2;
 	private int interesting = ctrl_DSxN_c | ctrl_Side_c |
 			ctrl_Motor_c | ctrl_SetMFMRecordingN_c;
-	private boolean forceReady = true;
+	private boolean HDDrives = false;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
 			Interruptor intr, SystemPort gpio, int numDrives, boolean HD) {
@@ -52,9 +52,7 @@ public class KayproFloppy extends WD1793
 		Arrays.fill(drives_m, null);
 		Arrays.fill(leds_m, null);
 		// TODO: force all drives same type...
-		if (HD) {
-			forceReady = false;
-		}
+		HDDrives = HD;
 
 		// First identify what drives are installed.
 		int n = 0;
@@ -226,7 +224,7 @@ public class KayproFloppy extends WD1793
 	public int in(int addr) {
 		int val = 0;
 		val = super.in(addr);
-		if (addr == 0x10 && forceReady) {
+		if (addr == 0x10 && !HDDrives) {
 			val &= ~stat_NotReady_c; // always READY
 		}
 		return val;
@@ -289,8 +287,18 @@ public class KayproFloppy extends WD1793
 	public void loadedHead(boolean load) {
 	}
 
-	public boolean doubleDensity() {
-		return (controlReg_m & ctrl_SetMFMRecordingN_c) == 0;
+	// returns current density relative to std 5" SD (FM @ 1MHz)
+	public int densityFactor() {
+		int dd = (controlReg_m & ctrl_SetMFMRecordingN_c) == 0 ? 1 : 0;
+		if (HDDrives) {
+			if ((controlReg_m & ctrl_Motor_c) != 0) {
+				// high speed... lower density...
+			} else {
+				// low speed... higher density...
+				++dd;
+			}
+		}
+		return dd + 1;	// => 1,2,3
 	}
 
 	public int interestedBits() {

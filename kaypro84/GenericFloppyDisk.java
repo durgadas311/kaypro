@@ -2,7 +2,7 @@
 
 public interface GenericFloppyDisk {
 	boolean checkWriteProtect();
-	boolean doubleDensity();
+	int densityFactor();	// 1, 2, 3, ...
 	int hardSectored();
 	int mediaSize();
 	long trackLen();

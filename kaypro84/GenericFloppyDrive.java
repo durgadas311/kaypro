@@ -176,7 +176,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 	}
 
 	// negative data is "missing clock" detection.
-	public int readData(boolean dd, int track, int side, int sector,
+	public int readData(int dd, int track, int side, int sector,
 								int inSector) {
 		int data = 0;
 		boolean verify = (sector < 0xf0);
@@ -187,7 +187,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		if (disk_m == null) {
 			return GenericFloppyFormat.ERROR;
 		}
-		if (dd != disk_m.doubleDensity()) {
+		if (dd != disk_m.densityFactor()) {
 			return GenericFloppyFormat.ERROR;
 		}
 		if (verify && (track_m != track || headSel_m != side)) {
@@ -207,7 +207,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		return data;
 	}
 
-	int writeData(boolean dd, int track, int side, int sector,
+	int writeData(int dd, int track, int side, int sector,
 					int inSector, int data, boolean dataReady) {
 		int result = GenericFloppyFormat.ERROR;
 		boolean verify = (sector < 0xf0);
@@ -220,10 +220,8 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		}
 		if (sector == 0xff) {
 			// pass density hint to diskette...
-			if (!dd) {
-				sector &= ~1;
-			}
-		} else if (dd != disk_m.doubleDensity()) {
+			sector = 0xfc | dd;
+		} else if (dd != disk_m.densityFactor()) {
 			return GenericFloppyFormat.ERROR;
 		}
 		if (verify && (track_m != track || headSel_m != side)) {
@@ -269,35 +267,30 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		sectorCharPos = hsi / ticksPerByte;
 	}
 
-	public long getCharPos(boolean doubleDensity) {
-		// if disk_m == null || !motor_m then cycleCount_m won't be updating
-		// and so CharPos also does not update.  Callers checks this.
-		long p = indexCharPos;
+	private long factorPos(int doubleDensity, long p) {
 		if (disk_m == null) {
 			return p;
 		}
-		if (doubleDensity && !disk_m.doubleDensity()) {
-			p *= 2;
+		if (doubleDensity > disk_m.densityFactor()) {
+			p *= doubleDensity;
+			p /= disk_m.densityFactor();
 		}
-		if (!doubleDensity && disk_m.doubleDensity()) {
-			p /= 2;
+		if (doubleDensity < disk_m.densityFactor()) {
+			p *= disk_m.densityFactor();
+			p /= doubleDensity;
 		}
 		return p;
 	}
 
-	public long getSectorPos(boolean doubleDensity) {
+	public long getCharPos(int doubleDensity) {
+		// if disk_m == null || !motor_m then cycleCount_m won't be updating
+		// and so CharPos also does not update.  Callers checks this.
+		return factorPos(doubleDensity, indexCharPos);
+	}
+
+	public long getSectorPos(int doubleDensity) {
 		// For soft-sectored disks, returns an un-changing number.
-		long p = sectorCharPos;
-		if (disk_m == null) {
-			return p;
-		}
-		if (doubleDensity && !disk_m.doubleDensity()) {
-			p *= 2;
-		}
-		if (!doubleDensity && disk_m.doubleDensity()) {
-			p /= 2;
-		}
-		return p;
+		return factorPos(doubleDensity, sectorCharPos);
 	}
 
 	// Caller of this must not inspect sector number!

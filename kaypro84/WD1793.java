@@ -693,7 +693,7 @@ public class WD1793 implements ClockListener {
 		if (curCommand_m == Command.noneCmd) {
 			return;
 		}
-		charPos = drive.getCharPos(ctrl.doubleDensity());
+		charPos = drive.getCharPos(ctrl.densityFactor());
 		if (drive.isReady() && charPos == curPos_m) {
 			// Position hasn't changed just return
 			return;
@@ -821,7 +821,7 @@ public class WD1793 implements ClockListener {
 			}
 
 			missCount_m = 0;
-			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, sectorReg_m,
+			data = drive.readData(ctrl.densityFactor(), trackReg_m, side_m, sectorReg_m,
 									sectorPos_m);
 
 			if (data == GenericFloppyFormat.NO_DATA) {
@@ -864,7 +864,7 @@ public class WD1793 implements ClockListener {
 
 			missCount_m = 0;
 			// sector '0xfd' indicates a read address
-			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, 0xfd,
+			data = drive.readData(ctrl.densityFactor(), trackReg_m, side_m, 0xfd,
 									sectorPos_m);
 
 			if (data == GenericFloppyFormat.NO_DATA) {
@@ -892,7 +892,7 @@ public class WD1793 implements ClockListener {
 			break;
 
 		case writeSectorCmd:
-			result = drive.writeData(ctrl.doubleDensity(), trackReg_m, side_m, sectorReg_m,
+			result = drive.writeData(ctrl.densityFactor(), trackReg_m, side_m, sectorReg_m,
 						  sectorPos_m, dataReg_m, dataReady_m);
 
 			if (result == GenericFloppyFormat.NO_DATA) {
@@ -943,7 +943,7 @@ public class WD1793 implements ClockListener {
 			}
 
 			missCount_m = 0;
-			data = drive.readData(ctrl.doubleDensity(), trackReg_m, side_m, 0xff, sectorPos_m);
+			data = drive.readData(ctrl.densityFactor(), trackReg_m, side_m, 0xff, sectorPos_m);
 
 			if (data == GenericFloppyFormat.NO_DATA) {
 				// just wait for index to come around..
@@ -965,7 +965,7 @@ public class WD1793 implements ClockListener {
 			break;
 
 		case writeTrackCmd:
-			result = drive.writeData(ctrl.doubleDensity(), trackReg_m, side_m, 0xff,
+			result = drive.writeData(ctrl.densityFactor(), trackReg_m, side_m, 0xff,
 						  sectorPos_m, dataReg_m, dataReady_m);
 
 			if (result == GenericFloppyFormat.NO_DATA) {

@@ -7,7 +7,7 @@ public interface WD1793Controller {
 	void loweredIntrq();
 	void loweredDrq();
 	void loadedHead(boolean load);
-	boolean doubleDensity();
+	int densityFactor();
 	int getClockPeriod();
 	GenericFloppyDrive getCurDrive();
 }

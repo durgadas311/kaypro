@@ -14,8 +14,8 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 	private int bufferedSector_m;
 	private long bufferOffset_m;
 	private boolean bufferDirty_m;
-	private boolean hypoTrack_m;	// ST media in DT drive
-	private boolean hyperTrack_m;	// DT media in ST drive
+	private int hypoTrack_m;	// ST media in DT drive
+	private int hyperTrack_m;	// DT media in ST drive
 	private boolean interlaced_m;
 	private int dsa_m;	// double-sided algorithm...
 	private int mediaLat_m;
@@ -45,8 +45,8 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		bufferedSide_m = -1;
 		bufferedSector_m = -1;
 		bufferOffset_m = 0;
-		hypoTrack_m = false;
-		hyperTrack_m = false;
+		hypoTrack_m = 0;
+		hyperTrack_m = 0;
 		interlaced_m = false;
 		dsa_m = 0;
 		mediaLat_m = 0;
@@ -93,8 +93,11 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 			System.err.format("SectorFloppyImage: unable to open file - %s\n", argv.get(0));
 			return;
 		}
-		hypoTrack_m = (drive.getNumTracks() > numTracks_m);
-		hyperTrack_m = (drive.getNumTracks() < numTracks_m);
+		if (drive.getNumTracks() > numTracks_m) {
+			hypoTrack_m = (drive.getNumTracks() / numTracks_m);
+		} else if (drive.getNumTracks() < numTracks_m) {
+			hyperTrack_m = (numTracks_m / drive.getNumTracks());
+		}
 		trackLen_m = getTrackLen(densityFactor_m);
 		secLenCode_m = Integer.numberOfTrailingZeros(secSize_m); // 128==7, 1024==10
 		if (secLenCode_m < 11) {
@@ -111,12 +114,12 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		System.err.format(
 			"mounted %d\" floppy %s: sides=%d tracks=%d spt=%d DD=%s R%s\n",
 			mediaSize_m, imageName_m, numSides_m, numTracks_m, numSectors_m,
-			densityFactor_m > 0 ? "yes" : "no", writeProtect_m ? "O" : "W");
+			densityFactor_m > 1 ? "yes" : "no", writeProtect_m ? "O" : "W");
 	}
 
 	private int getTrackLen(int df) {
 		int tl = (mediaSize_m == 5 ? 3200 : 6400);
-		if (df > 0) {
+		if (df > 1) {
 			tl *= df;
 		}
 		return tl;
@@ -181,7 +184,8 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 				break;
 			case 'd':
 				m |= 0x20;
-				densityFactor_m = p * 2;	// p = 0, 1, or 2
+				// convert 0, 1, 2 into 1, 2, 3
+				densityFactor_m = p + 1;
 				break;
 			case 'i':
 				m |= 0x40;
@@ -236,13 +240,13 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		if (side < 0 || track < 0 || sector < 0) {
 			return true;
 		}
-		if (hypoTrack_m) {
-			if ((track & 1) != 0) {
+		if (hypoTrack_m > 0) {
+			if ((track % hypoTrack_m) != 0) {
 				return false;
 			}
-			track /= 2;
-		} else if (hyperTrack_m) {
-			track *= 2;
+			track /= hypoTrack_m;
+		} else if (hyperTrack_m > 0) {
+			track *= hyperTrack_m;
 		}
 		int secNum = sector;
 		if (mediaSec_m == 0 && dsa_m != 2) {
@@ -413,8 +417,8 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 	public boolean checkWriteProtect() {
 		return writeProtect_m;
 	}
-	public boolean doubleDensity() {
-		return densityFactor_m > 0;
+	public int densityFactor() {
+		return densityFactor_m;
 	}
 	public int mediaSize() {
 		return mediaSize_m;
