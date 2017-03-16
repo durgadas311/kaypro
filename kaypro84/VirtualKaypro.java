@@ -62,20 +62,14 @@ public class VirtualKaypro {
 		JPanel pn;
 		LEDHandler lh;
 		Kaypro10FrontSide front;
-		switch (model) {
-		case K10:
-		case K10X:
-		case K10E:
-		case K12X:
+		if (Kaypro.hasWin()) {
 			Kaypro10FrontSide k10 = new Kaypro10FrontSide(front_end, crt, props);
 			lh = k10;
 			pn = k10;
-			break;
-		default:
+		} else {
 			KayproFrontSide fs = new KayproFrontSide(front_end, crt, props);
 			lh = fs;
 			pn = fs;
-			break;
 		}
 
 		Kaypro kaypro = new Kaypro(props, lh, (KayproCrt)crt);

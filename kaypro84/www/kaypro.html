@@ -31,93 +31,24 @@ having the newer "universal" 81-478 ROM and requring CP/M 2.2u.
 <P>Base hardware is currently 2 Z80-SIOs (serial data, keyboard, serial printer, modem),
 with two WD1943 Baud generators, WD1793 Floppy Disk Controller, System Port,
 Centronics Parallel Printer Port, SY6545-based CRT Controller.
-I seem to recall that the built-in modem had problems, and was
-probably obsolete soon after release, which may explain why many machines did not
-have it.
-The following models are currently supported:
+Information on original Kaypro models is summarized
+<A HREF="kaypromodels.html">here</A>.
 
-<P><TABLE BORDER>
-<TR><TH>model</TH><TH>additional<BR>hardware</TH><TH>default ROM</TH><TR>
-<TR><TD>2X (2/84)</TD><TD>(none)</TD><TD>81-292a</TD><TR>
-<TR><TD>84 (4/84)</TD><TD>Z80-PIO<BR>MM58167 RTC<BR>TODO: Modem</TD><TD>81-478a</TD><TR>
-<TR><TD><A HREF="kaypro84x.html">84X</A></TD>
-	<TD>Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU<BR>4 Floppy Drives</TD><TD>81-292a</TD><TR>
-<TR><TD><A HREF="kaypro10.html">10</A></TD>
-	<TD>WD1002 Winchester<BR>Controller<BR>ST412 Hard Disk</TD><TD>81-302c</TD><TR>
-<TR><TD><A HREF="kaypro10x.html">10X</A></TD><TD>
-	WD1002 Winchester<BR>Controller<BR>ST412 Hard Disk<BR>
-Z80-PIO<BR>MM58167 RTC<BR>256K DRAM w/MMU</TD><TD>TBD</TD><TR>
-</TABLE>
+The model may be suffixed with an "E" (for Enhanced) to add 256K bank-selected
+RAM and the RTC (future: built-in modem). This hardware existed for my 2X
+back in 1986, for running CP/M 3.
+
 <P>Default ROM may be overridden with config property.
-<P>Note that models 84X and 10X were never actual products.
-Model 10X never existed in real hardware.
-<P>All of these models seemed to have similar/compatible hardware, 
-and are all capable of running with the "universal ROM".
-Models 2X (2/84) and 4/84 used the same motherboard, with some parts
-left out in the case of 2X. Model 10 used a different motherboard
-but was generally software compatible. The model 10 was incapable of
-hosting a built-in modem.
-Other (older) models do not have the same level of compatability,
-and may be developed as virtual hardware is created and/or software is available.
-Currently, there are no restrictions on what ROM is used.
-The user must ensure the CP/M version is compatible.
-<P><TABLE BORDER>
-<TR><TH>ROM P/N</TH><TH>ROM Ver</TH><TH>Model(s)</TH><TH>CP/M Version(s)</TH></TR>
-<TR><TD>81-188e</TD><TD>1.9</TD><TD>10</TD><TD>2.2H</TD></TR>
-<TR><TD>81-277</TD><TD>1.9E(F)</TD><TD>10</TD><TD>2.2H</TD></TR>
-<TR><TD>81-292a</TD><TD>n/a</TD><TD>2X, 2/84, 4/84</TD><TD>2.2G, 2.2H, 2.20d</TD></TR>
-<TR><TD>81-302c</TD><TD>1.9E</TD><TD>10</TD><TD>2.2G, 2.2H</TD></TR>
-<TR><TD>81-326</TD><TD>1.7R</TD><TD>4X</TD><TD>2.2G, 2.2H</TD></TR>
-<TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 2/84, 4/84, ROBIE</TD><TD>2.2u1</TD></TR>
-</TABLE>
-<P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
-were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
-plus the ROMs changed how they interpret the boot loader sector
-(e.g. 81-478a requires a checksum on the
-boot sector which older boot images do not have).
 
-<P>CP/M 2.20d was a special version I derived from 2.2G, I think mainly to use
-as a loader for CP/M 3. I need to look through the source code to see what
-my reasons were for making that.
+<P>The Virtual Computer model may be selected by adding the model
+designator string on the command line. For more control,
+the virtual computer may be configured using a "properties file", which is plain text.
+The configuration file may specified on the command line in place of the
+model string. If there are no commandline arguments, then the
+environment variable "KAYPRO_CONFIG" is checked for a config file name,
+and failing that then the current directory is searched for "vkayprorc"
+and then the user's home directory is searched for ".vkayprorc".
 
-<P>The above matrix is based on "Kaypro Technical Manual 1484-F
-and a trivial boot test and "DIR". The manual also describes these model
-features:
-
-<P><TABLE BORDER>
-<TR><TH>Model</TH><TH>CRTC</TH><TH>Centr</TH><TH>SIO Ports</TH><TH>Modem/RTC</TH><TH>Floppy</TH><TH>Winch</TH><TH>CPU</TH></TR>
-<TR><TD>2 (II)</TD><TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD></TR>
-<TR><TD>4</TD><TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD></TR>
-<TR><TD>2/84, 2X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
-<TR><TD>4/84</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
-<TR><TD>4X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xQD</TD><TD></TD><TD>4MHz</TD></TR>
-<TR><TD>10</TD><TD>6545</TD><TD>Y</TD><TD>2</TD><TD></TD><TD>1xDD</TD><TD>10M</TD><TD>4MHz</TD></TR>
-<TR><TD>10+</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>1xDD</TD><TD>10M</TD><TD>4MHz</TD></TR>
-<TR><TD>ROBIE</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>2xQD</TD><TD></TD><TD>4MHz</TD></TR>
-<TR><TD>12X</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD>Y</TD><TD>1xQD</TD><TD>10M</TD><TD>4MHz</TD></TR>
-<TR><TD>New 2</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
-<TR><TD>1</TD><TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD></TR>
-</TABLE>
-<P>* One serial port for Keyboard; if 4 total then one dedicated to Modem
-(regardless of whether installed). Modem and RTC use a Z80-PIO which is otherwise
-not installed.
-<P>Models 2 and 4 use Z80-PIOs for Centr and system port. Half of each is unused.
-<P>There seemed to be a lot of fluidity in model designations, and
-later production seemed to use newer, different, boards. There seemed to be
-an effort to converge the entire 8-bit product line into a single motherboard
-design, and schematics show a later design that would work in all models
-and require only a jumper to select between standard and high-density floppies,
-along with optionally populating modem/rtc and/or winchester interface sections.
-Theoretically, case designs had to change as well, for example early model 10s
-(or model 2) had a different backside connector arrangement.
-
-<P>The Virtual Computer is configured using a "properties file", plain text.
-The downloads page has some examples in the "configs" subdirectory.
-The jar looks for "vkayprorc" in the current directory,
-then ".vkayprorc" in the user's home directory.
-This may be overridden by specifying the path to a config
-file in the environment variable "KAYPRO_CONFIG"
-or as the first commandline argument.
 <P>The display (CRT) is implemented using a TrueType font derived from the
 character generator ROM (81-187/81-235). However, the original video
 dot aspect ratio was about 1:1.2 and this cannot be cleanly displayed

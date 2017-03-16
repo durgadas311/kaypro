@@ -161,7 +161,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 
 	public static Interruptor.Model setModel(Properties props) {
 		boolean enhanced = false;
-		Interruptor.Model enh = Interruptor.Model.UNKNOWN;
 		if (model != Interruptor.Model.UNKNOWN) {
 			return model;
 		}
@@ -169,30 +168,25 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (s == null) {
 			return Interruptor.Model.K84;
 		}
-		if (s.endsWith("E") || s.endsWith("e")) {
+		if (!s.equalsIgnoreCase("ROBIE") &&
+				(s.endsWith("E") || s.endsWith("e"))) {
 			enhanced = true;
 			s = s.substring(0, s.length() - 1);
 		}
 		if (s.equalsIgnoreCase("10")) {
 			model = Interruptor.Model.K10;
-			enh = Interruptor.Model.K10E;
 		} else if (s.equalsIgnoreCase("10X")) {
 			model = Interruptor.Model.K10X;
-			enh = Interruptor.Model.K10E;
 		} else if (s.equalsIgnoreCase("12X")) {
 			model = Interruptor.Model.K12X;
-		} else if (s.equalsIgnoreCase("10E")) {
-			model = Interruptor.Model.K10E;
 		} else if (s.equalsIgnoreCase("2X") ||
 				s.equalsIgnoreCase("2/84")) {
 			model = Interruptor.Model.K2X;
-			enh = Interruptor.Model.K84E;
 		} else if (s.equalsIgnoreCase("2XX")) {
 			model = Interruptor.Model.K2XX;
 		} else if (s.equalsIgnoreCase("84") ||
 				s.equalsIgnoreCase("4/84")) {
 			model = Interruptor.Model.K84;
-			enh = Interruptor.Model.K84E;
 		} else if (s.equalsIgnoreCase("4X")) {
 			model = Interruptor.Model.K4X;
 		} else if (s.equalsIgnoreCase("ROBIE")) {
@@ -201,13 +195,10 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			System.err.format("Unknown model: %s\n", s);
 		}
 		if (enhanced) {
-			model = enh; // might be UNKNOWN...
+			need256K = true;
+			needPio = true; // might already get set
 		}
 		switch (model) {
-		case K10E:
-			need256K = true;
-			needPio = true;
-			// FALLTHROUGH
 		case K10:
 			defRom = "81-302c.rom";	// reqd for CP/M 2.2H
 			needWin = true;
@@ -238,10 +229,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			needPio = true;
 			break;
 
-		case K84E:
-			need256K = true;
-			nFlpy = 3;
-			// FALLTHROUGH
 		case K84:
 			needPio = true;
 			// FALLTHROUGH
@@ -251,6 +238,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		}
 		return model;
 	}
+	public static boolean hasWin() { return needWin; }
 	public static boolean has256K() { return need256K; }
 
 	public void reset() {

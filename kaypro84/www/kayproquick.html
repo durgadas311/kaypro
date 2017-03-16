@@ -12,24 +12,18 @@
 <OL>
 <LI>Create a working directory, change to that directory.
 <LI>Download VirtualKaypro.jar
-<LI>Download configs/kaypro84
-<LI>Download disks/kaypro-cpm22u.logdisk
+<LI>Download disks/kaypro-cpm22g.logdisk
 <LI>Start the virtual computer:
-<UL><PRE>java -jar VirtualKaypro.jar kaypro84</PRE>
+<UL><PRE>java -jar VirtualKaypro.jar 4/84</PRE>
 </UL>
-<LI>The ROM should show the splash message.
-<LI>Click on drive A to open dialog, select "kaypro-cpm22u.logdisk".
-<LI>The virtual computer should boot CP/M 2.2u1.
+<LI>The ROM should show the splash message. It will quickly show
+"I cannot read your diskette.".
+<LI>Click on drive A to open dialog, select "kaypro-cpm22g.logdisk".
+<LI>Reset the computer by selecting "Reset" in the "System" menu.
+<LI>The virtual computer should boot CP/M 2.2G.
 </OL>
 
-<P>The config file may be edited to customize the system.
-At the very least, you may want to
-add
-<UL><PRE>floppy_disk1=kaypro-cpm22u.logdisk</PRE></UL>
-to avoid having to mount the boot disk each time.
-See "configs/kaypro_all" for more information on possible property options.
-
-<H3>Example 2: Kaypro 10 Expanded</H3>
+<H3>Example 2: Kaypro 10 Enhanced</H3>
 
 <P>This example is for a Kaypro 10 that has been expanded to hold
 256K RAM and have the Real-Time-Clock installed.
@@ -37,22 +31,21 @@ See "configs/kaypro_all" for more information on possible property options.
 <OL>
 <LI>Create a working directory, change to that directory.
 <LI>Download VirtualKaypro.jar (if not already done)
-<LI>Download configs/kaypro10xu
-<LI>Download disks/WD1002-0.U.cpm3
+<LI>Download disks/WD1002-0.U.cpm3 and rename to "WD1002-1".
 <LI>Start the virtual computer:
-<UL><PRE>java -jar VirtualKaypro.jar kaypro10xu</PRE>
+<UL><PRE>java -jar VirtualKaypro.jar 10E</PRE>
 </UL>
 <LI>The ROM should show the splash message briefly, then boot.
 <LI>Once CP/M 3 has signed-on, try the DATE command to check the RTC.
 </OL>
 
-<H3>Example 3: Kaypro 10 Expanded w/CP/NET</H3>
+<H3>Example 3: Kaypro 10 Enhanced w/CP/NET</H3>
 
 <OL>
-<LI>Download configs/kaypro10xu.cpnet
+<LI>Download configs/kaypro10e.cpnet
 <LI>Otherwise the same system as setup in Example 2 (the drive contains CP/NET).
 <LI>Start the virtual computer:
-<UL><PRE>java -jar VirtualKaypro.jar kaypro10xu.cpnet</PRE></UL>
+<UL><PRE>java -jar VirtualKaypro.jar kaypro10e.cpnet</PRE></UL>
 <LI>The ROM should show the splash message briefly, then boot.
 <LI>Once CP/M 3 has signed-on, type the command
 <UL><PRE>NDOS3</PRE></UL>
@@ -67,14 +60,15 @@ which will map CP/M drive "P:" to the directory created above.
 which should return "No File" since there are no files in the directory yet.
 <LI>In CP/M type the command
 <UL><PRE>PIP P:=A:D*.COM[OV]</PRE></UL>
-which should list 4 files as being copied to P:.
+which should list 5 files as being copied to P:.
 <LI>On the host computer, look at the contents of the directory "~/HostFileBdos/a".
 It should now contain the five files device.com, dir.com, dump.com, date.com,
 dskreset.com.
 </OL>
 
-<P>These files are not usable on your host computer, but demonstrate how
-easy it is to exchange files between the CP/M system and the outside world.
+<P>These "COM" files are not normally usable on your host computer,
+but demonstrate how easy it is to exchange files between
+the CP/M system and the outside world. Text files would make a better example.
 One caveat is that CP/M uses CR-LF as the line endings, and Linux/Unix uses
 only LF. So if you copy a Linux text file into "~/HostFileBdos/a" and
 examine (TYPE) it on CP/M, the lines will not be displayed correctly.
