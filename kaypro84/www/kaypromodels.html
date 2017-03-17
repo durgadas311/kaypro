@@ -13,13 +13,13 @@ Centronics Parallel Printer Port, SY6545-based CRT Controller.
 <P>Default ROM may be overridden with config property.
 
 <P>Kaypro did not seem to have a strict relationship between advertised,
-or designated, models and specific hardware. The motherboard, and ROM,
+or designated, models and specific hardware. The mainboard, and ROM,
 that was shipped under a givel model "label" varied over time.
 
 <P>All of these models seemed to have similar/compatible hardware, 
 and are all capable of running with the "universal ROM".
-Models 2X (2/84) and 4/84 used the same motherboard, with some parts
-left out in the case of 2X. Model 10 used a different motherboard
+Models 2X (2/84) and 4/84 used the same mainboard, with some parts
+left out in the case of 2X. Model 10 used a different mainboard
 but was generally software compatible. The early model 10 was incapable of
 hosting a built-in modem.
 Other (older) models (specifically, models 2/II and 4)
@@ -82,12 +82,14 @@ features:
 (regardless of whether installed). Modem and RTC use a Z80-PIO which is otherwise
 not installed.
 <P>** One serial port for Keyboard, one unused/unavailable.
+<P>QD = hi-density 160-track drives, DD = standard 40-track drives.
 <P>Models 2 and 4 use Z80-PIOs for Centr and system port. Half of each is unused.
 <P>Models shown with yellow background are not supported by the Virtual Kaypro.
 
-<P>There seemed to be a lot of fluidity in model designations, and
-later production seemed to use newer, different, boards. There seemed to be
-an effort to converge the entire 8-bit product line into a single motherboard
+<P>There seemed to be a lot of variation in model designations, and
+later production of early models seemed to use newer, different, boards.
+There seemed to be
+an effort to converge the entire 8-bit product line into a single mainboard
 design, and schematics show a later design that would work in all models
 and require only a jumper to select between standard and high-density floppies,
 along with optionally populating modem/rtc and/or winchester interface sections.
