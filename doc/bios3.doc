@@ -36,15 +36,20 @@ mode bytes select drive and media type as follows:
  "0"  -----------------------FORMAT----------------------------
 
   7   6   5   4   3   2   1   0   7   6   5   4   3   2   1   0
- SIZ DDS DDT DDD  STEPR   TRK0F  CNF MDS MDT MDD  --DSALG--  SEC
+ SIZ DDS DDT DDD  STEPR  DQT MQT CNF MDS MDT MDD  --DSALG--  SEC
 
-FORMAT	A bitmap indicating the current media format. See GETDP3KP.ASM.
+FORMAT	A bitmap indicating the requested media format. See GETDP3KP.ASM.
 SIZ	Diskette size, 1=8inch, 0=5.25inch.
 DDS	Drive Double Sided, 1=drive has two heads.
 DDT	Drive Double Track, 1=drive is 96 tracks per inch (0=48tpi).
+	Combined with DQT. Effectively don't-care if DQT is set.
 DDD	Drive (controller) can do Double Density (MFM).
 STEPR	Step Rate, dependant on drive size according to
 	constraints of Western Digitals floppy controller chips.
+DQT	Drive is quad-track (196 tpi, 160 tracks). This also implies
+	special MOTOR control for speed switch. All non-QT media
+	uses high speed mode.
+MQT	Media is quad-track (196 tpi, 160 tracks)
 TRK0F	Track Zero Format, bit-1 for side 1, bit-0 for side 0.
 	1=different, 0=same as rest of disk.
 	NOTE: side 0 uses SD 128 byte sectors,
@@ -52,7 +57,7 @@ TRK0F	Track Zero Format, bit-1 for side 1, bit-0 for side 0.
 CNF	Configure from disk, 1= track 0/side 0/sector 0 contains
 	information on media format.
 MDS	Media Double Sided, 1=DS.
-MDT	Media Double Track, 1=DT.
+MDT	Media Double Track, 1=DT. Combined with MQT. Effectively don't-care if MQT is set.
 MDD	Media Double Density, 1=DD.
 DSALG	Double Sided algorithm, if MDS=1 then these 3 bits define
 	how to access the second side:

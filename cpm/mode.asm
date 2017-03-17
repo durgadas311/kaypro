@@ -1,6 +1,13 @@
-VERS EQU '5 ' ; March 12, 2017  16:26  drm  "MODE.ASM"
+VERS EQU '6 ' ; March 17, 2017  18:58  drm  "MODE.ASM"
 
 ; for both CP/M plus and MP/M-II (77500)
+
+; ST = drive and media Single Track
+; DT = drive and media Double Track
+; QT = drive and media Quad Track
+; DTS = drive Double Track, media Single Track
+; QTS = drive Quad Track, media Single Track
+; QTD = drive Quad Track, media Double Track
 
 	MACLIB	Z80
 	$-MACRO
@@ -230,16 +237,37 @@ NOTCNF: POP	H	;WE KNOW THERE MUST BE AT LEAST ONE CHARACTER
 	JZ	DPROC
 	CPI	'S'
 	JZ	STEP		;STEPRATE OR "SINGLE XXX"
-	CPI	'H'		; half track option maybe
+	CPI	'Q'
 	JNZ	BADCMD
-HPROC:	MOV	B,A
+HPROC:
+	MOV	B,A
 	CALL	CHAR
 	JNC	BADCMD
 	CPI	'T'
 	JNZ	BADCMD
-TRK:	MOV	A,B
-	STA	TRACK
-	JMP	MORE
+trk:	mov	a,b
+	ani	0fh
+	mov	b,a
+	MOV	A,M		; peek next argument
+	cpi	'S'
+	jrz	trk0
+	cpi	'D'
+	jrz	trk1
+	MOV	A,B
+	jr	trk1
+
+; already validated...
+trk0:	call	char
+	jnz	badcmd
+	ani	0fh
+	rlc
+	rlc
+	rlc
+	rlc
+	ora	b
+trk1:
+	sta	track
+	jmp	more
 
 SPROC:	MVI	A,'S'
 DPROC:	MOV	B,A		; save SINGLE or DOUBLE
@@ -357,18 +385,35 @@ BIT3:	LDA	DENSITY 	; see if density was specified
 BIT4:	LDA	TRACK
 	ORA	A
 	JZ	BIT5
-	cpi	'D'
-	jrz	sdt
-	cpi	'S'
-	jrz	sst 
-	resx	5,+3		; reset "Media Track density"
-	setx	5,+2		; set "Drive track density"
-	jr	bit5
-SDT:	setx	5,+3	;
-	SETX	5,+2
-	jr	bit5
-SST:	resx	5,+3
+	resx	5,+3	; reset everything, then set as needed
+	resx	1,+2
+	resx	0,+2
 	RESX	5,+2
+	ani	0fh
+	cpi	'D' and 0fh	; 04
+	jrz	sdt
+	cpi	'S' and 0fh	; 03
+	jrz	BIT5
+;	cpi	'Q' and 0fh	; 01
+;	jrz	sqt 
+	; QT - quad track
+	setx	0,+2	; media QT assumed
+	setx	1,+2	; drive QT
+SDT:	setx	5,+3	; media DT (or QT) assumed
+	setx	5,+2	; drive DT
+	; DT/QT might have lesser media...
+	lda	track
+	rlc
+	rlc
+	rlc
+	rlc
+	ani	00fh
+	jrz	BIT5	; media same, done
+	resx	0,+2	; at least we know can't be QT media
+	cpi	'D' and 0fh	; 04
+	jrz	BIT5
+	resx	5,+3	; make ST media
+
 BIT5:	LDA	STEPRT		; get the requested step rate
 	ORA	A		; see if user specified one
 	JZ	BIT6
@@ -517,9 +562,14 @@ DDS:	MVI	C,TYPE
 	PUSH	H		; get mode address again
 	inx	h
 	inx	h
+	bit	0,m	; if QT media, assume drive same
+	jrnz	t192
+	bit	1,m	; not QT media, check drive
+	jrnz	t192k
 	INX	H
-	bit	5,m		; bit set if 96 tpi
+	bit	5,m	; bit set if 96 tpi media
 	JNZ	T96
+	; media is ST, drive NOT QT
 	dcx	h
 	bit	5,m	;check for drive "DT"
 	inx	h
@@ -529,6 +579,15 @@ DDS:	MVI	C,TYPE
 T48:	LXI	D,T48MSG	; 48 tpi message
 	JMP	HTRK
 T96:	LXI	D,T96MSG	; 96 tpi message
+	JMP	HTRK
+t192k:	inx	h
+	bit	5,m	; bit set if 96 tpi media (QT drive)
+	JNZ	T192h
+	lxi	d,HAF2TK	; 48tpi media in QT drive
+	JMP	HTRK
+t192h:	lxi	d,HAF3TK	; 96tpi media in QT drive
+	JMP	HTRK
+T192:	LXI	D,T192MSG	; 192 tpi message
 HTRK:	MVI	C,TYPE
 	CALL	BDOS
 	POP	H		; get pointer again
@@ -812,9 +871,10 @@ HALFHL: DB	'        MODE d:arg1,arg2,arg3',CR,LF
 	DB	'Updates the present status and displays it. Valid'
 	DB	' arguments are:',CR,LF,LF
 	DB	'        DS or SS = double or single sided',CR,LF
-	DB	'        DT, ST or HT = double (96 tpi), single (48 tpi),'
-	DB	' or half track',CR,LF
-	DB	'          half track is 48 tpi media in a 96 tpi drive.',CR,LF
+	DB	'        QT, DT, ST = quad (192 tpi), double (96 tpi),',CR,LF
+	db	'                     single (48 tpi), or',CR,LF
+	DB	'        QTD, QTS, DTS = half track modes',CR,LF
+	DB	'              e.g. DTS is 48 tpi media in a 96 tpi drive.',CR,LF
 	DB	'        DD or SD = double or single density',CR,LF
 	DB	'        S6, S30, etc. = step rate in milliseconds',CR,LF
 	DB	'        MMS, Z37, Z37X etc. (media formats); the X implies'
@@ -832,7 +892,10 @@ SDMSG:	DB	'Recording Density - Single',CR,LF,'$'
 DDMSG:	DB	'Recording Density - Double',CR,LF,'$'
 T48MSG: DB	'  Tracks per Inch - 48',CR,LF,'$'
 T96MSG: DB	'  Tracks per Inch - 96',CR,LF,'$'
-HALFTK: DB	'  Tracks per Inch - 48 tpi media in 96 tpi drive (R/O)'
+T192MSG: DB	'  Tracks per Inch - 192',CR,LF,'$'
+HALFTK: DB	'  Tracks per Inch - 48 tpi media in 96 tpi drive (R/O)',CR,LF,'$'
+HAF2TK: DB	'  Tracks per Inch - 48 tpi media in 192 tpi drive (R/O)',CR,LF,'$'
+HAF3TK: DB	'  Tracks per Inch - 96 tpi media in 192 tpi drive (R/O)',CR,LF,'$'
 crlfmsg DB	CR,LF,'$'
 fmtstr: DB	'      Format Type - $'
 STRMSG: DB	'        Step Rate - $'
@@ -870,7 +933,7 @@ FLDNUM: DB	0
 NEWARG: DB	0
 NDRIVE: DB	0	; 0 to 15
 CNFIG:	DB	0	; MMS=0, MMSD=1,Z17=2 (ALL + '0')
-TRACK:	DB	0	; D or S or H
+TRACK:	DB	0	; D or S or Q nibble, with optional D or S nibble
 SIDE:	DB	0	; D or S
 DENSITY: DB	0	; D or S
 STEPRT: DB	0	; binary number

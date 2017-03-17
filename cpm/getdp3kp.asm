@@ -177,7 +177,7 @@ nxd3:	inx	h
 ; Format string name table - all formats must have a entry here
 ;
 strtbl	db	'KAYPRO  '	;bit 0 - must be 8 characters wide
-	db	'KAYPROX '	;bit 1
+	db	'UNUSED  '	;bit 1
 	db	'MMS     '	;    2
 	db	'Z37     '	;    3
 	db	'Z37X    '	;    4
@@ -199,10 +199,10 @@ strtbl	db	'KAYPRO  '	;bit 0 - must be 8 characters wide
 ;----------------------------------------------------------------------
 ;
 ; 
-SRM0:	equ	10000000B	      ;
+SRM0:	equ	10000001B	      ;
 SRM1:	equ		  01110000B   ;SEARCH MODES MASKS
 
-XSM0:	equ	00000011B	      ;
+XSM0:	equ	00000000B	      ;
 XSM1:	equ		  10001111B   ;EXCESS MODES MASKS
 
 PTRTBL:
@@ -250,12 +250,12 @@ PTRTBL:
 	dw	epson,0
 	DB	00000000b,10000000B,00000000B,01010111B ; 5" GNAT,dd,ds,st
 	dw	gnat,0
-	DB	00000000b,00000001B,00000000B,00011000B ; 5" KAYPRO  ss,st
+	DB	00000000b,00000001B,00000000B,00011000B ; 5" KAYPRO  dd,ss,st
 	dw	kaypro0,0
-	DB	00000000b,00000001B,00000000B,01011000B ; 5" KAYPRO  ds,st
+	DB	00000000b,00000001B,00000000B,01011000B ; 5" KAYPRO  dd,ds,st
 	dw	kaypro1,0
-	DB	00000000b,00000010b,00000000b,01011000b ; 5" KAYPROX ds,st
-	dw	kaypro2,0
+	DB	00000000b,00000001b,00000001b,01110011b ; 5" KAYPRO qd,ds,qt
+	dw	kaypro3,kpqtx
 	DB	11111111B	;FLAG FOR END OF TABLE
 
 	$*MACRO 
@@ -310,9 +310,13 @@ kaypro0: calcdpb 40,8,195,64,1,512,64
 
 kaypro1: calcdpb 40,16,197,64,1,512,64
 
-kaypro2: calcdpb 40,16,197,128,1,512,0
+;drop support for expanded-directory format - risky anyway.
+;kaypro2: calcdpb 40,16,197,128,1,512,0
+
+kaypro3: calcdpb 68,16,1351,1024,2,512,0
 ;
 ; NOTE: skew tables are for physical sector numbers.
 ;
+kpqtx:	db	1,6,11,16,4,9,14,2,7,12,17,5,10,15,3,8,13
 
 	end

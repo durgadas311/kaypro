@@ -1,4 +1,4 @@
-vers equ '0d' ; March 11, 2017  21:36  drm  "FDC3KP.ASM"
+vers equ '0e' ; March 18, 2017  17:04  drm  "FDC3KP.ASM"
 ;*********************************************************
 ; Floppy Disk I/O module for CP/M 3.1 on KAYPRO
 ; Copyright (c) 1986 Douglas Miller
@@ -56,19 +56,28 @@ string: DB	'KAYPRO ',0,'Floppy Disk Controller ',0,'3.10'
 
 modtbl:
  DB   00000000b,00000001b,01010000B,01011000B ; drive 33 kaypro,DS,ST,5"
-   db 10000000b,00000000b,11110000b,00000000b
+   db 10000000b,00000000b,11110010b,00000000b
  DB   00000000b,00000001b,01010000B,01011000B ; drive 34 kaypro,DS,ST,5"
-   db 10000000b,00000000b,11110000b,00000000b
+   db 10000000b,00000000b,11110010b,00000000b
  DB   00000000b,00000001b,01010000B,01011000B ; drive 35 kaypro,DS,ST,5"
-   db 10000000b,00000000b,11110000b,00000000b
+   db 10000000b,00000000b,11110010b,00000000b
 
 motor$off: db	0	;must be directly after MODTBL
+selmsk:	db	0	;
 
 motoff: lda	motor$off 
 	cpi	true
 	rz
+	lda	selmsk
+	mov	b,a
+	; all drives are the same, any mode will do?
+	lda	modtbl+2
+	bit	1,a	; QT drive?
 	in	sysctl
-	ani	10101111b
+	jrnz	motoff0
+	ani	10101111b	; motor off
+motoff0:
+	ora	b	; select off
 	out	sysctl
 	mvi	a,true
 	sta	motor$off
@@ -140,18 +149,32 @@ d1h:	db 0
 	dw 0,0,0,0,0,0,dpb2,csv2,alv2,@dircb,@dtacb,0ffffh
 d2h:	db 0
 
-csv0:	ds	(256)/4    ;max dir entries: 256
-csv1:	ds	(256)/4
-csv2:	ds	(256)/4
+csv0:	ds	(1024)/4    ;max dir entries: 1024
+csv1:	ds	(1024)/4
+csv2:	ds	(1024)/4
 
-alv0:	ds	(400)/4    ;max dsk blocks: 400
-alv1:	ds	(400)/4
-alv2:	ds	(400)/4
+alv0:	ds	(1351)/4    ;max dsk blocks: 1351
+alv1:	ds	(1351)/4
+alv2:	ds	(1351)/4
 
-; Max DRM+1 is 256 (getdp3kp.asm)
+; Max DRM+1 is 1024 (getdp3kp.asm)
 init:
 	; TODO: detect Kaypro 10 (only one floppy) and do not init all 3.
-	lxi	b,256*4
+	lda	0052h	; gift from loader: select mask
+	sta	selmsk
+	lda	0051h	; gift from loader: drive(s) type
+	cpi	1	; ST (or at least not QT)
+	jrz	initST
+	cpi	2	; QT
+	jrz	initQT
+	; else error, just leave as-is
+init0:
+	; use max hash size ever needed, even if QT drives not installed.
+	; Even if we have 5 drives (2 win, 3 flpy) we still won't
+	; consume all the hash space (~55K). It is not fatal if we try
+	; to allocate more hash than available, just sub-optimal for those
+	; drives that fail.
+	lxi	b,1024*4	; safe value - the max ever used
 	lxi	d,d0h-2
 	call	?halloc
 	lxi	d,d1h-2
@@ -163,6 +186,34 @@ init:
 	push	psw
 	jmp	setmot	; set timeout in case no more activity
 	; RET
+
+initST:
+	lxi	h,modtbl+2
+	mvi	b,3
+ist0:
+	res	5,m
+	res	1,m
+	res	0,m
+	inx	h
+	res	5,m
+	lxi	d,7
+	dad	d
+	djnz	ist0
+	jr	init0
+
+initQT:
+	lxi	h,modtbl+2
+	mvi	b,3
+iqt0:
+	setb	5,m
+	setb	1,m
+	setb	0,m
+	inx	h
+	setb	5,m
+	lxi	d,7
+	dad	d
+	djnz	iqt0
+	jr	init0
 
 login:
 	pushix		;save IX
@@ -338,35 +389,84 @@ PHYSEL7:
 	mvi	m,false 	; SELECT OPERATION IS OVER
 	ret
 
-PHYSEL3:
+physel3:
 	CALL	SELECT
 	JRC	PHYSEL6 	; ERROR IF NOT READY
 	CALL	HOME		;RESTORE HEAD TO TRACK 0
 	JRC	PHYSEL6
 	MVI	B,01001000B	;STEP IN, NO UPDATE
 	CALL	TYPE$I
-	CALL	TYPE$I		;STEP IN TWICE
+	CALL	TYPE$I
+	CALL	TYPE$I
+	CALL	TYPE$I		;STEP IN FOUR TIMES
 	call	read$addr	; READ ADDRESS
 	lda	@dstat
 	ANI	00011000B SHL 1 ;check for FDC error.
 	JRNZ	PHYSEL6
+	lhld	cmode
+	mov	b,m
+	inx	h
+	mov	c,m
 	in	fdcsec	;track number, from read-addr
+	CPI	4
+	JRZ	phy4s2	; drive matches media...
 	CPI	2
-	JRZ	PHYSEL4
+	JRZ	phy4s3	; media has half the tracks of drive
 	CPI	1
 	JRNZ	PHYSEL6
-	lhld	cmode
-	setb	5,m	;make drive "DT"
-	inx	h
-	bit	5,m	;test for 40 track already
-	jz	physel4
-	res	5,m	;make disk "ST" and reconfigure
+	; media has 1/4 tracks as drive...
+	; must be ST media in QT drive...
+	setb	1,b	;make drive "QT"
+	setb	5,b	;make drive "DT" also
+	res	0,b	;make media non-QT
+	res	5,c	;make disk "ST" and reconfigure
+phy4s0:	; update mode bytes, check for changes...
+	mov	a,c
+	xra	m
+	mov	m,c
+	dcx	h
+	mov	c,a
+	mov	a,b
+	xra	m
+	mov	m,b
+	ora	c	; NZ if either byte changed...
+	jz	PHYSEL4
 	mvi	a,0ffh
 	sta	@rcnfg	;set "re-configure" flag so BIOS will get new DPB/XLAT
 PHYSEL4:
 	CALL	HOME  
 	JRC	PHYSEL6
 	JR	PHYSEL7
+
+phy4s2:	; drive tpi matches media, but force media modes
+	bit	5,b
+	jrz	phy4s20
+	setb	5,c
+	jr	phy4s21
+phy4s20:
+	res	5,c
+phy4s21:
+	bit	1,b
+	jrz	phy4s22
+	setb	0,b
+	jr	phy4s0
+phy4s22:
+	res	0,b
+	jr	phy4s0
+
+phy4s3:	; use drive settings if possible...
+	; NOTE: this case would not normally exist on a Kaypro.
+	; must be at least a DT drive, non-QT media, so force that
+	setb	5,b	;make drive "DT"
+	res	0,b	;make media non-QT
+	bit	1,b	;test drive "QT"
+	jrnz	phy4s4
+	res	5,c	;make media "ST" in DT drive
+	jr	phy4s0
+
+phy4s4:	; QT drive, so media must be DT...
+	setb	5,c	;make media "DT" in QT drive
+	jr	phy4s0
 
 setup$rw:
 	MVI	A,21		; 21 RETRYS FOR A READ/WRITE OPERATION
@@ -509,25 +609,38 @@ SELECT:
 	mvi	c,0
 	mvi	b,dev0
 	call	?timot	;clear any pending "motor off"
+	lda	selmsk
+	mov	d,a
+	cma
+	mov	b,a
 	LDA	@rdrv		; get the RELATIVE drive number
 	MOV	C,A		; relative drive number in (C) (rel. to driv0)
 	lhld	cmode
 	INX	H		; POINT TO MODE BYTE 2
 	inr	a		; 1,2,3,4
 	cma			; 111111xx
-	ani	00000011b	; 2,1,0,3
+	ana	d	; 2,1,0,3 but avoid win reset bit
 	bit	4,m	;single density ?
 	jrnz	se1
 	ori	00100000b	;select single density data rate.
-se1:	ori	00010000b	;motor on, also
+se1:
+	dcx	h	; point to mode byte 1
+	bit	1,m	; QT drive?
+	jrz	se2
+	bit	0,m	; QT media?
+	jrnz	se3	; motor "off" - low speed - for QT
+se2:
+	ori	00010000b	;motor on, also (QT drive = high speed)
+se3:
 	mov	e,a
 	di
 	in	sysctl		;
-	ani	10011100b
+	; TODO: if motor bit changes for QT drive, must de-select briefly
+	ani	10001111b	; DDEN, clear MOTOR
+	ana	b	; strip select bit(s)
 	ora	e		;
 	out	sysctl		;
 	ei
-	dcx	h
 	MOV	A,M
 	ANI	00001100B	; setup steprate bits for seek-restore commands
 	rrc
@@ -632,34 +745,17 @@ ACCESS$R:
 	cma			; get "NOT MDT...
 	ana	c		; ... AND DDT"
 	ani	00100000b	; flag is in bit 5
+	bit	1,c	; drive QT?
+	jrz	accr0	; no...
+	bit	0,c	; must be 0?
+	jrnz	accr0	;
+	ori	01100000b	; set both just in case
+accr0:
 	sta	htflag		; half track flag
 	CALL	SELECT
 	rc
 SEEK:
-	lda	@trk
-	ora	a	;see if we're on physical track 0
-	jrnz	xf0
-	lhld	cmode
-	lda	@side
-	ora	a	;see which side we're on.
-	jrnz	xf1
-	bit	0,m	;check TRK-0,SID-0 density bit.
-	jrz	xf0
-	xra	a
-	sta	blcode	;select 128 bytes/sector
-	di
-	in	sysctl
-	ani	10111111b
-	ori	00100000b ;select SD media
-	out	sysctl
-	ei
-	jr	xf0
-xf1:	bit	1,m	;check TRK-0,SID-1 format (may be 256 bytes/sector)
-	jrz	xf0
-	mvi	a,1
-	sta	blcode	;select 256 bytes/sector
-			;leave DD as is.
-xf0:	LXI	H,SEKERR	; initialize seek error counters
+	LXI	H,SEKERR	; initialize seek error counters
 	MVI	M,4		; 4 ERRORS ON SEEK IS FATAL
 	INX	H
 	MVI	M,10		; RESTORE once, then 9 errors are fatal
@@ -686,6 +782,15 @@ SEEK5:	BIT	5,H		; CHECK FOR 48 TPI DISK IN 96 TPI DRIVE
 	CALL	TYPE$I	;STEP HEAD
 	ANI	00000100B SHL 1 ;DID THIS STEP PUT US AT TRACK 0 ?
 	JRNZ	TRK0ERR
+	bit	6,h	; added bit for QT
+	JRZ	NOTQT
+	CALL	TYPE$I	;STEP HEAD
+	ANI	00000100B SHL 1 ;DID THIS STEP PUT US AT TRACK 0 ?
+	JRNZ	TRK0ERR
+	CALL	TYPE$I	;STEP HEAD
+	ANI	00000100B SHL 1 ;DID THIS STEP PUT US AT TRACK 0 ?
+	JRNZ	TRK0ERR
+NOTQT:
 	SETB	4,B	;SELECT UPDATE TO TRACK-REG
 notht:	CALL	TYPE$I	;STEP HEAD
 	ANI	00000100B SHL 1 ;DID THIS STEP PUT US AT TRACK 0 ?
@@ -732,12 +837,17 @@ RESTR1: 			; RESTORE HEAD TO TRACK 0
 	MVI	A,00000011B
 	STA	STEPRA		; RETRY WITH MAXIMUM STEP RATE
 	CALL	HOME
-	JR	RETRS		; RETRY SEEK
+	jmp	RETRS		; RETRY SEEK
 
 STEPIN: lda	htflag
-	ora	a		; CHECK HALF TRACK mode
+	mov	c,a
+	ora	a		; CHECK HALF TRACK modes
 	MVI	B,01001000B	; STEP IN WITHOUT UPDATE
 	CNZ	TYPE$I		; STEP A SECOND TIME (W/O UPDATE) FOR HALF-TRK
+	bit	6,c	; QT
+	CNZ	TYPE$I		; STEP A THIRD TIME (W/O UPDATE) FOR QUARTER-TRK
+	bit	6,c	; QT
+	CNZ	TYPE$I		; STEP A FOURTH TIME (W/O UPDATE) FOR QUARTER-TRK
 	MVI	B,01011000B	; STEP IN AND UPDATE TRACK REGISTER
 	JR	TYPE$I
 
@@ -795,13 +905,13 @@ WNB:	IN	fdcstat 	; poll controller for function-complete
 
 setside:
 	lda	@side
-	xri	00000001b
+	xri	00000001b	; active low output
 	rlc ! rlc
 	mov	c,a
 	di
 	in	sysctl
-	ani	10111011b
-	ora	c
+	ani	10111011b	; clear old side bit
+	ora	c		; add new side bit
 	out	sysctl
 	ei
 	ret

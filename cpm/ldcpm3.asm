@@ -1,4 +1,4 @@
-vers equ '0d' ; March 12, 2017  16:02  drm  "LDCPM3.ASM"
+vers equ '0e' ; March 18, 2017  19:52  drm  "LDCPM3.ASM"
 
 	maclib Z80
 
@@ -18,12 +18,6 @@ cr	equ	13
 	org	100h
 LOADER:
 	lxi	sp,stack
-; ***** this should be part of COLD BOOT in CPM3LDRK
-;	lxi	h,0fd74h
-;	lxi	d,00040h
-;	lxi	b,16
-;	ldir
-; *****
 ; ROM 81-292 uses 0fd74h
 ; U-ROM 81-478 uses 0fe9ah
 ; ROM 81-302 uses 0fd5ch
@@ -106,7 +100,13 @@ nobnk:
 	lxi	b,16
 	ldir
 	lda	romid
-	stax	d	; ROM identifer char at 0050h
+	stax	d	; 0050h: ROM identifer char
+	inx	d
+	lda	fpytyp
+	stax	d	; 0051h: floppy drive type (all same)
+	inx	d
+	lda	fpysel
+	stax	d	; 0052h: floppy drive select mask
 ; *****
 
 	lda	reslen
@@ -210,17 +210,27 @@ rom20:
 	shld	romcrt
 	mvi	a,'U'
 	sta	romid
+	mvi	b,3	; start out assuming floppy-only
 	lda	0fff7h
 	cpi	0ffh	; floppy-only
 	lxi	h,lpdfpy	; floppy only
-	jrz	romZZ$1
 	lda	0fff4h	; drive A
+	jrz	romZZ$ff
+	mvi	b,1	; floppy/win, must not touch DS2 (WD1002 RESET)
 	ani	00001100b
-	; common code
-romZZ$0:
-	lxi	h,lpdwin0	; win, floppy
-	jrz	romZZ$1
-	lxi	h,lpdwin1	; floppy, win
+	lxi	h,lpdwin1	; floppy, win [,win]
+	jrnz	romZZ$ff
+	; win, [win,] floppy
+	lxi	h,lpdwin0	; win, [win,] floppy
+	lda	0fff6h	; drive C (floppy)
+romZZ$ff:
+	rrc
+	rrc
+	ani	00000011b
+	xri	00000011b	; 0=error, 1=ST, 2=QT
+	sta	fpytyp
+	mov	a,b
+	sta	fpysel
 romZZ$1:
 	shld	lptbl
 	jmp	gotrom
@@ -228,6 +238,8 @@ romZZ$1:
 rom17:	; 81-326, version 1.7R
 	lxi	h,0f800h
 	shld	romcrt
+	lda	0f881h	; 02 = QT, 01 = ST
+	sta	fpytyp
 	mvi	a,'2'	; correct?
 	jr	romXX$0	; floppy-only
 
@@ -236,23 +248,34 @@ rom19:	; 81-302c, 81-277, 81-188, version series 1.9
 	shld	romcrt
 	mvi	a,'3'
 	sta	romid
+	; All floppies are ST...
+	mvi	a,1
+	sta	fpytyp
+	sta	fpysel
 	; get floppy/win determinination
 	; 0f700h: cur dsk type, 0=win, (ff) floppy
 	; 0f701h: drive A type...
 	; 0f702h: cur SPT?
 	lda	0f701h
 	ora	a
-	jr	romZZ$0
+	lxi	h,lpdwin1	; floppy, win [,win]
+	jrnz	romZZ$1
+	lxi	h,lpdwin0	; win, [win,] floppy
+	jr	romZZ$1
 
 romXX:	; 81-292a, no visible version - floppy-only
 	lxi	h,0fd74h
 	shld	romcrt
+	; All floppies are ST...
+	mvi	a,1
+	sta	fpytyp
 	mvi	a,'2'
 romXX$0:
 	sta	romid
+	mvi	a,3
+	sta	fpysel
 	lxi	h,lpdfpy	; floppy only
-	shld	lptbl
-	jmp	gotrom
+	jr	romZZ$1
 
 setlpd:
 	; locate lptbl... update it
@@ -303,6 +326,8 @@ rommsg:	db	'LDCPM3 vers 3.10'
 romid:	db	'.',cr,lf,'$'
 romcrt:	dw	0
 lptbl:	dw	0
+fpytyp:	db	0	; 1=ST, 2=QT, else error (no floppy?)
+fpysel:	db	0	; available floppy select bits, 01 or 03...
 
 lpdwin0:	db	50,51,33
 lpdwin1:	db	33,50,51

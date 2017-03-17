@@ -46,6 +46,10 @@ kp-qdqt-cpm22h.logdisk
 kp-qdqt-cpm22u.logdisk
 	CP/M 2.2u1 bootable hi-density diskette (ROM 81-478a)
 
+kp-qdqt-cpm3.logdisk
+	CP/M 3 bootable using 2.2u1 as loader (ROM 81-478a).
+	Includes CP/NET and source code.
+
 blankqdqt.logdisk:
 	Blank Kaypro hi-density (2.6M) diskette image.
 
