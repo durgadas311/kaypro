@@ -43,6 +43,9 @@ kp-qdqt-cpm22g.logdisk:
 kp-qdqt-cpm22h.logdisk
 	CP/M 2.2H bootable hi-density diskette (ROM 81-326)
 
+kp-qdqt-cpm22u.logdisk
+	CP/M 2.2u1 bootable hi-density diskette (ROM 81-478a)
+
 blankqdqt.logdisk:
 	Blank Kaypro hi-density (2.6M) diskette image.
 
