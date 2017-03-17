@@ -37,6 +37,15 @@ blankddds.logdisk:
 	Blank Kaypro DD DS floppy image. May be copied to new
 	image files in lieu of FORMAT.
 
+kp-qdqt-cpm22g.logdisk:
+	CP/M 2.2G bootable hi-density diskette (ROM 81-326)
+
+kp-qdqt-cpm22h.logdisk
+	CP/M 2.2H bootable hi-density diskette (ROM 81-326)
+
+blankqdqt.logdisk:
+	Blank Kaypro hi-density (2.6M) diskette image.
+
 ##### For harddisk images, either copy into "WD1002-1" or #####
       add property to config file giving (path and) name.
 
