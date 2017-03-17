@@ -219,6 +219,25 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		imageFd_m = null;
 	}
 
+	private int mediaTrack(int trk) {
+		if (hypoTrack_m > 0) {
+			if ((trk % hypoTrack_m) != 0) {
+				return GenericFloppyFormat.ERROR;
+			}
+			trk /= hypoTrack_m;
+		} else if (hyperTrack_m > 0) {
+			trk *= hyperTrack_m;
+		}
+		return trk;
+	}
+
+	private int mediaSide(int sid) {
+		if (sid > 0 && sid >= numSides_m) {
+			return GenericFloppyFormat.ERROR;
+		}
+		return sid;
+	}
+
 	// TODO: may need to translate sector number, if l-to-p table is used that way.
 	boolean cacheSector(int side, int track, int sector) {
 		if (bufferedSide_m == side && bufferedTrack_m == track && bufferedSector_m == sector) {
@@ -240,13 +259,10 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		if (side < 0 || track < 0 || sector < 0) {
 			return true;
 		}
-		if (hypoTrack_m > 0) {
-			if ((track % hypoTrack_m) != 0) {
-				return false;
-			}
-			track /= hypoTrack_m;
-		} else if (hyperTrack_m > 0) {
-			track *= hyperTrack_m;
+		track = mediaTrack(track);
+		side = mediaSide(side);
+		if (track < 0 || side < 0) {
+			return false;
 		}
 		int secNum = sector;
 		if (mediaSec_m == 0 && dsa_m != 2) {
@@ -294,6 +310,12 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		int data = GenericFloppyFormat.NO_DATA;
 		if (inSector < 0) {
 			if (sector == 0xfd) {
+				// Read Address - must validate track/side
+				// Don't need to be on the same but must
+				// have valid data on media there.
+				if (mediaTrack(track) < 0 || mediaSide(side) < 0) {
+					return GenericFloppyFormat.ERROR;
+				}
 				return GenericFloppyFormat.ID_AM;
 			} else if (sector == 0xff) {
 				return GenericFloppyFormat.INDEX_AM;
@@ -308,10 +330,10 @@ public class SectorFloppyImage implements GenericFloppyDisk {
 		if (sector == 0xfd) {
 			switch (inSector) {
 			case 0:
-				data = track;
+				data = mediaTrack(track);
 				break;
 			case 1:
-				data = side;
+				data = mediaSide(side);
 				break;
 			case 2:
 				data = 1;	// anything will do? 'sector' is 0xfd...

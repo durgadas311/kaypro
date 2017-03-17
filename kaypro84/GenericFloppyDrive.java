@@ -187,19 +187,23 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		if (disk_m == null) {
 			return GenericFloppyFormat.ERROR;
 		}
-		if (dd != disk_m.densityFactor()) {
+		// TODO: move this check into media...
+		if (((dd ^ disk_m.densityFactor()) & 2) != 0) {
 			return GenericFloppyFormat.ERROR;
 		}
+		// Kaypro DD/ST on QD/QT passes logical track number...
+		// So we cannot do verify... Media now checks this anyway.
+		verify = false;
 		if (verify && (track_m != track || headSel_m != side)) {
 			// keep silent as this happens when checking "half track" mode.
 			//System.err.format("mismatch trk %d:%d sid %d:%d\n", track_m, track,
 			//	headSel_m, side);
 			return GenericFloppyFormat.ERROR;
 		}
-		// override FDC track/side with our own - it's the real one
 		if (currSector_m > 0) {
 			sector = currSector_m - 1;
 		}
+		// override FDC track/side with our own - it's the real one
 		data = disk_m.readData(track_m, headSel_m, sector, inSector);
 		if (data == GenericFloppyFormat.NO_DATA) {
 			// failures?
@@ -221,17 +225,23 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		if (sector == 0xff) {
 			// pass density hint to diskette...
 			sector = 0xfc | dd;
-		} else if (dd != disk_m.densityFactor()) {
+		// TODO: move this check into media...
+		} else if (((dd ^ disk_m.densityFactor()) & 2) != 0) {
 			return GenericFloppyFormat.ERROR;
 		}
+		// Kaypro DD/ST on QD/QT passes logical track number...
+		// So we cannot do verify... Media now checks this anyway.
+		// Note: writing to "half-track" or "quarter-track" should
+		// not be allowed anyway.
+		verify = false;
 		if (verify && (track_m != track || headSel_m != side)) {
 			return GenericFloppyFormat.ERROR;
 		}
 
-		// override FDC track/side with our own - it's the real one
 		if (currSector_m > 0) {
 			sector = currSector_m - 1;
 		}
+		// override FDC track/side with our own - it's the real one
 		result = disk_m.writeData(track_m, headSel_m, sector,
 				inSector, data, dataReady);
 		if (result == GenericFloppyFormat.ERROR) {
