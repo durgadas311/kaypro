@@ -41,7 +41,10 @@ The user must ensure the CP/M version is compatible.
 were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
 plus the ROMs changed how they interpret the boot loader sector
 (e.g. 81-478a requires a checksum on the
-boot sector which older boot images do not have).
+boot sector which older boot images do not have). Additionally, ROMs 81-302c
+and 81-478a both support a winchester disk but use different directory/boot/spares
+layouts and are not compatible. Data on a winchester is lost when switching between
+these ROMs.
 
 <P>CP/M 2.20d was a special version I derived from 2.2G, I think mainly to use
 as a loader for CP/M 3. I need to look through the source code to see what
