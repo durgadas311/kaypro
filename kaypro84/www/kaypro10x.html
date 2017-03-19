@@ -1,9 +1,9 @@
 <HTML>
 <HEAD>
-<TITLE>Virtual Kaypro 10X Computer</TITLE>
+<TITLE>Virtual Kaypro 10E Computer</TITLE>
 </HEAD>
 <BODY>
-<H2>Virtual Kaypro 10X Computer</H2>
+<H2>Virtual Kaypro 10E Computer</H2>
 
 <IMG SRC="kaypro10X-1.png">
 
@@ -15,11 +15,13 @@ tricky, as the Kaypro 10 mainboard did not contain the circuitry.
 However, it is theoretically possible that the Kaypro 2X and 2/84
 mainboard would have worked in a Kaypro 10, as both contain the
 winchester disk interface. Getting the back panel cut-outs to line up
-would have been more work.
+would have been more work. The Kaypro model 10 was later shipped with
+a new mainboard that included the RTC and modem (and a new backpanel),
+and has been named "10X" here.
 
 <P>Look for disk image "WD1002-0.cpm3" (rename/copy to "WD1002-1" for use)
 on the <A HREF="http://sebhc.durgadas.com/kaypro">downloads</A>
-page, along with config file "kaypro10x".
+page, along with config file "kaypro10e".
 
 <P><B>CAUTION:</B> Running Kaypro-specific programs under this version of CP/M 3
 can be risky. CP/M 3 does not use the ROM BIOS (in order to avoid the cost
@@ -31,8 +33,8 @@ Standard CP/M programs should be fine.
 
 <H3>CP/NET</H3>
 
-<P>CP/NET is also working for CP/M 3. Use disk image "WD1002-0.cpnet3"
-and config "kaypro10x.cpnet" (example). Allows access to host files
+<P>CP/NET is also working for CP/M 3. Use the same disk image "WD1002-0.cpm3"
+but config file "kaypro10u.cpnet" (example). Allows access to host files
 as placed in ~/HostFileBdos/* subdirectories ("*" is "a" thru "p").
 Watch for line-endings, Linux uses only line-feed. The program "TR"
 may be used to copy file and translate line endings.
@@ -42,7 +44,7 @@ may be used to copy file and translate line endings.
 <LI>TR P:=A:*.*[U] to translate CP/M to Unix
 </UL>
 
-<P>To start CP/NET, run the NDOS3 RSX with command "NDOS3". To remove
+<P>To start CP/NET, run the NDOS3 RSX with the command "NDOS3". To remove
 CP/NET use "RSXRM NDOS3".
 
 <P><IMG SRC="kaypro10X-2.png">
@@ -51,6 +53,9 @@ CP/NET use "RSXRM NDOS3".
 
 <P>NOTE: In both images, drive B: contains the remnants of building the system,
 including source code.
+
+<P>Model 12X, with hi-density floppy, is also supported.
+<P><IMG SRC="kaypro12X-1.png">
 
 </BODY>
 </HTML>
