@@ -1,0 +1,382 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+LIBS:ram256k-cache
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title "Kaypro 2X 256K RAM Upgrade"
+Date "1/1/1986"
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L 74LS273 U?
+U 1 1 58CE9AED
+P 5700 3550
+F 0 "U?" H 5700 3400 50  0000 C CNN
+F 1 "74LS273" H 5700 3200 50  0000 C CNN
+F 2 "" H 5700 3550 50  0000 C CNN
+F 3 "" H 5700 3550 50  0000 C CNN
+	1    5700 3550
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74LS151 U?
+U 1 1 58CE9B9E
+P 8000 2450
+F 0 "U?" H 8000 2450 50  0000 C CNN
+F 1 "74LS151" H 8000 2300 50  0000 C CNN
+F 2 "" H 8000 2450 50  0000 C CNN
+F 3 "" H 8000 2450 50  0000 C CNN
+	1    8000 2450
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74LS85 U?
+U 1 1 58CE9C3F
+P 7700 4650
+F 0 "U?" H 7750 4750 50  0000 C CNN
+F 1 "74LS85" H 7750 4600 50  0000 C CNN
+F 2 "" H 7700 4650 50  0000 C CNN
+F 3 "" H 7700 4650 50  0000 C CNN
+	1    7700 4650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6400 3450 6900 3450
+Wire Wire Line
+	6900 3450 6900 4550
+Wire Wire Line
+	6900 4550 7000 4550
+Wire Wire Line
+	6400 3650 6700 3650
+Wire Wire Line
+	6700 3650 6700 4350
+Wire Wire Line
+	6700 4350 7000 4350
+Wire Wire Line
+	6400 3550 6800 3550
+Wire Wire Line
+	6800 3550 6800 4450
+Wire Wire Line
+	6800 4450 7000 4450
+Wire Wire Line
+	6400 3750 6600 3750
+Wire Wire Line
+	6600 3750 6600 4250
+Wire Wire Line
+	6600 4250 7000 4250
+Wire Wire Line
+	6400 3350 6900 3350
+Wire Wire Line
+	6900 3350 6900 2500
+Wire Wire Line
+	6900 2500 7300 2500
+Wire Wire Line
+	6400 3250 6800 3250
+Wire Wire Line
+	6800 3250 6800 2400
+Wire Wire Line
+	6800 2400 7300 2400
+Wire Wire Line
+	6400 3150 6700 3150
+Wire Wire Line
+	6700 3150 6700 2300
+Wire Wire Line
+	6700 2300 7300 2300
+Wire Wire Line
+	6400 3050 6600 3050
+Wire Wire Line
+	6600 3050 6600 2200
+Wire Wire Line
+	6600 2200 7300 2200
+Wire Wire Line
+	7200 2100 7300 2100
+Wire Wire Line
+	7200 1350 7200 2100
+Connection ~ 7200 1800
+Wire Wire Line
+	7300 2000 7200 2000
+Connection ~ 7200 2000
+Wire Wire Line
+	7300 1900 7200 1900
+Connection ~ 7200 1900
+$Comp
+L 74LS02 U?
+U 1 1 58CEA3B3
+P 7900 3900
+F 0 "U?" H 7900 3950 50  0000 C CNN
+F 1 "74LS02" H 7950 3850 50  0000 C CNN
+F 2 "" H 7900 3900 50  0000 C CNN
+F 3 "" H 7900 3900 50  0000 C CNN
+	1    7900 3900
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	7300 3100 7300 3900
+Wire Wire Line
+	8600 4000 8500 4000
+$Comp
+L 74LS04 U?
+U 1 1 58CEA476
+P 8950 3800
+F 0 "U?" H 9145 3915 50  0000 C CNN
+F 1 "74LS04" H 9140 3675 50  0000 C CNN
+F 2 "" H 8950 3800 50  0000 C CNN
+F 3 "" H 8950 3800 50  0000 C CNN
+	1    8950 3800
+	-1   0    0    -1  
+$EndComp
+Wire Wire Line
+	7300 2900 7200 2900
+Wire Wire Line
+	7200 2900 7200 3600
+Wire Wire Line
+	7200 3600 9400 3600
+Wire Wire Line
+	9400 3600 9400 3800
+Wire Wire Line
+	9400 3800 9850 3800
+Connection ~ 9400 3800
+Text GLabel 4750 4550 0    60   Input ~ 0
+A15
+Text GLabel 4750 4700 0    60   Input ~ 0
+A14
+Text GLabel 4750 4850 0    60   Input ~ 0
+A13
+Text GLabel 4750 5000 0    60   Input ~ 0
+A12
+Wire Wire Line
+	4750 4550 6150 4550
+Wire Wire Line
+	6150 4550 6150 4750
+Wire Wire Line
+	6150 4750 7000 4750
+Wire Wire Line
+	4750 4700 6050 4700
+Wire Wire Line
+	6050 4700 6050 4850
+Wire Wire Line
+	6050 4850 7000 4850
+Wire Wire Line
+	4750 4850 5950 4850
+Wire Wire Line
+	5950 4850 5950 4950
+Wire Wire Line
+	5950 4950 7000 4950
+Wire Wire Line
+	4750 5000 5850 5000
+Wire Wire Line
+	5850 5000 5850 5050
+Wire Wire Line
+	5850 5050 7000 5050
+Text GLabel 9850 3800 2    60   Input ~ 0
+RFSHN
+Wire Wire Line
+	8600 4000 8600 4950
+Wire Wire Line
+	7300 2800 7100 2800
+Wire Wire Line
+	7100 2800 7100 3500
+Wire Wire Line
+	7100 3500 9850 3500
+Text GLabel 9850 3500 2    60   Input ~ 0
+RDN
+Wire Wire Line
+	7300 2700 7000 2700
+Wire Wire Line
+	7000 2700 7000 3350
+Wire Wire Line
+	8600 4950 8400 4950
+Wire Wire Line
+	8400 4350 8400 4600
+$Comp
+L +5V #PWR?
+U 1 1 58CEAFB7
+P 8400 4250
+F 0 "#PWR?" H 8400 4100 50  0001 C CNN
+F 1 "+5V" H 8400 4390 50  0000 C CNN
+F 2 "" H 8400 4250 50  0000 C CNN
+F 3 "" H 8400 4250 50  0000 C CNN
+	1    8400 4250
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR?
+U 1 1 58CEAFD5
+P 8400 4600
+F 0 "#PWR?" H 8400 4350 50  0001 C CNN
+F 1 "GND" H 8400 4450 50  0000 C CNN
+F 2 "" H 8400 4600 50  0000 C CNN
+F 3 "" H 8400 4600 50  0000 C CNN
+	1    8400 4600
+	1    0    0    -1  
+$EndComp
+Connection ~ 8400 4450
+Wire Bus Line
+	4500 3000 4500 4100
+Wire Wire Line
+	5000 3050 4500 3050
+Wire Wire Line
+	5000 3150 4500 3150
+Wire Wire Line
+	5000 3250 4500 3250
+Wire Wire Line
+	5000 3350 4500 3350
+Wire Wire Line
+	5000 3450 4500 3450
+Wire Wire Line
+	5000 3550 4500 3550
+Wire Wire Line
+	5000 3650 4500 3650
+Wire Wire Line
+	5000 3750 4500 3750
+Text GLabel 4400 4300 0    60   Input ~ 0
+RESETN
+Wire Wire Line
+	5000 4050 5000 4300
+Wire Wire Line
+	5000 4300 4400 4300
+Text GLabel 4450 2500 0    60   Input ~ 0
+OUT3FN
+Wire Wire Line
+	4450 2500 5000 2500
+Wire Wire Line
+	5000 2500 5000 3950
+$Comp
+L 74LS74 U?
+U 1 1 58CEB908
+P 9050 5750
+F 0 "U?" H 9200 6050 50  0000 C CNN
+F 1 "74LS74" H 9350 5455 50  0000 C CNN
+F 2 "" H 9050 5750 50  0000 C CNN
+F 3 "" H 9050 5750 50  0000 C CNN
+	1    9050 5750
+	1    0    0    -1  
+$EndComp
+Text GLabel 7050 5750 0    60   Input ~ 0
+4MHz
+Text GLabel 7050 6050 0    60   Input ~ 0
+RASN
+Wire Wire Line
+	7050 5750 8450 5750
+Wire Wire Line
+	9050 6300 8450 6300
+Wire Wire Line
+	8450 6300 8450 5550
+Wire Wire Line
+	7050 6050 8450 6050
+Connection ~ 8450 6050
+Wire Wire Line
+	9650 3350 9650 5550
+Wire Wire Line
+	7000 3350 9650 3350
+Text GLabel 9350 1950 2    60   Input ~ 0
+41256x8_pin1
+Wire Wire Line
+	8700 1950 9350 1950
+$Comp
+L 74LS74 U?
+U 2 1 58CEC505
+P 5850 1550
+F 0 "U?" H 6000 1850 50  0000 C CNN
+F 1 "74LS74" H 6150 1255 50  0000 C CNN
+F 2 "" H 5850 1550 50  0000 C CNN
+F 3 "" H 5850 1550 50  0000 C CNN
+	2    5850 1550
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74LS74 U?
+U 1 1 58CEC568
+P 4350 1550
+F 0 "U?" H 4500 1850 50  0000 C CNN
+F 1 "74LS74" H 4650 1255 50  0000 C CNN
+F 2 "" H 4350 1550 50  0000 C CNN
+F 3 "" H 4350 1550 50  0000 C CNN
+	1    4350 1550
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74LS04 U?
+U 1 1 58CEC609
+P 3300 1550
+F 0 "U?" H 3495 1665 50  0000 C CNN
+F 1 "74LS04" H 3490 1425 50  0000 C CNN
+F 2 "" H 3300 1550 50  0000 C CNN
+F 3 "" H 3300 1550 50  0000 C CNN
+	1    3300 1550
+	1    0    0    -1  
+$EndComp
+$Comp
+L 74LS02 U?
+U 1 1 58CEC968
+P 2250 1550
+F 0 "U?" H 2250 1600 50  0000 C CNN
+F 1 "74LS02" H 2300 1500 50  0000 C CNN
+F 2 "" H 2250 1550 50  0000 C CNN
+F 3 "" H 2250 1550 50  0000 C CNN
+	1    2250 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4950 1350 5100 1350
+Wire Wire Line
+	5100 1350 5100 1550
+Wire Wire Line
+	5100 1550 5250 1550
+Wire Wire Line
+	6450 1750 6450 2000
+Wire Wire Line
+	6450 2000 5250 2000
+Wire Wire Line
+	5250 2000 5250 1350
+Text GLabel 2700 900  0    60   Input ~ 0
+A6
+Text GLabel 1650 1450 0    60   Input ~ 0
+RFSHN
+Text GLabel 1650 1650 0    60   Input ~ 0
+MREQN
+Wire Wire Line
+	2700 900  3750 900 
+Wire Wire Line
+	3750 900  3750 1350
+Wire Wire Line
+	6450 1350 7200 1350
+Wire Wire Line
+	7300 1800 7200 1800
+$EndSCHEMATC
