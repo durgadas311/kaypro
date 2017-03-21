@@ -34,7 +34,7 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title "Kaypro 2X 256K RAM Upgrade"
+Title "Kaypro 2X 256K RAM Upgrade & Floppy Expansion"
 Date "1/1/1986"
 Rev ""
 Comp ""
@@ -247,24 +247,22 @@ F 3 "" H 8400 4600 50  0000 C CNN
 	1    0    0    -1  
 $EndComp
 Connection ~ 8400 4450
-Wire Bus Line
-	4500 3000 4500 4100
 Wire Wire Line
-	5000 3050 4500 3050
+	4450 3050 5000 3050
 Wire Wire Line
-	5000 3150 4500 3150
+	4450 3150 5000 3150
 Wire Wire Line
-	5000 3250 4500 3250
+	4450 3250 5000 3250
 Wire Wire Line
-	5000 3350 4500 3350
+	4450 3350 5000 3350
 Wire Wire Line
-	5000 3450 4500 3450
+	4450 3450 5000 3450
 Wire Wire Line
-	5000 3550 4500 3550
+	4450 3550 5000 3550
 Wire Wire Line
-	5000 3650 4500 3650
+	4450 3650 5000 3650
 Wire Wire Line
-	5000 3750 4500 3750
+	4450 3750 5000 3750
 Text GLabel 4400 4300 0    60   Input ~ 0
 RESETN
 Wire Wire Line
@@ -295,9 +293,9 @@ RASN
 Wire Wire Line
 	7050 5750 8450 5750
 Wire Wire Line
-	9050 6300 8450 6300
+	8450 6300 9050 6300
 Wire Wire Line
-	8450 6300 8450 5550
+	8450 5550 8450 6300
 Wire Wire Line
 	7050 6050 8450 6050
 Connection ~ 8450 6050
@@ -305,10 +303,10 @@ Wire Wire Line
 	9650 3350 9650 5550
 Wire Wire Line
 	7000 3350 9650 3350
-Text GLabel 9350 1950 2    60   Input ~ 0
+Text GLabel 9650 1600 2    60   Input ~ 0
 41256x8_pin1
 Wire Wire Line
-	8700 1950 9350 1950
+	8700 1950 9650 1950
 $Comp
 L 74LS74 U?
 U 2 1 58CEC505
@@ -379,4 +377,167 @@ Wire Wire Line
 	6450 1350 7200 1350
 Wire Wire Line
 	7300 1800 7200 1800
+Wire Bus Line
+	4350 2900 4350 3900
+Text Label 4100 2900 2    60   ~ 0
+DataBus
+Entry Wire Line
+	4350 2950 4450 3050
+Entry Wire Line
+	4350 3050 4450 3150
+Entry Wire Line
+	4350 3150 4450 3250
+Entry Wire Line
+	4350 3250 4450 3350
+Entry Wire Line
+	4350 3350 4450 3450
+Entry Wire Line
+	4350 3450 4450 3550
+Entry Wire Line
+	4350 3550 4450 3650
+Entry Wire Line
+	4350 3650 4450 3750
+$Comp
+L 74LS138 U?
+U 1 1 58D07637
+P 3250 6300
+F 0 "U?" H 3350 6800 50  0000 C CNN
+F 1 "74LS138" H 3400 5751 50  0000 C CNN
+F 2 "" H 3250 6300 50  0000 C CNN
+F 3 "" H 3250 6300 50  0000 C CNN
+	1    3250 6300
+	1    0    0    -1  
+$EndComp
+Text GLabel 2100 5900 0    60   Input ~ 0
+DS1N
+Text GLabel 2100 6100 0    60   Input ~ 0
+DS2N
+Text GLabel 2100 6550 0    60   Input ~ 0
+MOTORN
+Text GLabel 4150 6200 2    60   Input ~ 0
+DS1N
+Text GLabel 4150 6000 2    60   Input ~ 0
+DS2N
+Text GLabel 4150 5800 2    60   Input ~ 0
+DS3N
+Text GLabel 4150 6400 2    60   Input ~ 0
+DS4N
+Wire Wire Line
+	3850 6050 4050 6050
+Wire Wire Line
+	4050 6050 4050 6000
+Wire Wire Line
+	4050 6000 4150 6000
+Wire Wire Line
+	3850 6150 4050 6150
+Wire Wire Line
+	4050 6150 4050 6200
+Wire Wire Line
+	4050 6200 4150 6200
+Wire Wire Line
+	3850 5950 3950 5950
+Wire Wire Line
+	3950 5950 3950 5800
+Wire Wire Line
+	3950 5800 4150 5800
+Wire Wire Line
+	3850 6250 3950 6250
+Wire Wire Line
+	3950 6250 3950 6400
+Wire Wire Line
+	3950 6400 4150 6400
+Wire Wire Line
+	2100 5900 2400 5900
+Wire Wire Line
+	2400 5900 2400 5950
+Wire Wire Line
+	2400 5950 2650 5950
+Wire Wire Line
+	2100 6100 2400 6100
+Wire Wire Line
+	2400 6100 2400 6050
+Wire Wire Line
+	2400 6050 2650 6050
+Wire Wire Line
+	2100 6550 2650 6550
+$Comp
+L GND #PWR?
+U 1 1 58D07A6E
+P 2650 6750
+F 0 "#PWR?" H 2650 6500 50  0001 C CNN
+F 1 "GND" H 2650 6600 50  0000 C CNN
+F 2 "" H 2650 6750 50  0000 C CNN
+F 3 "" H 2650 6750 50  0000 C CNN
+	1    2650 6750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2650 6150 2650 6750
+Connection ~ 2650 6650
+Text Label 1750 5800 2    60   ~ 0
+SysPort
+Text Label 4500 5700 0    60   ~ 0
+FloppyDrives
+Text GLabel 4200 6700 2    60   Input ~ 0
+MOTORN
+Wire Wire Line
+	4200 6700 4000 6700
+Wire Wire Line
+	4000 6700 4000 7000
+Wire Wire Line
+	4000 7000 2400 7000
+Connection ~ 2400 6550
+$Comp
+L +5V #PWR?
+U 1 1 58D07D62
+P 2400 6400
+F 0 "#PWR?" H 2400 6250 50  0001 C CNN
+F 1 "+5V" H 2400 6540 50  0000 C CNN
+F 2 "" H 2400 6400 50  0000 C CNN
+F 3 "" H 2400 6400 50  0000 C CNN
+	1    2400 6400
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2650 6450 2400 6450
+Wire Wire Line
+	2400 6450 2400 6400
+Wire Wire Line
+	2400 7000 2400 6550
+Text Notes 3900 5650 2    60   ~ 0
+Not for Hi-Density (192 tpi) Drives
+Text Label 4500 3050 0    60   ~ 0
+D0
+Text Label 4500 3150 0    60   ~ 0
+D1
+Text Label 4500 3250 0    60   ~ 0
+D2
+Text Label 4500 3350 0    60   ~ 0
+D3
+Text Label 4500 3450 0    60   ~ 0
+D4
+Text Label 4500 3550 0    60   ~ 0
+D5
+Text Label 4500 3650 0    60   ~ 0
+D6
+Text Label 4500 3750 0    60   ~ 0
+D7
+Wire Bus Line
+	4350 2900 4100 2900
+Text Label 4900 1350 0    60   ~ 0
+RA6
+Text Label 6400 1350 0    60   ~ 0
+RA7
+Text Label 9200 1950 0    60   ~ 0
+MA7'
+Text GLabel 9650 1950 2    60   Input ~ 0
+41256x8_pin9
+Text GLabel 8950 1600 0    60   Input ~ 0
+MA7
+Wire Wire Line
+	8950 1600 9650 1600
+Text Label 9200 1600 0    60   ~ 0
+MA8
+Text Notes 8900 1450 0    60   ~ 0
+Break existing connection\nMA7 to 41256x8 pin 9
 $EndSCHEMATC
