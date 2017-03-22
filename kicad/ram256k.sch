@@ -303,7 +303,7 @@ Wire Wire Line
 	9650 3350 9650 5550
 Wire Wire Line
 	7000 3350 9650 3350
-Text GLabel 9650 1600 2    60   Input ~ 0
+Text GLabel 9850 1250 2    60   Input ~ 0
 41256x8_pin1
 Wire Wire Line
 	8700 1950 9650 1950
@@ -528,16 +528,26 @@ Text Label 4900 1350 0    60   ~ 0
 RA6
 Text Label 6400 1350 0    60   ~ 0
 RA7
-Text Label 9200 1950 0    60   ~ 0
+Text Label 9400 1950 0    60   ~ 0
 MA7'
-Text GLabel 9650 1950 2    60   Input ~ 0
+Text GLabel 9850 1600 2    60   Input ~ 0
 41256x8_pin9
 Text GLabel 8950 1600 0    60   Input ~ 0
 MA7
-Wire Wire Line
-	8950 1600 9650 1600
-Text Label 9200 1600 0    60   ~ 0
+Text Label 9400 1250 0    60   ~ 0
 MA8
-Text Notes 8900 1450 0    60   ~ 0
+Text Notes 9450 1500 0    60   ~ 0
 Break existing connection\nMA7 to 41256x8 pin 9
+Wire Wire Line
+	9650 1950 9650 1600
+Wire Wire Line
+	9650 1600 9850 1600
+Wire Wire Line
+	8950 1600 9300 1600
+Wire Wire Line
+	9300 1600 9300 1250
+Wire Wire Line
+	9300 1250 9850 1250
+Wire Notes Line
+	9300 1600 9650 1600
 $EndSCHEMATC
