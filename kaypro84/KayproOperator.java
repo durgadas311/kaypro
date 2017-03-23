@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Vector;
 import java.util.Properties;
 
-public class KayproOperator implements ActionListener, Runnable
+public class KayproOperator implements ActionListener, WindowListener, Runnable
 {
 	JFrame _main;
 	KayproCommander _cmdr = null;
@@ -63,6 +63,10 @@ public class KayproOperator implements ActionListener, Runnable
 	static final String rule = "--------------------------------------------------------------------------------";
 	private boolean dumpToLog = false;
 	private boolean sleeping = false;
+
+	JFrame _help;
+	JEditorPane _text;
+	JScrollPane _scroll;
 
 	KayproOperator(JFrame main, Properties props, ScreenDumper sd, LEDHandler lh,
 			Interruptor.Model model) {
@@ -137,7 +141,34 @@ public class KayproOperator implements ActionListener, Runnable
 		// More added when computer connected
 		_mb.add(_dbg_mu);
 
+		JMenu mu = new JMenu("Help");
+		mi = new JMenuItem("About", KeyEvent.VK_A);
+		mi.addActionListener(this);
+		mu.add(mi);
+		mi = new JMenuItem("Help", KeyEvent.VK_H);
+		mi.addActionListener(this);
+		mu.add(mi);
+		_mb.add(mu);
+
 		main.setJMenuBar(_mb);
+
+		_help = new JFrame(main.getTitle() + " Help");
+		java.net.URL url = this.getClass().getResource("docs/Kaypro.html");
+		_help.setLayout(new FlowLayout());
+		try {
+			_text = new JEditorPane(url);
+		} catch (Exception ee) {}
+		_text.setEditable(false);
+		_text.setFont(new Font("Sans-serif", Font.PLAIN, 12));
+		//_text.addHyperlinkListener(this);
+		_scroll = new JScrollPane(_text);
+		_scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		_scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		_scroll.setPreferredSize(new Dimension(600, 320));
+		_help.add(_scroll);
+		_help.pack();
+		_help.addWindowListener(this);
+		//_help.addComponentListener(this);
 
 		// Dialog for trace (custom)...
 		trace_pn = new JPanel();
@@ -571,6 +602,13 @@ public class KayproOperator implements ActionListener, Runnable
 				}
 				continue;
 			}
+			if (key == KeyEvent.VK_A) {
+				continue;
+			}
+			if (key == KeyEvent.VK_H) {
+				_help.setVisible(true);
+				continue;
+			}
 			System.err.println("unknown action key");
 		}
 	}
@@ -600,5 +638,18 @@ public class KayproOperator implements ActionListener, Runnable
 
 	public void resetPerformed() {
 		_cmds.add(_reset_key);
+	}
+
+	public void windowActivated(WindowEvent e) { }
+	public void windowClosed(WindowEvent e) { }
+	public void windowIconified(WindowEvent e) { }
+	public void windowOpened(WindowEvent e) { }
+	public void windowDeiconified(WindowEvent e) { }
+	public void windowDeactivated(WindowEvent e) { }
+	public void windowClosing(WindowEvent e) {
+		if (e.getWindow() == _help) {
+			_help.setVisible(false);
+			return;
+		}
 	}
 }

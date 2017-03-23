@@ -206,7 +206,7 @@ public class KayproFrontSide extends JPanel
 
 		// TODO: scan properties and count number of drives?
 		_ledspace = new LEDPanel(nmwid - 20, dim.height, 4,
-					getBackground().brighter());
+					getBackground().brighter().brighter());
 		_ledy = 0;
 		gc.gridx = 3;
 		gridbag.setConstraints(_ledspace, gc);

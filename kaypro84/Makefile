@@ -21,6 +21,7 @@ VirtualKaypro.jar: all temp
 temp: __FRC__
 	mkdir -p temp
 	rm -rf temp/*
+	cp -r docs temp/
 	cd temp; jar -xf ../z80cpu/z80core.jar
 	rm -rf temp/META-INF
 	cd temp; jar -xf ../diablo630/Diablo630Embedded.jar
@@ -39,7 +40,8 @@ src:
 		kaypro84/*.java \
 		kaypro84/*.rom \
 		kaypro84/*.ttf \
-		kaypro84/*.wav
+		kaypro84/*.wav \
+		kaypro84/docs/*
 
 www: __FRC__
 	rsync -Wuv ../kicad/*.pdf durgadas.com:/http/durgadas.com/sims/kaypro
