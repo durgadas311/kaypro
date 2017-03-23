@@ -7,8 +7,12 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.Properties;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkListener;
 
-public class KayproOperator implements ActionListener, WindowListener, Runnable
+public class KayproOperator
+	implements ActionListener, WindowListener,
+		ComponentListener, HyperlinkListener, Runnable
 {
 	JFrame _main;
 	KayproCommander _cmdr = null;
@@ -160,7 +164,7 @@ public class KayproOperator implements ActionListener, WindowListener, Runnable
 		} catch (Exception ee) {}
 		_text.setEditable(false);
 		_text.setFont(new Font("Sans-serif", Font.PLAIN, 12));
-		//_text.addHyperlinkListener(this);
+		_text.addHyperlinkListener(this);
 		_scroll = new JScrollPane(_text);
 		_scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		_scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
@@ -168,6 +172,7 @@ public class KayproOperator implements ActionListener, WindowListener, Runnable
 		_help.add(_scroll);
 		_help.pack();
 		_help.addWindowListener(this);
+		_help.addComponentListener(this);
 		//_help.addComponentListener(this);
 
 		// Dialog for trace (custom)...
@@ -649,6 +654,29 @@ public class KayproOperator implements ActionListener, WindowListener, Runnable
 	public void windowClosing(WindowEvent e) {
 		if (e.getWindow() == _help) {
 			_help.setVisible(false);
+			return;
+		}
+	}
+
+	public void hyperlinkUpdate(HyperlinkEvent r) {
+		if (r.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+			try {
+				_text.setPage(r.getURL());
+			} catch (Exception ee) {}
+			return;
+		}
+	}
+
+	public void componentHidden(ComponentEvent e) { }
+	public void componentMoved(ComponentEvent e) { }
+	public void componentShown(ComponentEvent e) { }
+	public void componentResized(ComponentEvent e) {
+		if (e.getComponent() == _help) {
+			_scroll.setPreferredSize(_help.getSize());
+			_help.setPreferredSize(_help.getSize());
+			_help.validate();
+			_help.pack();
+			_help.repaint();
 			return;
 		}
 	}
