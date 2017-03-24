@@ -22,6 +22,7 @@ temp: __FRC__
 	mkdir -p temp
 	rm -rf temp/*
 	cp -r docs temp/
+	./mkAbout >temp/docs/About.html
 	cd temp; jar -xf ../z80cpu/z80core.jar
 	rm -rf temp/META-INF
 	cd temp; jar -xf ../diablo630/Diablo630Embedded.jar
@@ -36,7 +37,7 @@ diablo630/Diablo630Embedded.jar:
 jar: VirtualKaypro.jar
 
 src:
-	cd ..; tar -czf kaypro84/vkaypro.tgz kaypro84/Makefile \
+	cd ..; tar -czf kaypro84/vkaypro.tgz kaypro84/Makefile kaypro84/mkAbout \
 		kaypro84/*.java \
 		kaypro84/*.rom \
 		kaypro84/*.ttf \

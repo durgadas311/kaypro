@@ -456,6 +456,18 @@ public class KayproOperator
 		_cmds.add(key);
 	}
 
+	private void showAbout() {
+		java.net.URL url = this.getClass().getResource("docs/About.html");
+		try {
+			JEditorPane about = new JEditorPane(url);
+			about.setEditable(false);
+			Dimension dim = new Dimension(400, 300);
+			about.setPreferredSize(dim);
+			JOptionPane.showMessageDialog(_main, about,
+				"About: Kaypro Simulator", JOptionPane.PLAIN_MESSAGE);
+		} catch (Exception ee) { }
+	}
+
 	public void run() {
 		int key = 0;
 		while (true) {
@@ -605,6 +617,7 @@ public class KayproOperator
 				continue;
 			}
 			if (key == KeyEvent.VK_A) {
+				showAbout();
 				continue;
 			}
 			if (key == KeyEvent.VK_H) {
