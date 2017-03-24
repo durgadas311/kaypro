@@ -12,7 +12,7 @@ import javax.swing.event.HyperlinkListener;
 
 public class KayproOperator
 	implements ActionListener, WindowListener,
-		ComponentListener, HyperlinkListener, Runnable
+		HyperlinkListener, Runnable
 {
 	JFrame _main;
 	KayproCommander _cmdr = null;
@@ -158,7 +158,6 @@ public class KayproOperator
 
 		_help = new JFrame(main.getTitle() + " Help");
 		java.net.URL url = this.getClass().getResource("docs/Kaypro.html");
-		_help.setLayout(new FlowLayout());
 		try {
 			_text = new JEditorPane(url);
 		} catch (Exception ee) {}
@@ -169,11 +168,9 @@ public class KayproOperator
 		_scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		_scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		_scroll.setPreferredSize(new Dimension(600, 320));
-		_help.add(_scroll);
+		_help.add(_scroll, BorderLayout.CENTER);
 		_help.pack();
 		_help.addWindowListener(this);
-		_help.addComponentListener(this);
-		//_help.addComponentListener(this);
 
 		// Dialog for trace (custom)...
 		trace_pn = new JPanel();
@@ -663,20 +660,6 @@ public class KayproOperator
 			try {
 				_text.setPage(r.getURL());
 			} catch (Exception ee) {}
-			return;
-		}
-	}
-
-	public void componentHidden(ComponentEvent e) { }
-	public void componentMoved(ComponentEvent e) { }
-	public void componentShown(ComponentEvent e) { }
-	public void componentResized(ComponentEvent e) {
-		if (e.getComponent() == _help) {
-			_scroll.setPreferredSize(_help.getSize());
-			_help.setPreferredSize(_help.getSize());
-			_help.validate();
-			_help.pack();
-			_help.repaint();
 			return;
 		}
 	}
