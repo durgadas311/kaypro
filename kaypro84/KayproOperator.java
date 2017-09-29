@@ -38,10 +38,10 @@ public class KayproOperator
 	int _key;
 
 	Object[] trace_btns;
-	JTextArea trace_cyc;
-	JTextArea trace_lo;
-	JTextArea trace_hi;
-	JTextArea trace_sec;
+	JTextField trace_cyc;
+	JTextField trace_lo;
+	JTextField trace_hi;
+	JTextField trace_sec;
 	JPanel trace_pn;
 	JPanel trace_cyc_pn;
 	JPanel trace_lo_pn;
@@ -50,8 +50,8 @@ public class KayproOperator
 	JPanel dmppg_pn;
 	JPanel dump_pg_pn;
 	JPanel dump_bnk_pn;
-	JTextArea dump_pg;
-	JTextArea dump_bnk;
+	JTextField dump_pg;
+	JTextField dump_bnk;
 	JCheckBox dump_rom;
 	static final int OPTION_CANCEL = 0;
 	static final int OPTION_YES = 1;
@@ -162,23 +162,23 @@ public class KayproOperator
 		trace_btns = new Object[2];
 		trace_btns[OPTION_YES] = "Accept";
 		trace_btns[OPTION_CANCEL] = "Cancel";
-		trace_cyc = new JTextArea();
+		trace_cyc = new JTextField();
 		trace_cyc.setPreferredSize(new Dimension(200, 20));
 		trace_cyc_pn = new JPanel();
 		trace_cyc_pn.add(new JLabel("Cycles:"));
 		trace_cyc_pn.add(trace_cyc);
 		// TODO: put Low/High on same line...
-		trace_lo = new JTextArea();
+		trace_lo = new JTextField();
 		trace_lo.setPreferredSize(new Dimension(200, 20));
 		trace_lo_pn = new JPanel();
 		trace_lo_pn.add(new JLabel("Low PC(hex):"));
 		trace_lo_pn.add(trace_lo);
-		trace_hi = new JTextArea();
+		trace_hi = new JTextField();
 		trace_hi.setPreferredSize(new Dimension(200, 20));
 		trace_hi_pn = new JPanel();
 		trace_hi_pn.add(new JLabel("High PC(excl):"));
 		trace_hi_pn.add(trace_hi);
-		trace_sec = new JTextArea();
+		trace_sec = new JTextField();
 		trace_sec.setPreferredSize(new Dimension(200, 20));
 		trace_sec_pn = new JPanel();
 		trace_sec_pn.add(new JLabel("Seconds:"));
@@ -192,14 +192,14 @@ public class KayproOperator
 		dmppg_pn = new JPanel();
 		dmppg_pn.setLayout(new BoxLayout(dmppg_pn, BoxLayout.Y_AXIS));
 		if (Kaypro.has256K()) {
-			dump_bnk = new JTextArea();
+			dump_bnk = new JTextField();
 			dump_bnk.setPreferredSize(new Dimension(30, 20));
 			dump_bnk_pn = new JPanel();
 			dump_bnk_pn.add(new JLabel("Bank (0-3):"));
 			dump_bnk_pn.add(dump_bnk);
 			dmppg_pn.add(dump_bnk_pn);
 		}
-		dump_pg = new JTextArea();
+		dump_pg = new JTextField();
 		dump_pg.setPreferredSize(new Dimension(50, 20));
 		dump_pg_pn = new JPanel();
 		dump_pg_pn.add(new JLabel("Page (00-FF):"));

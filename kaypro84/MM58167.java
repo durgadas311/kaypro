@@ -90,7 +90,7 @@ public class MM58167 implements IODevice, ActionListener {
 				regs[7], regs[6], xdays[regs[5] & 7], regs[4],
 				regs[3], regs[2], regs[1], regs[0] >> 4);
 		Date dt = timestamp.parse(tod, new ParsePosition(0));
-		off = now.getTime() - dt.getTime();
+		off = dt.getTime() - now.getTime();
 		dirty = false;
 	}
 
