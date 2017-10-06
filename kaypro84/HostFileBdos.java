@@ -1034,17 +1034,23 @@ ee.printStackTrace();
 		int x;
 		String buf = "";
 		boolean sawQ = false;
+		char c;
 		for (x = 0; x < 8 && (fcb.name.charAt(x)) != ' '; ++x) {
-			if ((fcb.name.charAt(x)) == '?') {
+			c = fcb.name.charAt(x);
+			if (c == '?') {
 				buf += ".*";
 				sawQ = true;
 				break;
 			}
-			buf += Character.toLowerCase(fcb.name.charAt(x));
+			if (c == '$') {
+				buf += '\\';
+			}
+			buf += Character.toLowerCase(c);
 		}
 		for (x = 8; x < 11 && (fcb.name.charAt(x)) != ' '; ++x) {
+			c = fcb.name.charAt(x);
 			if (x == 8) {
-				if ((fcb.name.charAt(x)) == '?') {
+				if (c == '?') {
 					// special case, need "*.*" to be just "*"
 					if (sawQ) {
 						break;
@@ -1052,11 +1058,14 @@ ee.printStackTrace();
 				}
 				buf += "\\.";
 			}
-			if ((fcb.name.charAt(x)) == '?') {
+			if (c == '?') {
 				buf += ".*";
 				break;
 			}
-			buf += Character.toLowerCase(fcb.name.charAt(x));
+			if (c == '$') {
+				buf += '\\';
+			}
+			buf += Character.toLowerCase(c);
 		}
 		return cpmFilename(usr, buf);
 	}
@@ -1911,6 +1920,12 @@ ee.printStackTrace();
 		}
 		int rc = 0;
 		try {
+			if ((fcb.ext == 0 && fcb.cr == 0) ||
+					fcb.cr != fcb.s1) {
+				long ln = fcb.cr;
+				ln *= 128;
+				of.fd.seek(ln);
+			}
 			of.fd.write(msgbuf, start + 37, 128);
 			rc = 128;
 		} catch (Exception ee) {
@@ -1923,6 +1938,7 @@ ee.printStackTrace();
 			fcb.ext &= 0x1f;
 		}
 		++fcb.cr;
+		fcb.s1 = fcb.cr;
 		if ((fcb.rc & 0xff) < (fcb.cr & 0xff)) {
 			fcb.rc = fcb.cr;
 		}
