@@ -1,3 +1,5 @@
+// Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
+
 public interface NetworkListener {
 	// These are called from the socket thread.
 	// Listener must return immediately, and must
