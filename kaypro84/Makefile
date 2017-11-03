@@ -38,6 +38,7 @@ jar: VirtualKaypro.jar
 
 src:
 	cd ..; tar -czf kaypro84/vkaypro.tgz kaypro84/Makefile kaypro84/mkAbout \
+		kaypro84/LICENSE \
 		kaypro84/*.java \
 		kaypro84/*.rom \
 		kaypro84/*.ttf \
@@ -50,7 +51,7 @@ www: __FRC__
 	rsync -rWuv www/downloads/. durgadas.com:/http/durgadas.com/sebhc/kaypro/.
 
 ship:
-	rsync -Wuv *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
+	rsync -Wuv LICENSE *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
 		durgadas.com:/http/durgadas.com/sebhc/kaypro
 	rsync -rWuv --exclude='.[a-z]*' \
 		../disks/. durgadas.com:/http/durgadas.com/sebhc/kaypro/disks/.
