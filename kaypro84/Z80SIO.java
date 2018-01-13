@@ -7,7 +7,7 @@ import java.io.*;
 import java.util.concurrent.Semaphore;
 import java.lang.reflect.Constructor;
 
-public class Z80SIO implements IODevice {
+public class Z80SIO implements IODevice, InterruptController {
 	static final int fifoLimit = 10; // should never even exceed 2
 	private Interruptor intr;
 	private int src;
@@ -22,6 +22,7 @@ public class Z80SIO implements IODevice {
 		name = String.format("Z80SIO%d", (base >> 3) + 1);
 		this.intr = intr;
 		src = intr.registerINT(0);
+		intr.addIntrController(this);
 		basePort = base;
 		ports[0] = new Z80SIOPort(props, pfxA, 0, null);
 		ports[1] = new Z80SIOPort(props, pfxB, 1, ports[0]);
