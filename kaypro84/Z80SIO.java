@@ -411,7 +411,7 @@ public class Z80SIO implements IODevice, InterruptController {
 		// Only called on Ch B (!)
 		public int readDataBus() {
 			setRR2();
-			return rr[2];
+			return rr[2] & 0xff;
 		}
 
 		public void retIntr() {
