@@ -338,21 +338,16 @@ public class KayproOperator
 	}
 
 	private void doTraceDialog() {
-		JOptionPane trace_dia;
-		trace_dia = new JOptionPane(trace_pn, JOptionPane.QUESTION_MESSAGE,
-					JOptionPane.YES_NO_OPTION, null, trace_btns);
 		trace_cyc.setText("");
 		trace_lo.setText("");
 		trace_hi.setText("");
 		trace_sec.setText("1");
-		Dialog dlg = trace_dia.createDialog(_main, "Trace CPU");
-		dlg.setVisible(true);
-		Object res = trace_dia.getValue();
+		int res = JOptionPane.showOptionDialog(_main, trace_pn,
+				"Trace CPU", JOptionPane.YES_NO_OPTION,
+				JOptionPane.QUESTION_MESSAGE, null,
+				trace_btns, trace_btns[OPTION_YES]);
 		_main.requestFocus();
-		if (trace_btns[OPTION_CANCEL].equals(res)) {
-			return;
-		}
-		if (!trace_btns[OPTION_YES].equals(res)) {
+		if (res != OPTION_YES) {
 			return;
 		}
 		int msecs = 0;
@@ -392,22 +387,17 @@ public class KayproOperator
 	}
 
 	private void doDumpPageDialog() {
-		JOptionPane dmppg_dia;
-		dmppg_dia = new JOptionPane(dmppg_pn, JOptionPane.QUESTION_MESSAGE,
-					JOptionPane.YES_NO_OPTION, null, trace_btns);
 		if (dump_bnk != null) {
 			dump_bnk.setText("");
 		}
 		dump_pg.setText("");
 		dump_rom.setSelected(false);
-		Dialog dlg = dmppg_dia.createDialog(_main, "Dump Page");
-		dlg.setVisible(true);
-		Object res = dmppg_dia.getValue();
+		int res = JOptionPane.showOptionDialog(_main, dmppg_pn,
+				"Dump Page", JOptionPane.YES_NO_OPTION,
+				JOptionPane.QUESTION_MESSAGE, null,
+				trace_btns, trace_btns[OPTION_YES]);
 		_main.requestFocus();
-		if (trace_btns[OPTION_CANCEL].equals(res)) {
-			return;
-		}
-		if (!trace_btns[OPTION_YES].equals(res)) {
+		if (res != OPTION_YES) {
 			return;
 		}
 		String cmd = "dump page ";

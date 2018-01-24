@@ -386,7 +386,7 @@ public class Z80SIO implements IODevice, InterruptController {
 			} else if ((intrs & 8) != 0) { // Special Rcv
 				ret = 0b00000110;
 			}
-			return -1;
+			return ret;
 		}
 
 		private void setRR2() {
