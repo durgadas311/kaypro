@@ -488,7 +488,10 @@ public class Z80SIO implements IODevice, InterruptController {
 			// TODO: must make this thread-safe...
 			chkIntr();
 		}
-		public int getModem() {
+		// For some reason, "synchronized" is required to ensure
+		// we always return the latest values. Probably don't
+		// need to mutex with data I/O, but this is easiest.
+		public synchronized int getModem() {
 			int mdm = 0;
 			if ((wr[5] & wr5_dtr_c) != 0) {
 				mdm |= VirtualUART.GET_DTR;
