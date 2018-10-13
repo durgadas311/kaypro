@@ -578,6 +578,7 @@ public class Kaypro84Crt extends KayproCrt
 			return;
 		}
 		drag = true;
+		dragCount = 0;
 		dragStop = dragStart = charStart(e.getPoint());
 		addMouseMotionListener(this);
 	}
