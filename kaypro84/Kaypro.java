@@ -719,17 +719,23 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 						cpu.isINTLine() ? " INT" : "");
 				}
 				clk = cpu.execute();
+				if (clk < 0) {
+					clk = -clk;
+					if (trace) {
+						System.err.format("%s {%d} *INTA*\n",
+							traceStr, clk);
+					}
+				} else if (trace) {
+					// TODO: collect data after instruction?
+					System.err.format("%s {%d} %s\n", traceStr, clk,
+						disas.disas(PC));
+				}
 				setHalted(cpu.isHalted());
 				limit -= clk;
 				if (traceCycles > 0) {
 					traceCycles -= clk;
 				}
 				addTicks(clk);
-				if (trace) {
-					// TODO: collect data after instruction?
-					System.err.format("%s {%d} %s\n", traceStr, clk,
-						disas.disas(PC));
-				}
 			}
 			cpuLock.unlock();
 			if (!running) {
