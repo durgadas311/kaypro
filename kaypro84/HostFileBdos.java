@@ -34,12 +34,12 @@ public class HostFileBdos implements NetworkServer {
 		public boolean safe = false;
 
 		// These could be implemented using Unix file modes.
-		public boolean ATTR_RO() { return attrs[0]; }
-		public boolean ATTR_SYS() { return attrs[1]; }
-		public boolean ATTR_AR() { return attrs[2]; }
-		public void SET_RO() { attrs[0] = true; }
-		public void SET_SYS() { attrs[1] = true; }
-		public void SET_AR() { attrs[2] = true; }
+		public boolean ATTR_RO() { return attrs[8]; }
+		public boolean ATTR_SYS() { return attrs[9]; }
+		public boolean ATTR_AR() { return attrs[10]; }
+		public void SET_RO() { attrs[8] = true; }
+		public void SET_SYS() { attrs[9] = true; }
+		public void SET_AR() { attrs[10] = true; }
 
 		// Interface attributes, never stored to disk.
 		// CP/M 3 interface attributes:
@@ -447,6 +447,9 @@ public class HostFileBdos implements NetworkServer {
 
 	// Includes MAGNet header...
 	static final int cpnMsg = NetworkServer.mstart;
+	// These are only valid for the duration of bdosFunction()...
+	private int fcbadr;
+	private int dmaadr;
 
 	// TODO: fix this
 	private int errno;
@@ -659,6 +662,12 @@ ee.printStackTrace();
 		return null;
 	}
 
+	public int bdosCall(int fnc, byte[] mem, int param, int len, int fcb, int dma) {
+		fcbadr = fcb;
+		dmaadr = dma;
+		return bdosFunction(fnc, mem, param, len);
+	}
+
 	public byte[] sendMsg(byte[] msgbuf, int len) {
 		if (ServerDispatch.getCode(msgbuf) != 0xc1) {
 			// MAGNet messages
@@ -666,6 +675,11 @@ ee.printStackTrace();
 		}
 		int fnc = msgbuf[NetworkServer.mfunc] & 0xff;
 		//dumpMsg(true, msgbuf, len);
+		fcbadr = cpnMsg + 1;
+		if (fnc == 17) {
+			fcbadr += 1;
+		}
+		dmaadr = cpnMsg + 37;
 		int lr = -1;
 		if (fnc == 64 || chkClient(clientId)) {
 			lr = bdosFunction(fnc, msgbuf, cpnMsg, len);
@@ -957,7 +971,7 @@ ee.printStackTrace();
 		return str;
 	}
 
-	String cpmPath(int drive, int user, String file) {
+	public String cpmPath(int drive, int user, String file) {
 		String str = cpmDrive(drive);
 		str += '/';
 		str += cpmFilename(user, file);
@@ -1412,6 +1426,9 @@ ee.printStackTrace();
 			return -1;
 		}
 		RandomAccessFile fd = openFiles[x].fd;
+		if (fd == null) {
+			return -1; // or "return x"?
+		}
 		putFileFcb(fcb, x, (RandomAccessFile)null, (byte)0, (FileLock)null);
 		try {
 			fd.close();
@@ -1428,6 +1445,8 @@ ee.printStackTrace();
 		boolean ro = fcb.ATTR_OPRO();
 		boolean unlk = fcb.ATTR_UNLK();
 		fcb.clearIntfAttrs();
+		// FCB might still be open... fix that...
+		closeFileFcb(fcb);
 		int x = newFileFcb();
 		if (x < 0) {
 			return -10;	// Open File Limit Exceeded
@@ -1508,6 +1527,8 @@ ee.printStackTrace();
 		byte d;
 		boolean unlk = fcb.ATTR_UNLK();
 		fcb.clearIntfAttrs();
+		// FCB might still be open... fix that...
+		closeFileFcb(fcb);
 		int x = newFileFcb();
 		if (x < 0) {
 			return -10;	// Open File Limit Exceeded
@@ -1547,8 +1568,8 @@ ee.printStackTrace();
 
 	int recLocking(byte[] msgbuf, int start, int len, boolean lock) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
-		short fid = (short)((msgbuf[start + 37] & 0xff) | (msgbuf[start + 38] << 8));
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
+		short fid = (short)((msgbuf[dmaadr] & 0xff) | (msgbuf[dmaadr + 1] << 8));
 		OpenFile of = getFileFcb(fcb);
 		if (of == null) {
 			msgbuf[start] = (byte)9;
@@ -1587,6 +1608,9 @@ ee.printStackTrace();
 			}
 		}
 		msgbuf[start] = (byte)0;
+		// TODO: need this? NDOS copies back FCB+RR
+		// but if nothing changed...
+		//fcb.putIO(msgbuf, fcbadr, true);
 		return 37;
 	}
 
@@ -1648,7 +1672,7 @@ ee.printStackTrace();
 
 	private int openFile(byte[] msgbuf, int start, int len) {
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		// ignore password...
 		int rc = openFileFcb(fcb, u);
@@ -1661,14 +1685,14 @@ ee.printStackTrace();
 			msgbuf[start] = (byte)255; // a.k.a. File Not Found
 			return 1;
 		} else {
-			fcb.putNew(msgbuf, start + 1, true);
+			fcb.putNew(msgbuf, fcbadr, false);
 			return 37;
 		}
 	}
 
 	private int closeFile(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		boolean partial = fcb.ATTR_PC() || (curCompat & COMPAT_PC) != 0;
 		fcb.clearIntfAttrs();
 		OpenFile of = getFileFcb(fcb);
@@ -1717,7 +1741,7 @@ ee.printStackTrace();
 			msgbuf[start] = (byte)255;
 			return 1;
 		} else {
-			fcb.putNew(msgbuf, start + 1, false);
+			fcb.putNew(msgbuf, fcbadr, false);
 			return 37;
 		}
 	}
@@ -1761,7 +1785,7 @@ ee.printStackTrace();
 	private int searchFirst(byte[] msgbuf, int start, int len) {
 		//byte d = msgbuf[start] & 0x0f; // should be curDsk...
 		byte u = (byte)(msgbuf[start + 1] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 2);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		if ((fcb.drv & 0x7f) == '?') {
 			// This means return every dir entry...
 			//System.err.format("Search with drv = '?'\n");
@@ -1790,7 +1814,7 @@ ee.printStackTrace();
 		cpmSearch era;
 		byte u = (byte)(msgbuf[start] & 0x1f);
 		msgbuf[start] = (byte)0;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		boolean delx = fcb.ATTR_DELX();
 		fcb.clearIntfAttrs();
 		if (fcb.drv == '?') {
@@ -1858,7 +1882,7 @@ ee.printStackTrace();
 
 	private int readSeq(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileFcb(fcb);
 		if (of == null) {
@@ -1870,10 +1894,11 @@ ee.printStackTrace();
 			if ((fcb.ext == 0 && fcb.cr == 0) ||
 					fcb.cr != fcb.s1) {
 				long ln = fcb.cr;
+				ln += fcb.ext * 128;
 				ln *= 128;
 				of.fd.seek(ln);
 			}
-			rc = of.fd.read(msgbuf, start + 37, 128);
+			rc = of.fd.read(msgbuf, dmaadr, 128);
 			if (rc < 0) {
 				rc = 0;
 			}
@@ -1895,16 +1920,16 @@ ee.printStackTrace();
 		}
 		++fcb.cr;
 		fcb.s1 = fcb.cr;
-		fcb.putIO(msgbuf, start + 1, false);
+		fcb.putIO(msgbuf, fcbadr, false);
 		// fill any partial "sector" with Ctrl-Z, in case it's text.
-		Arrays.fill(msgbuf, start + 37 + rc, cpnMsg + 37 + 128, (byte)0x1a);
+		Arrays.fill(msgbuf, dmaadr + rc, dmaadr + 128, (byte)0x1a);
 		// detect media change?
 		return 165;
 	}
 
 	private int writeSeq(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileWrFcb(fcb);
 		if (of == null) {
@@ -1923,10 +1948,11 @@ ee.printStackTrace();
 			if ((fcb.ext == 0 && fcb.cr == 0) ||
 					fcb.cr != fcb.s1) {
 				long ln = fcb.cr;
+				ln += fcb.ext * 128;
 				ln *= 128;
 				of.fd.seek(ln);
 			}
-			of.fd.write(msgbuf, start + 37, 128);
+			of.fd.write(msgbuf, dmaadr, 128);
 			rc = 128;
 		} catch (Exception ee) {
 			rc = -1;
@@ -1952,14 +1978,14 @@ ee.printStackTrace();
 		}
 		// fcb.s2 = 0; // don't need this here...
 		// detect media change?
-		fcb.putIO(msgbuf, start + 1, false);
+		fcb.putIO(msgbuf, fcbadr, false);
 		return 37;
 	}
 
 	// File is open on successful return.
 	private int createFile(byte[] msgbuf, int start, int len) {
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		int rc = makeFileFcb(fcb, u);
 		if (rc < 0) {
@@ -1971,7 +1997,7 @@ ee.printStackTrace();
 			msgbuf[start] = (byte)255;
 			return 1;
 		}
-		fcb.putNew(msgbuf, start + 1, true);
+		fcb.putNew(msgbuf, fcbadr, false);
 		return 37;
 	}
 
@@ -1979,7 +2005,7 @@ ee.printStackTrace();
 		String newn;
 		byte d;
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		fileName = getFileName(fcb);
 		d = fcb.getDrv();
@@ -1991,7 +2017,7 @@ ee.printStackTrace();
 		}
 		pathName = cpmPath(d, u, fileName);
 		File fi = new File(pathName);
-		fcb = new cpmFcb(msgbuf, start + 17);
+		fcb = new cpmFcb(msgbuf, fcbadr + 16);
 		fileName = getFileName(fcb);
 		newn = cpmPath(d, u, fileName);
 		try {
@@ -2006,7 +2032,7 @@ ee.printStackTrace();
 
 	private int readRand(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileFcb(fcb);
 		if (of == null) {
@@ -2016,7 +2042,7 @@ ee.printStackTrace();
 		seekFile(fcb, of);
 		int rc = 0;
 		try {
-			rc = of.fd.read(msgbuf, start + 37, 128);
+			rc = of.fd.read(msgbuf, dmaadr, 128);
 			if (rc < 0) {
 				rc = 0;
 			}
@@ -2032,15 +2058,15 @@ ee.printStackTrace();
 			msgbuf[start] = (byte)1;
 			return 1;
 		}
-		Arrays.fill(msgbuf, start + 37 + rc, start + 37 + 128, (byte)0x1a);
+		Arrays.fill(msgbuf, dmaadr + rc, dmaadr + 128, (byte)0x1a);
 		// detect media change?
-		fcb.putIO(msgbuf, start + 1, false);
+		fcb.putIO(msgbuf, fcbadr, true);
 		return 37 + 128;
 	}
 
 	private int writeRand(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileWrFcb(fcb);
 		if (of == null) {
@@ -2057,7 +2083,7 @@ ee.printStackTrace();
 		seekFile(fcb, of);
 		int rc = 0;
 		try {
-			of.fd.write(msgbuf, start + 37, 128);
+			of.fd.write(msgbuf, dmaadr, 128);
 			rc = 128;
 		} catch (Exception ee) {
 			rc = -1;
@@ -2072,13 +2098,13 @@ ee.printStackTrace();
 			return 1;
 		}
 		// detect media change?
-		fcb.putIO(msgbuf, start + 1, false);
+		fcb.putIO(msgbuf, fcbadr, true);
 		return 37;
 	}
 
 	private int setRandRec(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileFcb(fcb);
 		if (of == null) {
@@ -2095,13 +2121,13 @@ ee.printStackTrace();
 			r = (r + 127) / 128;
 		}
 		fcb.rr = (int)r;
-		fcb.putIO(msgbuf, start + 1, true);
+		fcb.putIO(msgbuf, fcbadr, true);
 		return 37;
 	}
 
 	private int compFileSize(byte[] msgbuf, int start, int len) {
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		long r = 0;
 		OpenFile of = getFileFcb(fcb);
@@ -2124,18 +2150,18 @@ ee.printStackTrace();
 		} else {
 			r = (r + 127) / 128;
 		}
-		msgbuf[start + 34] = (byte)(r & 0x0ff);
+		msgbuf[fcbadr + 33] = (byte)(r & 0x0ff);
 		r >>= 8;
-		msgbuf[start + 35] = (byte)(r & 0x0ff);
+		msgbuf[fcbadr + 34] = (byte)(r & 0x0ff);
 		r >>= 8;
-		msgbuf[start + 36] = (byte)(r & 0x003);
-		fcb.putIO(msgbuf, start + 1, true);
+		msgbuf[fcbadr + 35] = (byte)(r & 0x003);
+		fcb.putIO(msgbuf, fcbadr, true);
 		return 37;
 	}
 
 	private int setFileAttrs(byte[] msgbuf, int start, int len) {
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		int bc = fcb.cr & 0x7f; // 0 means 128
 		if (bc == 0) {
 			bc = 128;
@@ -2250,7 +2276,7 @@ ee.printStackTrace();
 	private int truncFile(byte[] msgbuf, int start, int len) {
 		int rc;
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		OpenFile of = getFileWrFcb(fcb);
 		if (of != null) {
@@ -2332,7 +2358,7 @@ ee.printStackTrace();
 	// Get timestamp for given file
 	private int readFStamps(byte[] msgbuf, int start, int len) {
 		byte u = (byte)(msgbuf[start] & 0x1f);
-		cpmFcb fcb = new cpmFcb(msgbuf, start + 1);
+		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
 		msgbuf[start] = (byte)0;
 		byte d = fcb.getDrv();
 		fileName = getFileName(fcb);
@@ -2343,7 +2369,7 @@ ee.printStackTrace();
 			msgbuf[start + 1] = (byte)0x00;
 			return 2;
 		}
-		msgbuf[start + 12] = (byte)0; // ext: no passwords
+		msgbuf[fcbadr + 12] = (byte)0; // ext: no passwords
 		BasicFileAttributes attrs = getAttrs(pathName);
 		if (attrs != null) {
 			unix2cpmdate(attrs.lastAccessTime().toMillis(),
@@ -2353,7 +2379,7 @@ ee.printStackTrace();
 		}
 		//unix2cpmdate(fi.lastAccess(), msgbuf, start + 25, false);
 		//unix2cpmdate(fi.lastModified(), msgbuf, start + 29, false);
-		msgbuf[start + 33] = (byte)0; // cr
+		msgbuf[fcbadr + 32] = (byte)0; // cr
 		return 37;
 	}
 	private int getTime(byte[] msgbuf, int start, int len) {
