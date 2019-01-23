@@ -525,6 +525,10 @@ public class Z80SIO implements IODevice, InterruptController {
 				fifo.add(-1);
 			}
 		}
+		public void attachDevice(SerialDevice io) {}
+		public String getPortId() {
+			return String.format("%s%c", name, index + 'A');
+		}
 
 		private void updateModemOut() {
 			int mdm = modem & ~VirtualUART.GET_ONLY;
