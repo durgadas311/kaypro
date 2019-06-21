@@ -205,13 +205,14 @@ public class HostFileBdos implements NetworkServer {
 		}
 	}
 
+	static final long epoch = (long)2923 * 86400 * 1000;
 	// These need to become methods to put/get from byte[]...
 	class cpmFcbDate {
 		public static final int byteLength = 4;
 		public long timet;
 
 		public cpmFcbDate() {
-			timet = 0;
+			timet = epoch;
 		}
 		public void put(byte[] buf, int start) {
 			unix2cpmdate(timet, buf, start, false);
@@ -410,6 +411,8 @@ public class HostFileBdos implements NetworkServer {
 
 	class OpenFile {
 		public RandomAccessFile fd;
+		public byte ext;
+		public byte cr;
 		public FileLock flk;
 		public Vector<FileLock> rlks;
 		public int drv; // CP/M drive vector of file
@@ -502,6 +505,7 @@ public class HostFileBdos implements NetworkServer {
 	static final OutputStream[] lsts = new OutputStream[16];
 	static final int[] lstCid = new int[16];
 	static String dir = null;
+	static String[] dirs = new String[16];
 	static {
 		Arrays.fill(lsts, null);
 		Arrays.fill(lstCid, 0xff);
@@ -538,6 +542,29 @@ public class HostFileBdos implements NetworkServer {
 		curDpb.cks = 0; // perhaps should be non-zero, as
 				// files can change without notice.
 				// But clients shouldn't be handling that.
+		String s = null;
+		// See if individual drive paths are specified...
+		for (int x = 0; x < 16; ++x) {
+			String p = String.format("%s_drive_%c", prefix, (char)('a' + x));
+			s = props.getProperty(p);
+			if (s == null || s.length() == 0) {
+				continue;
+			}
+//System.err.format("%c: = %s\n", (char)('A' + x), s);
+			File f = new File(s);
+			if (!f.exists()) {
+				try {
+					f.mkdirs();
+				} catch (Exception ee) {}
+			}
+			if (!f.exists() || !f.isDirectory()) {
+				System.err.format("HostFileBdos invalid path in %s: %s\n",
+						p, s);
+				continue;
+			}
+			// dirs[x] is never not null unless the dir exists.
+			dirs[x] = s;
+		}
 		// login this client - unless we wait for LOGIN message with PASSWORD...
 		if (!addClient(clientId)) {
 			// TODO: need to return error and disable this instance...
@@ -545,7 +572,6 @@ public class HostFileBdos implements NetworkServer {
 		}
 
 		// args[0] is our class name, like argv[0] in main().
-		String s = null;
 
 		// In multi-client environment, temp drive is set only by server init.
 		if (HostFileBdos.cfgTab.max == 1) {
@@ -614,23 +640,22 @@ ee.printStackTrace();
 		}
 	}
 
-	private void makeError(byte[] buf) {
-		ServerDispatch.putCode(buf,
-			ServerDispatch.getCode(buf) & 0xfe);
+	private void makeError(byte[] buf, int cd) {
+		ServerDispatch.putCode(buf, cd);
 		ServerDispatch.putBC(buf, 0);
 		ServerDispatch.putDE(buf, 1); // error ?
 	}
 
 	private byte[] doMagNet(byte[] msgbuf, int length) {
 		int code = ServerDispatch.getCode(msgbuf);
-		if (code == 0xd0) { // Token - status
+		if (code == 0x30) { // Token - status
 			// TODO: merge our own copy...
 			int ix = NetworkServer.mpayload + 1 +
 				HostFileBdos.cfgTab.id;
 			msgbuf[ix] = (byte)NetworkServer.tfileserver;
 			ServerDispatch.putBC(msgbuf, 0x1000 | HostFileBdos.cfgTab.id);
 			return msgbuf;
-		} else if (code == 0xb1) { // Boot
+		} else if (code == 0x20) { // Boot
 			// this gets tricky, we don't have room in msgbuf.
 			String file = String.format("%s/boot%02x.img", dir, clientId);
 			try {
@@ -640,18 +665,18 @@ ee.printStackTrace();
 				// Or... does file contain entire message header?
 				byte[] img = new byte[NetworkServer.mpayload + len];
 				boot.read(img, NetworkServer.mpayload, len);
-				ServerDispatch.putCode(img, 0xb0);
+				ServerDispatch.putCode(img, 0x10);
 				ServerDispatch.putBC(img, len);
 				ServerDispatch.putDE(img, 0);
 				ServerDispatch.putHL(img, adr);
 				return img;
 			} catch (Exception ee) {
-				makeError(msgbuf);
+				makeError(msgbuf, 0x28);
 				return msgbuf;
 			}
 		} else {
 			// TODO: this may not be correct...
-			makeError(msgbuf);
+			makeError(msgbuf, 0x38);
 			return msgbuf;
 		}
 	}
@@ -669,7 +694,7 @@ ee.printStackTrace();
 	}
 
 	public byte[] sendMsg(byte[] msgbuf, int len) {
-		if (ServerDispatch.getCode(msgbuf) != 0xc1) {
+		if (ServerDispatch.getCode(msgbuf) != 0x00) {
 			// MAGNet messages
 			return doMagNet(msgbuf, len);
 		}
@@ -699,7 +724,7 @@ ee.printStackTrace();
 		msgbuf[NetworkServer.mdid] = src;
 		msgbuf[NetworkServer.mcode] |= 1;
 		// fix-up MAGNet header for reply...
-		ServerDispatch.putCode(msgbuf, 0xc0);
+		ServerDispatch.putCode(msgbuf, 0x01);
 		ServerDispatch.putBC(msgbuf, lr + NetworkServer.mhdrlen);
 		ServerDispatch.putDE(msgbuf, 0);
 		ServerDispatch.putHL(msgbuf, 0);
@@ -958,7 +983,23 @@ ee.printStackTrace();
 
 	String cpmDrive(int drive) {
 		drive &= 0x0f;
-		return String.format("%s/%c", dir, (char)(drive + 'a'));
+		if (dirs[drive] != null) { // must also exist...
+			return dirs[drive];
+		}
+		File p = new File(String.format("%s/%c", dir, (char)(drive + 'a')));
+		if (!p.exists()) {
+			try {
+				p.mkdirs();
+			} catch (Exception ee) {} 
+		}
+		if (!p.exists() || !p.isDirectory()) {
+			// Let them try in vain...
+			// and leave dirs[x] 'null' and keep trying...???
+			return p.getAbsolutePath();
+		} else {
+			dirs[drive] = p.getAbsolutePath();
+			return dirs[drive];
+		}
 	}
 
 	String cpmFilename(int user, String file) {
@@ -1018,7 +1059,9 @@ ee.printStackTrace();
 			}
 			//System.err.format("looking at %s... %s\n", de.d_name, find.pat);
 			// need to prevent "*.*" at user 0 from matching all users!
-			if (usr == 0 && (de.charAt(1) == ':' || de.charAt(2) == ':')) {
+			if (usr == 0 &&
+				(de.length() > 1 && de.charAt(1) == ':' ||
+				de.length() > 2 && de.charAt(2) == ':')) {
 				continue;
 			}
 			if (de.matches(find.pat)) {
@@ -1330,11 +1373,14 @@ ee.printStackTrace();
 			}
 		}
 		long r = fcb.rr;
+		// TODO: update fcb.ext
 		r *= 128;
 		try {
 			of.fd.seek(r);
 		} catch (Exception ee) {}
 		fcb.s1 = fcb.cr;
+		of.ext = fcb.ext;
+		of.cr = fcb.cr;
 	}
 
 	int newFileFcb() {
@@ -1510,7 +1556,7 @@ ee.printStackTrace();
 		if (!fi.canWrite()) {
 			fcb.SET_RO();
 		}
-		fcb.ext = 0;
+		//fcb.ext = 0; // must honor open extent
 		long len = fi.length();
 		len = (len + 127) / 128;	// num records
 		fcb.rc = (byte)(len > 127 ? 128 : (len & 0x7f));
@@ -1651,14 +1697,8 @@ ee.printStackTrace();
 			return 1;
 		}
 		curDsk = d;
-		fileName = cpmDrive(d);
+		fileName = cpmDrive(d); // must exist, if possible, now
 		File fi = new File(fileName);
-		if (!fi.exists()) {
-			//System.err.format("Mkdir %s\n", fileName);
-			try {
-				fi.mkdirs();
-			} catch (Exception ee) {}
-		}
 		if (!fi.exists()) {
 			//System.err.format("Seldisk error (%d) %s\n", errno, fileName);
 			curLogVec &= ~(1 << d);
@@ -1702,8 +1742,10 @@ ee.printStackTrace();
 		}
 		msgbuf[start] = (byte)0;
 		if (fcb.s2 == 0) {
-			// special truncate for SUBMIT (CCP)
-			long ln = fcb.rc;
+			// special truncate for SUBMIT (CCP).
+			// But some others end up here, so must beware.
+			long ln = fcb.cr & 0xff;
+			ln += fcb.ext * 128;
 			ln *= 128;
 			try {
 				of.fd.setLength(ln);
@@ -1880,6 +1922,15 @@ ee.printStackTrace();
 		return 1;
 	}
 
+	private void traceFcb(String op, cpmFcb fcb, OpenFile of) {
+		long p = -1;
+		try {
+			p = of.fd.getFilePointer();
+		} catch (Exception ee) {}
+		System.err.format("%s \"%s\" %02x %02x : %02x %02x %d\n",
+			op, fcb.name, fcb.ext, fcb.cr, of.ext, of.cr, p);
+	}
+
 	private int readSeq(byte[] msgbuf, int start, int len) {
 		//byte u = msgbuf[start] & 0x1f;
 		cpmFcb fcb = new cpmFcb(msgbuf, fcbadr);
@@ -1892,8 +1943,9 @@ ee.printStackTrace();
 		int rc = 0;
 		try {
 			if ((fcb.ext == 0 && fcb.cr == 0) ||
-					fcb.cr != fcb.s1) {
-				long ln = fcb.cr;
+					fcb.ext != of.ext ||
+					fcb.cr != of.cr) {
+				long ln = fcb.cr & 0xff;
 				ln += fcb.ext * 128;
 				ln *= 128;
 				of.fd.seek(ln);
@@ -1920,6 +1972,9 @@ ee.printStackTrace();
 		}
 		++fcb.cr;
 		fcb.s1 = fcb.cr;
+		of.ext = fcb.ext;
+		of.cr = fcb.cr;
+		//traceFcb("rd", fcb, of);
 		fcb.putIO(msgbuf, fcbadr, false);
 		// fill any partial "sector" with Ctrl-Z, in case it's text.
 		Arrays.fill(msgbuf, dmaadr + rc, dmaadr + 128, (byte)0x1a);
@@ -1946,8 +2001,9 @@ ee.printStackTrace();
 		int rc = 0;
 		try {
 			if ((fcb.ext == 0 && fcb.cr == 0) ||
-					fcb.cr != fcb.s1) {
-				long ln = fcb.cr;
+					fcb.ext != of.ext ||
+					fcb.cr != of.cr) {
+				long ln = fcb.cr & 0xff;
 				ln += fcb.ext * 128;
 				ln *= 128;
 				of.fd.seek(ln);
@@ -1965,6 +2021,9 @@ ee.printStackTrace();
 		}
 		++fcb.cr;
 		fcb.s1 = fcb.cr;
+		of.ext = fcb.ext;
+		of.cr = fcb.cr;
+		//traceFcb("wr", fcb, of);
 		if ((fcb.rc & 0xff) < (fcb.cr & 0xff)) {
 			fcb.rc = fcb.cr;
 		}
@@ -2040,25 +2099,27 @@ ee.printStackTrace();
 			return 1;
 		}
 		seekFile(fcb, of);
-		int rc = 0;
-		try {
-			rc = of.fd.read(msgbuf, dmaadr, 128);
-			if (rc < 0) {
-				rc = 0;
+		if (dmaadr >= 0) {
+			int rc = 0;
+			try {
+				rc = of.fd.read(msgbuf, dmaadr, 128);
+				if (rc < 0) {
+					rc = 0;
+				}
+			} catch (Exception ee) {
+				rc = -1;
 			}
-		} catch (Exception ee) {
-			rc = -1;
+			seekFile(fcb, of);
+			if (rc < 0) {
+				msgbuf[start] = (byte)255;
+				return 1;
+			}
+			if (rc == 0) {
+				msgbuf[start] = (byte)1;
+				return 1;
+			}
+			Arrays.fill(msgbuf, dmaadr + rc, dmaadr + 128, (byte)0x1a);
 		}
-		seekFile(fcb, of);
-		if (rc < 0) {
-			msgbuf[start] = (byte)255;
-			return 1;
-		}
-		if (rc == 0) {
-			msgbuf[start] = (byte)1;
-			return 1;
-		}
-		Arrays.fill(msgbuf, dmaadr + rc, dmaadr + 128, (byte)0x1a);
 		// detect media change?
 		fcb.putIO(msgbuf, fcbadr, true);
 		return 37 + 128;

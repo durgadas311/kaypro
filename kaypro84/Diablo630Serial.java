@@ -14,6 +14,12 @@ public class Diablo630Serial extends InputStream implements Runnable {
 	public Diablo630Serial(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
 		file = "out.ps";
+		for (String arg : argv) {
+			if (arg.startsWith("file=")) {
+				file = arg.substring(5);
+				break;
+			}
+		}
 		// Defaulting to 10 cpi, 6 lpi...
 		front_end = new Diablo630(props, argv, this);
 		Thread t = new Thread(this);

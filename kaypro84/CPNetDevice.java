@@ -86,7 +86,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	public CPNetDevice(Properties props, LEDHandler lh, Interruptor intr) {
 		super();
 		int cid = 0xfe;		// OK default if we have no network connections
-		int port = 0x38;
+		int port = 0x18;
 		String s;
 		int no = 0;
 
@@ -255,7 +255,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 
 				if (bufIx >= ndosLen) {
 					msgLen = ndosLen + (buffer[NetworkServer.msize] & 0xff) + 1;
-					putCode(buffer, 0xc1);
+					putCode(buffer, 0x00);
 					putBC(buffer, msgLen - mmsLen);
 					buffer[NetworkServer.mDE] = (byte)clientId;
 					buffer[NetworkServer.mDEh] =
