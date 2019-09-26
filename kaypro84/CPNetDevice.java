@@ -86,7 +86,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	public CPNetDevice(Properties props, LEDHandler lh, Interruptor intr) {
 		super();
 		int cid = 0xfe;		// OK default if we have no network connections
-		int port = 0x18;
+		int port = 0x28;
 		String s;
 		int no = 0;
 
