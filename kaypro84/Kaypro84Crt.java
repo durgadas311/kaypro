@@ -253,6 +253,13 @@ public class Kaypro84Crt extends KayproCrt
 			} else {
 			}
 			status |= sts_Update;
+			int adr = (regs[18] << 8) | regs[19];
+			if (adr > 0x7ff) {
+				--adr;
+				data = ram[adr & 0x7ff] >> 8;
+			} else {
+				data = ram[adr] & 0x00ff;
+			}
 		}
 	}
 
