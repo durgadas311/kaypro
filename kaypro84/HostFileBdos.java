@@ -438,6 +438,7 @@ public class HostFileBdos implements NetworkServer {
 	private cpmSfcb sFcb;
 	private cpmDpb curDpb;
 	private cpmSearch curSearch;
+	private boolean nosys;
 	private int curDsk;
 	private int curUsr;
 	private int curLogVec;
@@ -543,6 +544,8 @@ public class HostFileBdos implements NetworkServer {
 				// files can change without notice.
 				// But clients shouldn't be handling that.
 		String s = null;
+		s = props.getProperty(prefix + "_nosys");
+		nosys = (s != null);
 		// See if individual drive paths are specified...
 		for (int x = 0; x < 16; ++x) {
 			String p = String.format("%s_drive_%c", prefix, (char)('a' + x));
@@ -1280,7 +1283,7 @@ ee.printStackTrace();
 		}
 		search.bc = (byte)(fi.length() & 0x7f);
 		search.rw = fi.canWrite();
-		search.ex = fi.canExecute();
+		search.ex = (!nosys && fi.canExecute());
 		if (search.full && search.cpm3) {
 			// SFCB timestamps are only used if the
 			// matching FCB is for extent 0. However,
@@ -1509,7 +1512,7 @@ ee.printStackTrace();
 			flags = "r";
 			pathName = cpmPath(d, 0, fileName);
 			fi = new File(pathName);
-			if (!fi.canExecute()) { // no "SYS" attribute
+			if (!nosys && !fi.canExecute()) { // no "SYS" attribute
 				return -1;
 			}
 		}
@@ -1550,7 +1553,7 @@ ee.printStackTrace();
 		if (usr0) {
 			fcb.SET_USR0();
 		}
-		if (fi.canExecute()) {
+		if (!nosys && fi.canExecute()) {
 			fcb.SET_SYS();
 		}
 		if (!fi.canWrite()) {
@@ -2259,9 +2262,9 @@ ee.printStackTrace();
 			}
 		}
 		boolean err = false;
-		boolean sys = fi.canExecute();
+		boolean sys = (!nosys && fi.canExecute());
 		boolean nsys = fcb.ATTR_SYS();
-		if (nsys != sys) {
+		if (nsys != sys && !nosys) {
 			if (!fi.setExecutable(nsys)) {
 				err = true;
 			}
