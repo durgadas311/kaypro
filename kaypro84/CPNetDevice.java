@@ -17,8 +17,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	static final int sts_Error = 0x08;
 
 	// includes MAGNet header...
-	static final int ndosLen = NetworkServer.mstart;
-	static final int mmsLen = NetworkServer.mpayload;
+	static final int ndosLen = NetworkServer.DAT;
 
 	private int clientId;
 	private String dir;
@@ -86,7 +85,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 	public CPNetDevice(Properties props, LEDHandler lh, Interruptor intr) {
 		super();
 		int cid = 0xfe;		// OK default if we have no network connections
-		int port = 0x28;
+		int port = 0x38;	// default port outside Kaypro I/O devs
 		String s;
 		int no = 0;
 
@@ -124,7 +123,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 
 		base = port;
 		clientId = cid;
-		bufIx = mmsLen;
+		bufIx = 0;
 		msgLen = 0;
 		respLen = 0;
 		initDev = false;
@@ -141,7 +140,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 
 	public void reset() {
 		initDev = false;
-		bufIx = mmsLen;
+		bufIx = 0;
 		msgLen = 0;
 		respLen = 0;
 	}
@@ -200,7 +199,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 			}
 			// This includes any failures or errors, must be returned as CP/Net errors.
 			int len = getBC(respBuf);
-			respLen = len + mmsLen;
+			respLen = len;
 			val |= sts_DataReady;
 			return val;
 		}
@@ -218,12 +217,12 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 					// Response finished
 					respBuf = null; // in case allocated
 					respLen = 0;
-					bufIx = mmsLen;
+					bufIx = 0;
 				}
 			} else {
 				// error condition: reading bytes that don't exist.
 				respLen = -1;
-				bufIx = mmsLen;
+				bufIx = 0;
 			}
 			return val;
 		}
@@ -238,7 +237,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 		if (off == statusPortOffset) {
 			// reset / resync. other functions needed?
 			initDev = true;	// send clientId on next input data port.
-			bufIx = mmsLen;
+			bufIx = 0;
 			msgLen = 0;
 			respLen = 0;
 			return;
@@ -254,13 +253,7 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 				buffer[bufIx++] = (byte)val;
 
 				if (bufIx >= ndosLen) {
-					msgLen = ndosLen + (buffer[NetworkServer.msize] & 0xff) + 1;
-					putCode(buffer, 0x00);
-					putBC(buffer, msgLen - mmsLen);
-					buffer[NetworkServer.mDE] = (byte)clientId;
-					buffer[NetworkServer.mDEh] =
-						buffer[NetworkServer.mdid];
-					putHL(buffer, 0);
+					msgLen = ndosLen + (buffer[NetworkServer.SIZ] & 0xff) + 1;
 					// Header received, ready for message
 				}
 				return;
@@ -269,18 +262,21 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 				buffer[bufIx++] = (byte)val;
 				if (bufIx >= msgLen) {
 					// we have something to do...
+//System.err.format("%02x %02x %02x %02x %02x : %02x %02x\n",
+//			buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
+//			buffer[3] & 0xff, buffer[4] & 0xff,
+//			buffer[5] & 0xff, buffer[6] & 0xff);
 					startSend();
 					respBuf = sendMsg(buffer, msgLen);
 					// 'null' indicates async, not error...
 					// sendMsg must have prepared error packet.
-					bufIx = mmsLen;
+					bufIx = 0;
 					msgLen = 0;
 					if (respBuf == null) {
 						// indicates async message sent - wait for recv later.
 						return;
 					}
-					int len = getBC(respBuf);
-					respLen = len + mmsLen;
+					respLen = ndosLen + (respBuf[NetworkServer.SIZ] & 0xff) + 1;
 					// have response...
 				}
 				// don't do anything, just wait for receiver to execute command?
@@ -306,9 +302,9 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 		str += String.format("%02x %04x %04x %04x\n",
 			getCode(buffer), getBC(buffer), getDE(buffer), getHL(buffer));
 		str += String.format("%02x %02x %02x %02x %02x : %02x %02x\n",
-			buffer[mmsLen + 0] & 0xff, buffer[mmsLen + 1] & 0xff, buffer[mmsLen + 2] & 0xff,
-			buffer[mmsLen + 3] & 0xff, buffer[mmsLen + 4] & 0xff,
-			buffer[mmsLen + 5] & 0xff, buffer[mmsLen + 6] & 0xff);
+			buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
+			buffer[3] & 0xff, buffer[4] & 0xff,
+			buffer[5] & 0xff, buffer[6] & 0xff);
 		return str;
 	}
 }

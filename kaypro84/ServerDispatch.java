@@ -127,6 +127,13 @@ public class ServerDispatch {
 		buf[NetworkServer.mHLh] = (byte)(hl >> 8);
 	}
 
+	protected void shutdown() {
+		for (NetworkServer nws : servers.values()) {
+			nws.shutdown();
+		}
+		servers.clear();
+	}
+
 	protected byte[] checkRecvMsg(byte clientId) {
 		byte[] msg = null;
 		for (NetworkServer nws : servers.values()) {
@@ -142,19 +149,15 @@ public class ServerDispatch {
 		return msg;
 	}
 
-	// All messages passed here must have BC set to length and D set to dest.
 	protected byte[] sendMsg(byte[] msgbuf, int len) {
 		// *might* re-use msgbuf for response...
-		int did = msgbuf[NetworkServer.mDEh] & 0xff;
-		// TODO: override 'len' with getBC()?
+		int did = msgbuf[NetworkServer.DID] & 0xff;
+		// TODO: override 'len'?
 		NetworkServer nws = servers.get(did);
 
 		if (nws == null) {
 			System.err.format("Attempted send to null server %02x\n", did);
-			putCode(msgbuf, 0x38);
-			putBC(msgbuf, 0);
-			putDE(msgbuf, 1);
-			return msgbuf;
+			return null;
 		}
 		//System.err.format("Message: %02x %02x %02x %02x %02x %02x %02x : %02x\n",
 		//	msgbuf[0], msgbuf[1], msgbuf[2], msgbuf[3],
