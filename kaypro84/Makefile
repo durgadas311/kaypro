@@ -2,6 +2,8 @@ CLASS_PATH = .:z80cpu/z80core.jar:diablo630/Diablo630Embedded.jar
 
 JAVAS = $(wildcard *.java)
 CLASSES = $(subst .java,.class,$(JAVAS))
+DEST = durgadas.com:/http/durgadas.com/sims/kaypro
+SEBHC = durgadas.com:/http/durgadas.com/sebhc/kaypro
 
 all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 
@@ -46,15 +48,15 @@ src:
 		kaypro84/docs/*
 
 www: __FRC__
-	rsync -Wuv ../kicad/*.pdf durgadas.com:/http/durgadas.com/sims/kaypro
-	rsync -Wuv www/*.* durgadas.com:/http/durgadas.com/sims/kaypro
-	rsync -rWuv www/downloads/. durgadas.com:/http/durgadas.com/sebhc/kaypro/.
+	rsync -Wuv ../kicad/*.pdf $(DEST)
+	rsync -Wuv www/*.* $(DEST)
+	rsync -rWuv www/downloads/. $(SEBHC)/.
 
 ship:
 	rsync -Wuv LICENSE *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
-		durgadas.com:/http/durgadas.com/sebhc/kaypro
+		$(SEBHC)
 	rsync -rWuv --exclude='.[a-z]*' \
-		../disks/. durgadas.com:/http/durgadas.com/sebhc/kaypro/disks/.
-	rsync -rWuv ../configs/. durgadas.com:/http/durgadas.com/sebhc/kaypro/configs/.
+		../disks/. $(SEBHC)/disks/.
+	rsync -rWuv ../configs/. $(SEBHC)/configs/.
 
 __FRC__:
