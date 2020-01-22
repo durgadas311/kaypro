@@ -394,16 +394,18 @@ public class Z80SIO implements IODevice, InterruptController {
 				return;
 			}
 			rr[2] = wr[2];
-			if ((wr[1] & 0x02) == 0) { // not status-affects-vector
+			if ((wr[1] & 0x04) == 0) { // not status-affects-vector
 				return;
 			}
 			rr[2] &= 0b11110001;
 			int mod = chA.getIntr();
 			if (mod < 0) {
-				mod = getIntr() + 0b00001000;
-			}
-			if (mod < 0) {
-				mod = 0b00000110;
+				mod = getIntr();
+				if (mod < 0) {
+					mod = 0b00000110;
+				}
+			} else {
+				mod |= 0b00001000;
 			}
 			rr[2] |= (byte)mod;
 		}
