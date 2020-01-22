@@ -358,14 +358,17 @@ public class Kaypro84Crt extends KayproCrt
 		value &= 0xff;
 		int adr = (regs[18] << 8) | regs[19];
 		if (adr > 0x7ff) {
-			--adr;
-			updateAttr(adr, value << 8);
+			updateAttr(adr - 1, value << 8);
 		} else {
 			int val = ram[adr & 0x7ff];
 			int nval = (val & 0xff00) | value;
 			updateChar(adr, nval);
 		}
 		// TODO: is there a way to aggregate on char/attr pair?
+		// TODO: auto-incr? some code expects this...
+		++adr;
+		regs[18] = (adr >> 8) & msks[18];
+		regs[19] = adr & msks[19];
 		repaint();
 	}
 
