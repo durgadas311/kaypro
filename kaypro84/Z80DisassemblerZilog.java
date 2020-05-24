@@ -4,25 +4,48 @@
 
 public class Z80DisassemblerZilog implements Z80Disassembler {
 	Memory mem;
+	boolean rom;
+	int bnk;
+	int lastLen;
 
 	public Z80DisassemblerZilog(Memory mem) {
 		this.mem = mem;
 	}
 
 	private int read8(int adr) {
-		return mem.read(adr & 0xffff);
+		++lastLen;
+		if (bnk < 0) {
+			return mem.read(adr & 0xffff);
+		} else {
+			return mem.read(rom, bnk, adr & 0xffff);
+		}
 	}
 
 	private int read16(int adr) {
+		int w;
 		// little endian...
-		int w = mem.read(adr & 0xffff);
-		++adr;
-		w |= (mem.read(adr & 0xffff) << 8);
+		if (bnk < 0) {
+			w = mem.read(adr & 0xffff);
+			++adr;
+			w |= (mem.read(adr & 0xffff) << 8);
+		} else {
+			w = mem.read(rom, bnk, adr & 0xffff);
+			++adr;
+			w |= (mem.read(rom, bnk, adr & 0xffff) << 8);
+		}
+		lastLen += 2;
 		return w;
 	}
 
 	private int relAdr(int adr) {
-		byte d = (byte)mem.read(adr++ & 0xffff);
+		byte d;
+		if (bnk < 0) {
+			d = (byte)mem.read(adr & 0xffff);
+		} else {
+			d = (byte)mem.read(rom, bnk, adr & 0xffff);
+		}
+		++adr;
+		++lastLen;
 		return adr + d;
 	}
 
@@ -32,8 +55,17 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 	private static final String[] ops = new String[] {
 		"add", "adc", "sub", "sbc", "and", "xor", "or", "cp" };
 
+	public int instrLen() { return lastLen; }
+
 	public String disas(int pc) {
+		return disas(false, -1, pc);
+	}
+
+	public String disas(boolean rom, int bnk, int pc) {
 		String instr = "";
+		lastLen = 0;
+		this.rom = rom;
+		this.bnk = bnk;
 		int opCode = read8(pc++);
 		if ((opCode & 0xc0) == 0x40) {
 			if (opCode == 0x76) {
@@ -464,6 +496,7 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 				break;
 			case 0xEA:       /* JP PE,nn */
 				instr = String.format("jp pe,%04x", read16(pc));
+				break;
 			case 0xEB: {     /* EX DE,HL */
 				instr = "ex de,hl";
 				break;
@@ -562,30 +595,37 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 		switch (opCode) {
 			case 0x09: {     /* ADD IX,BC */
 				instr = String.format("add i%c,bc", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x19: {     /* ADD IX,DE */
 				instr = String.format("add i%c,de", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x21: {     /* LD IX,nn */
 				instr = String.format("ld i%c,%04x", regIXY, read16(--pc));
+				--lastLen;
 				break;
 			}
 			case 0x22: {     /* LD (nn),IX */
 				instr = String.format("ld (%04x),i%c", read16(--pc), regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x23: {     /* INC IX */
 				instr = String.format("inc i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x24: {     /* INC IXh */
 				instr = String.format("inc i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x25: {     /* DEC IXh */
 				instr = String.format("dec i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x26: {     /* LD IXh,n */
@@ -594,22 +634,27 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x29: {     /* ADD IX,IX */
 				instr = String.format("add i%c,i%c", regIXY, regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x2A: {     /* LD IX,(nn) */
 				instr = String.format("ld i%c,(%04x)", regIXY, read16(--pc));
+				--lastLen;
 				break;
 			}
 			case 0x2B: {     /* DEC IX */
 				instr = String.format("dec i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x2C: {     /* INC IXl */
 				instr = String.format("inc i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x2D: {     /* DEC IXl */
 				instr = String.format("dec i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x2E: {     /* LD IXl,n */
@@ -630,14 +675,17 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x39: {     /* ADD IX,SP */
 				instr = String.format("add i%c,sp", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x44: {     /* LD B,IXh */
 				instr = String.format("ld b,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x45: {     /* LD B,IXl */
 				instr = String.format("ld b,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x46: {     /* LD B,(IX+d) */
@@ -646,10 +694,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x4C: {     /* LD C,IXh */
 				instr = String.format("ld c,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x4D: {     /* LD C,IXl */
 				instr = String.format("ld c,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x4E: {     /* LD C,(IX+d) */
@@ -658,10 +708,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x54: {     /* LD D,IXh */
 				instr = String.format("ld d,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x55: {     /* LD D,IXl */
 				instr = String.format("ld d,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x56: {     /* LD D,(IX+d) */
@@ -670,10 +722,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x5C: {     /* LD E,IXh */
 				instr = String.format("ld e,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x5D: {     /* LD E,IXl */
 				instr = String.format("ld e,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x5E: {     /* LD E,(IX+d) */
@@ -682,26 +736,32 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x60: {     /* LD IXh,B */
 				instr = String.format("ld i%ch,b", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x61: {     /* LD IXh,C */
 				instr = String.format("ld i%ch,c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x62: {     /* LD IXh,D */
 				instr = String.format("ld i%ch,d", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x63: {     /* LD IXh,E */
 				instr = String.format("ld i%ch,e", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x64: {     /* LD IXh,IXh */
 				instr = String.format("ld i%ch,i%ch", regIXY, regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x65: {     /* LD IXh,IXl */
 				instr = String.format("ld i%ch,i%cl", regIXY, regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x66: {     /* LD H,(IX+d) */
@@ -710,30 +770,37 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x67: {     /* LD IXh,A */
 				instr = String.format("ld i%ch,a", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x68: {     /* LD IXl,B */
 				instr = String.format("ld i%cl,b", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x69: {     /* LD IXl,C */
 				instr = String.format("ld i%cl,c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x6A: {     /* LD IXl,D */
 				instr = String.format("ld i%cl,d", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x6B: {     /* LD IXl,E */
 				instr = String.format("ld i%cl,e", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x6C: {     /* LD IXl,IXh */
 				instr = String.format("ld i%cl,i%ch", regIXY, regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x6D: {     /* LD IXl,IXl */
 				instr = String.format("ld i%cl,i%cl", regIXY, regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x6E: {     /* LD L,(IX+d) */
@@ -742,6 +809,7 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x6F: {     /* LD IXl,A */
 				instr = String.format("ld i%cl,a", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x70: {     /* LD (IX+d),B */
@@ -774,10 +842,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x7C: {     /* LD A,IXh */
 				instr = String.format("ld a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x7D: {     /* LD A,IXl */
 				instr = String.format("ld a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x7E: {     /* LD A,(IX+d) */
@@ -786,10 +856,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x84: {     /* ADD A,IXh */
 				instr = String.format("add a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x85: {     /* ADD A,IXl */
 				instr = String.format("add a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x86: {     /* ADD A,(IX+d) */
@@ -798,10 +870,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x8C: {     /* ADC A,IXh */
 				instr = String.format("adc a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x8D: {     /* ADC A,IXl */
 				instr = String.format("adc a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x8E: {     /* ADC A,(IX+d) */
@@ -810,10 +884,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x94: {     /* SUB IXh */
 				instr = String.format("sub a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x95: {     /* SUB IXl */
 				instr = String.format("sub a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x96: {     /* SUB (IX+d) */
@@ -822,10 +898,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0x9C: {     /* SBC A,IXh */
 				instr = String.format("sbc a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x9D: {     /* SBC A,IXl */
 				instr = String.format("sbc a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0x9E: {     /* SBC A,(IX+d) */
@@ -834,10 +912,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0xA4: {     /* AND IXh */
 				instr = String.format("and a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xA5: {     /* AND IXl */
 				instr = String.format("and a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xA6: {     /* AND (IX+d) */
@@ -846,10 +926,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0xAC: {     /* XOR IXh */
 				instr = String.format("xor a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xAD: {     /* XOR IXl */
 				instr = String.format("xor a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xAE: {     /* XOR (IX+d) */
@@ -858,10 +940,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0xB4: {     /* OR IXh */
 				instr = String.format("or a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xB5: {     /* OR IXl */
 				instr = String.format("or a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xB6: {     /* OR (IX+d) */
@@ -870,10 +954,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0xBC: {     /* CP IXh */
 				instr = String.format("cp a,i%ch", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xBD: {     /* CP IXl */
 				instr = String.format("cp a,i%cl", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xBE: {     /* CP (IX+d) */
@@ -887,22 +973,27 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 			case 0xE1: {     /* POP IX */
 				instr = String.format("pop i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xE3: {     /* EX (SP),IX */
 				instr = String.format("ex (sp),i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xE5: {     /* PUSH IX */
 				instr = String.format("push i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xE9: {     /* JP (IX) */
 				instr = String.format("jp (i%c)", regIXY);
+				--lastLen;
 				break;
 			}
 			case 0xF9: {     /* LD SP,IX */
 				instr = String.format("ld sp,i%c", regIXY);
+				--lastLen;
 				break;
 			}
 			default: {
@@ -927,7 +1018,7 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 			}
 		} else if (opCode < 0x80) {
 			instr = String.format("bit %d,(i%c+%d)",
-					cbops[(opCode >> 3) & 7], regIXY, address);
+					(opCode >> 3) & 7, regIXY, address);
 		} else if (opCode < 0xc0) {
 			if ((opCode & 7) == 6) {
 				instr = String.format("res %d,(i%c+%d)",
@@ -1116,12 +1207,12 @@ public class Z80DisassemblerZilog implements Z80Disassembler {
 				instr = "rld";
 				break;
 			}
-			case 0x70: {     /* IN (C) */
-				instr = "in (c)";
+			case 0x70: {     /* IN F,(C) */
+				instr = "in f,(c)";
 				break;
 			}
-			case 0x71: {     /* OUT (C),0 */
-				instr = "out (c),0";
+			case 0x71: {     /* OUT (C),F */
+				instr = "out (c),f";
 				break;
 			}
 			case 0x72: {     /* SBC HL,SP */

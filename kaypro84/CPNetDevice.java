@@ -262,10 +262,6 @@ public class CPNetDevice extends ServerDispatch implements IODevice, ActionListe
 				buffer[bufIx++] = (byte)val;
 				if (bufIx >= msgLen) {
 					// we have something to do...
-//System.err.format("%02x %02x %02x %02x %02x : %02x %02x\n",
-//			buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
-//			buffer[3] & 0xff, buffer[4] & 0xff,
-//			buffer[5] & 0xff, buffer[6] & 0xff);
 					startSend();
 					respBuf = sendMsg(buffer, msgLen);
 					// 'null' indicates async, not error...

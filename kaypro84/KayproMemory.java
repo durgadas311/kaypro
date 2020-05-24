@@ -44,4 +44,7 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 	public void gppNewValue(int gpio) {
 		rom = ((gpio & 0x80) != 0);
 	}
+
+	public void dumpCore(String file) {
+	}
 }

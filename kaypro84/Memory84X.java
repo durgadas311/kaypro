@@ -79,6 +79,9 @@ public class Memory84X extends KayproRoms implements Memory, GppListener, IODevi
 		return "Memory84X";
 	}
 
+	public void dumpCore(String file) {
+	}
+
 	public String dumpDebug() {
 		String str = String.format("rom=%s comm=%04x rd=%d wr=%d\n",
 			rom, commPage, rdBank, wrBank);

@@ -49,8 +49,7 @@ public class CpnetSocketClient implements NetworkServer, Runnable {
 			System.err.format("No valid host/port\n");
 			return;
 		}
-		Thread t = new Thread(this);
-		t.start();
+		// Do not start thread until we connect socket...
 	}
 
 	private void setInetAddr(String h) {
@@ -88,15 +87,13 @@ public class CpnetSocketClient implements NetworkServer, Runnable {
 	private byte[] makeError(byte[] msgbuf, int len) {
 		if (isCpnet(msgbuf)) {
 			len = 2;
-			ServerDispatch.putCode(msgbuf, 0x01);
-			ServerDispatch.putBC(msgbuf, len + NetworkServer.mhdrlen);
-			msgbuf[NetworkServer.mstart] = (byte)0xff;
-			msgbuf[NetworkServer.mstart + 1] = (byte)0x0c;
-			msgbuf[NetworkServer.msize] = (byte)(len - 1);
-			msgbuf[NetworkServer.mcode] |= 1;
-			byte src = msgbuf[NetworkServer.msid];
-			msgbuf[NetworkServer.msid] = msgbuf[NetworkServer.mdid];
-			msgbuf[NetworkServer.mdid] = src;
+			msgbuf[NetworkServer.DAT] = (byte)0xff;
+			msgbuf[NetworkServer.DAT + 1] = (byte)0x0c;
+			msgbuf[NetworkServer.SIZ] = (byte)(len - 1);
+			msgbuf[NetworkServer.FMT] |= 1;
+			byte src = msgbuf[NetworkServer.SID];
+			msgbuf[NetworkServer.SID] = msgbuf[NetworkServer.DID];
+			msgbuf[NetworkServer.DID] = src;
 		} else {
 			ServerDispatch.putCode(msgbuf, 0x38);
 			ServerDispatch.putBC(msgbuf, 0);
@@ -131,42 +128,58 @@ public class CpnetSocketClient implements NetworkServer, Runnable {
 
 	public byte[] sendMsg(byte[] msgbuf, int len) {
 		if (server == null) {
-			// TODO: try again right now?
-			return makeError(msgbuf, len);
+			tryServer();
+			if (server == null) {
+				return makeError(msgbuf, len);
+			}
 		}
 		try {
-			int cd = ServerDispatch.getCode(msgbuf);
-			// Mark message as "MAGnet format"
-			ServerDispatch.putCode(msgbuf, cd | 0x80);
+			// may include MagNET flag in code
 			out.write(msgbuf, 0, len);
 			out.flush();
-			ServerDispatch.putCode(msgbuf, cd);
 		} catch (Exception ee) {
 			// socket is dead? start connection over?
 			// The thread should always notice this before we can,
 			// so let the thread be exclusive owner of disposal.
 			return makeError(msgbuf, len);
 		}
-		// message was sent, tell caller to wait for response
-		return null;
+// Can't do this, big pain...
+//		// message was sent, tell caller to wait for response
+//		return null;
+// but really shouldn't be spinning/sleeping here...
+		byte[] resp = checkRecvMsg((byte)0);
+		while (resp == null) {
+			resp = checkRecvMsg((byte)0);
+			try {
+				Thread.sleep(1);
+			} catch (Exception ee) {}
+		}
+		return resp;
 	}
 
 	private synchronized void handlePacket(byte[] rbuf, int n) {
 		// TODO: memory ordering concerns?
 		System.arraycopy(rbuf, 0, respBuf, bufoff, n);
-		boolean payload = bufoff < NetworkServer.mpayload;
+		boolean magnet = ((ServerDispatch.getCode(respBuf) & 0x80) != 0);
+		int pl = (magnet ? NetworkServer.mpayload : NetworkServer.mhdrlen);
+		boolean payload = bufoff < pl;
 		bufoff += n;
-		payload = payload && (bufoff >= NetworkServer.mpayload);
+		payload = payload && (bufoff >= pl);
 		if (payload) {
-			int cd = ServerDispatch.getCode(respBuf);
-			buflen = NetworkServer.mpayload +
-				ServerDispatch.getBC(respBuf);
-			if (cd == 0x10) { // the only problem case
-				byte[] nb = new byte[buflen];
-				System.arraycopy(respBuf, 0, nb, 0, bufoff);
-				respBuf = nb;
-			} else if (cd == 0x30) { // the only exception
-				buflen = NetworkServer.mpayload + 65;
+			if (magnet) {
+				int cd = ServerDispatch.getCode(respBuf) & 0x7f;
+				buflen = NetworkServer.mpayload +
+					ServerDispatch.getBC(respBuf);
+				if (cd == 0x10) { // the only problem case
+					byte[] nb = new byte[buflen];
+					System.arraycopy(respBuf, 0, nb, 0, bufoff);
+					respBuf = nb;
+				} else if (cd == 0x30) { // the only exception
+					buflen = NetworkServer.mpayload + 65;
+				}
+			} else {
+				buflen = NetworkServer.mhdrlen + 1 +
+					(respBuf[NetworkServer.SIZ] & 0xff);
 			}
 		}
 	}
@@ -176,54 +189,55 @@ public class CpnetSocketClient implements NetworkServer, Runnable {
 		dispose(); // TODO: is this the right action?
 	}
 
+	private void tryServer() {
+		if (server != null) {
+			return;
+		}
+		bufoff = 0;
+		buflen = 0;
+		respBuf = buf;
+		try {
+			server = new Socket(ia, pt);
+			in = server.getInputStream();
+			out = server.getOutputStream();
+			quit = false;
+			Thread t = new Thread(this);
+			t.start();
+			System.err.format("Restored connection to server %02x\n", serverId);
+			if (lstn != null) {
+				// Could assume it's a server, but...
+				// unless we actually communicate here
+				// we don't know (yet). Could perform a
+				// "D0" token exchange and find out...
+				// NetworkListener could do that, but
+				// not from this context...
+				lstn.addNode(serverId, NetworkServer.tunknown);
+			}
+		} catch (Exception ee) {
+			dispose();
+		}
+	}
+
 	public void run() {
 		boolean initial = true;
 		byte[] rbuf = new byte[NetworkServer.mstart + 256];
-		while (!quit) {
-			if (server == null) {
-				bufoff = 0;
-				buflen = 0;
-				respBuf = buf;
-				try {
-					if (!initial) {
-						Thread.sleep(10000); // TODO: how much to sleep
-					}
-					initial = false;
-					server = new Socket(ia, pt);
-					in = server.getInputStream();
-					out = server.getOutputStream();
-					System.err.format("Restored connection to server %02x\n", serverId);
-					if (lstn != null) {
-						// Could assume it's a server, but...
-						// unless we actually communicate here
-						// we don't know (yet). Could perform a
-						// "D0" token exchange and find out...
-						// NetworkListener could do that, but
-						// not from this context...
-						lstn.addNode(serverId, NetworkServer.tunknown);
-					}
-				} catch (Exception ee) {
-					dispose();
-				}
-			}
-			if (server != null) {
-				int n = 0;
-				try {
-					// This could be the start of a
-					// VERY LONG boot response... need to
-					// manage buffer...
-					n = in.read(rbuf);
-					// should never be EOF...
-					if (n < 0) {
-						dispose();
-						continue;
-					}
-					handlePacket(rbuf, n);
-				} catch (Exception ee) {
-					// socket is dead? start connection over?
+		while (!quit && server != null) {
+			int n = 0;
+			try {
+				// This could be the start of a
+				// VERY LONG boot response... need to
+				// manage buffer...
+				n = in.read(rbuf);
+				// should never be EOF...
+				if (n < 0) {
 					dispose();
 					continue;
 				}
+				handlePacket(rbuf, n);
+			} catch (Exception ee) {
+				// socket is dead? start connection over?
+				dispose();
+				continue;
 			}
 		}
 	}

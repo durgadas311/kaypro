@@ -65,9 +65,10 @@ public class ServerDispatch {
 					// In this environment, only one client is allowed.
 					// TODO: make temp drive configurable...
 					String pfx = String.format("hostfilebdos%02x", sid);
-					HostFileBdos.initCfg('P', (byte)sid, 1, null);
-					HostFileBdos.initLsts(props, pfx);
-					NetworkServer nws = new HostFileBdos(props, pfx, args, cid);
+					CpnetServer srv = new CpnetServer(props, pfx,
+								'P', (byte)sid, 1, null);
+					NetworkServer nws = new HostFileBdos(props, pfx,
+								args, cid, srv);
 					addServer(sid, nws);
 					if (lstn != null) {
 						lstn.addNode(sid, NetworkServer.tfileserver);
