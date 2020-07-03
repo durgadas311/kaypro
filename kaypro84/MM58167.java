@@ -9,12 +9,13 @@ import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.text.ParsePosition;
 
-public class MM58167 implements IODevice, ActionListener {
+public class MM58167 implements IODevice, PPortDevice, ActionListener {
 	private int baseAdr;
 	private VirtualPPort pio = null;
 	private int[] regs;
 	private long off = 0;	// in milliseconds.
 	private long last = 0;
+	private int adr;	// comes from Z80-PIO
 	private int intr;
 	private boolean dirty;
 	private int lastWR;
@@ -140,22 +141,20 @@ public class MM58167 implements IODevice, ActionListener {
 		}
 	}
 
-	private int getAddr(int port) {
-		int adr = 0;
-		if (pio != null) {
-			adr = pio.take(false); // must not sleep
-		} else {
-			adr = port - baseAdr;	// TODO: extract some other address?
-		}
-		return adr & 0x1f;
+	// PPortDevice interface - Z80-PIO does/needs something
+	public void refresh() {}	// poke any passive inputs
+	public boolean ready() { return true; }
+	public void outputs(int val) {	// active outputs have changed
+		adr = val & 0x1f;
 	}
 
+	// IODevice interface - CPU does I/O instruction/cycle
 	public void reset() {
 		Arrays.fill(regs, 0);
 		intr = 0x80;
 		if (pio != null) {
 			// TODO: make bits configurable?
-			pio.put(intr, false);
+			pio.poke(intr, 0xc0);
 		}
 		off = 0;
 		dirty = false;
@@ -166,7 +165,6 @@ public class MM58167 implements IODevice, ActionListener {
 	public int getNumPorts() { return 4; }
 	public int in(int port) {
 		int val = 0;
-		int adr = getAddr(port);
 		if (adr < 0x08) {
 			long t0 = System.nanoTime();
 			if (lastWR != adr && (dirty || t0 - last >= 1000000)) {
@@ -188,12 +186,11 @@ public class MM58167 implements IODevice, ActionListener {
 		if (adr == 0x10) {
 			regs[adr] = 0;
 			intr &= ~0x40;
-			pio.put(intr, false);
+			pio.poke(intr, 0xc0);
 		}
 		return val;
 	}
 	public void out(int port, int value) {
-		int adr = getAddr(port);
 		lastWR = adr;
 		regs[adr] = value;
 		if (adr < 0x08) {
@@ -239,7 +236,7 @@ public class MM58167 implements IODevice, ActionListener {
 			}
 			regs[0x10] |= (1 << x);
 			intr |= 0x40;
-			pio.put(intr, false);
+			pio.poke(intr, 0xc0);
 			break;
 		}
 	}

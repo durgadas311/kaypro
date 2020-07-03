@@ -15,9 +15,20 @@ public class Z80PIO implements IODevice, InterruptController {
 	private Z80PIOPort[] ports = new Z80PIOPort[2];
 	private int intrs = 0;
 
+	private int abMask = 1;
+	private int abShr = 0;
+	private int cdMask = 2;
+	private int cdShr = 1;
+
 	public Z80PIO(Properties props, String pfxA, String pfxB, int base,
-			Interruptor intr) {
-		name = "Z80PIO";
+			Interruptor intr, boolean swap) {
+		name = String.format("Z80PIO-%02x", base);
+		if (swap) {
+			abMask = 2;
+			abShr = 1;
+			cdMask = 1;
+			cdShr = 0;
+		}
 		this.intr = intr;
 		src = intr.registerINT(0);
 		intr.addIntrController(this);
@@ -30,13 +41,13 @@ public class Z80PIO implements IODevice, InterruptController {
 	///////////////////////////////
 	/// Interfaces for IODevice ///
 	public int in(int port) {
-		int x = port & 1;
-		return ports[x].in(port >> 1);
+		int x = (port & abMask) >> abShr;
+		return ports[x].in(port >> cdShr);
 	}
 
 	public void out(int port, int val) {
-		int x = port & 1;
-		ports[x].out(port >> 1, val);
+		int x = (port & abMask) >> abShr;
+		ports[x].out(port >> cdShr, val);
 	}
 
 	public void reset() {
@@ -103,7 +114,7 @@ public class Z80PIO implements IODevice, InterruptController {
 	}
 
 	class Z80PIOPort implements VirtualPPort {
-		private Object attObj;
+		private PPortDevice attObj;
 		private OutputStream attFile;
 		private boolean excl = true;
 		private int index;
@@ -113,6 +124,7 @@ public class Z80PIO implements IODevice, InterruptController {
 		private boolean ready;
 		private boolean avail;
 		private int data;
+		private int datai;
 		private int inputs;	// I/O Mask (1 = Input)
 		private int disables;	// INT disable mask (1 = disable)
 		private boolean and;	// All must be active for INT
@@ -195,7 +207,7 @@ public class Z80PIO implements IODevice, InterruptController {
 						props,
 						argv,
 						(VirtualPPort)this);
-				attach(obj);
+				attach((PPortDevice)obj);
 			} catch (Exception ee) {
 				System.err.format("Invalid class in attachment: %s\n", s);
 				return;
@@ -221,6 +233,7 @@ public class Z80PIO implements IODevice, InterruptController {
 				}
 				break;
 			case 3:
+				int val = (data & ~inputs) | (datai & inputs);
 				// RTC example:
 				// EI, OR (!and), HI (high)
 				// disables = 10111111b
@@ -228,9 +241,9 @@ public class Z80PIO implements IODevice, InterruptController {
 				// data=01000000b => (10111111b != 0xff: intr on)
 				if (high) {
 					// convert to active-low
-					bits = ~data;
+					bits = ~val;
 				} else {
-					bits = data;
+					bits = val;
 				}
 				bits |= disables;
 				bits &= 0xff;
@@ -248,10 +261,19 @@ public class Z80PIO implements IODevice, InterruptController {
 			}
 		}
 
+		// Outputting data must be preserved over mode change.
+		// SYSPORT initializes data while port is INPUT(1),
+		// then changes to BIT CONTROL mode (3) and must be
+		// able to read data that was previously written.
+		// We fudge this in poke(), where mode 1 or 2 bypass
+		// the 'datai' variable.
 		public int in(int port) {
 			int x = port & 1;
 			int val = 0;
 			if (x == 0) {	// data
+				if (mode != 0 && attObj != null) {
+					attObj.refresh();
+				}
 				switch (mode) {
 				case 0:
 					break;
@@ -262,7 +284,7 @@ public class Z80PIO implements IODevice, InterruptController {
 					chkIntr();
 					break;
 				case 3:
-					val = (data & inputs);
+					val = (data & ~inputs) | (datai & inputs);
 					break;
 				}
 			} else {	// control
@@ -278,16 +300,21 @@ public class Z80PIO implements IODevice, InterruptController {
 				switch (mode) {
 				case 0:
 				case 2:
-					data = val;
+					data = (val & 0xff);
 					avail = true;
 					chkIntr();
 					break;
 				case 1:
+					data = (val & 0xff);
 					break;
 				case 3:
-					data = (data & inputs) | (val & ~inputs);
+					data = (val & 0xff);
 					chkIntr();	// ??
 					break;
+				}
+				if (attObj != null && mode != 1) {
+					// this doubles as STB
+					attObj.outputs(data | inputs);
 				}
 			} else {	// control
 				if (ctl) {
@@ -302,15 +329,23 @@ public class Z80PIO implements IODevice, InterruptController {
 					return;
 				}
 				if ((val & 1) == 0) {
+					// xxxxxxx0 = interrupt vector
 					vec = val;
 					return;
 				}
 				switch (val & 0x0f) {
-				case 0x0f:
+				case 0x0f:	// set mode
+					// xxxx1111 = set mode
 					mode = (val >> 6);
 					ctl = (mode == 3);
+					if (mode == 0) {
+						inputs = 0;
+					} else {
+						inputs = 0xff;
+					}
 					return;
-				case 0x07:
+				case 0x07:	// interrupt control
+					// xxxx0111 = interrupt control
 					intrEnable = ((val & 0x80) != 0);
 					and = ((val & 0x40) != 0);
 					high = ((val & 0x20) != 0);
@@ -320,6 +355,11 @@ public class Z80PIO implements IODevice, InterruptController {
 					} else {
 						chkIntr();
 					}
+					return;
+				case 0x03:	// interrupt enable/disable
+					// xxxx0011 = interrupt enable set
+					intrEnable = ((val & 0x80) != 0);
+					return;
 				}
 			}
 		}
@@ -344,6 +384,7 @@ public class Z80PIO implements IODevice, InterruptController {
 
 		////////////////////////////////////////////////////
 		/// Interfaces for the virtual peripheral device ///
+		/// DEPRECATED
 		public int available() {
 			return avail ? 1 : 0;
 		}
@@ -397,12 +438,27 @@ public class Z80PIO implements IODevice, InterruptController {
 				break;
 			}
 		}
+		////// END DEPRECATED //////////////////////////////
 
-		public boolean attach(Object periph) {
+		// New interface
+		public void poke(int val, int msk) {
+			if (mode == 3) {
+				datai = (datai & ~msk) | (val & msk);
+			} else {
+				// 'msk' should be FF...
+				data = (data & ~msk) | (val & msk);
+			}
+			chkIntr();
+		}
+
+		public boolean attach(PPortDevice periph) {
 			if (attObj != null) {
 				return false;
 			}
 			attObj = periph;
+			if (attObj != null) {
+				attObj.outputs(data | inputs);
+			}
 			return true;
 		}
 		public void detach() {

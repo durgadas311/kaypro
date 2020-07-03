@@ -2,6 +2,8 @@
 
 public interface Interruptor {
 	enum Model { UNKNOWN,
+			K2,	// aka 2/83 or II
+			K4,	// aka 4/83 or IV
 			K2X,	// aka 2/84
 			K84,	// aka 4/84
 			K4X,

@@ -19,7 +19,7 @@ Kaypro2x,
 <P>A pure-Java implementation using a modified
 Java Z80 simulator from https://github.com/jsanchezv/JSpeccy.git.
 <P>
-My first personal computer was a "Kaypro 2X", although exact model information veries.
+My first personal computer was a "Kaypro 2X", although exact model information varies.
 The case was labeled "Kaypro 2" and the back nameplate had an "X" sticker next to the "2".
 The first mainboard appeared to match what was called "Kaypro 84" in other
 circles, and had the 81-292 ROM and ran CP/M 2.2G.
@@ -31,12 +31,16 @@ having the newer "universal" 81-478 ROM and requring CP/M 2.2u.
 <P>Base hardware is currently 2 Z80-SIOs (serial data, keyboard, serial printer, modem),
 with two WD1943 Baud generators, WD1793 Floppy Disk Controller, System Port,
 Centronics Parallel Printer Port, SY6545-based CRT Controller.
+For the early models (a.k.a. "II" and "IV") the base hardware is
+a single Z80-SIO, two Z80-PIOs, discrete hardware CRT video,
+and WD1793 Floppy Disk Controller.
 Information on original 
 <A HREF="kaypromodels.html">Kaypro models is summarized here</A>.
 
 The model may be suffixed with an "E" (for Enhanced) to add 256K bank-selected
 RAM and the RTC (future: built-in modem). This hardware existed for my 2X
 back in 1986, for running CP/M 3.
+This option is ignored for the early models (II and IV).
 
 <P>Default ROM may be overridden with config property. Here are some examples:
 <P><A HREF="kaypro84x.html">Model 2X upgraded to 4/84 and enhanced for CP/M 3</A>
@@ -48,7 +52,8 @@ See the Model Summary document, above.
 <P>The Virtual Computer model may be selected by adding the model
 designator string on the command line. For more control,
 the virtual computer may be configured using a "properties file", which is plain text.
-The configuration file may specified on the command line in place of the
+The <A HREF="kayproconf.html">configuration file</A>
+may specified on the command line in place of the
 model string. If there are no commandline arguments, then the
 environment variable "KAYPRO_CONFIG" is checked for a config file name,
 and failing that then the current directory is searched for "vkayprorc"

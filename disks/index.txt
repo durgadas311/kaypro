@@ -6,6 +6,12 @@ kaypro-cpm22u.logdisk:
 kaypro-cpm22g.logdisk:
 	Kaypro CP/M 2.2G (for ROM 81-292a)
 
+kpii-149.logdisk:
+	Kaypro II CP/M 2.2 (for ROM 81-149c). Single sided.
+
+kpivdsdd.logdisk:
+	Kaypro IV CP/M 2.2 (for ROM 81-232). Double sided.
+
 drm-cpm310.logdisk:
 	Custom CP/M 3 for modified 84X hardware (ROM 81-292a)
 
@@ -38,6 +44,10 @@ magicwand.logdisk:
 
 kermit.logdisk:
 	Kermit-80 v4.11 for Kaypro. Uses "serial data" port.
+
+blankddss.logdisk:
+	Blank Kaypro DD SS floppy image. May be copied to new
+	image files in lieu of FORMAT.
 
 blankddds.logdisk:
 	Blank Kaypro DD DS floppy image. May be copied to new

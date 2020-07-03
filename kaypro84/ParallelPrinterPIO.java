@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
+// Copyright (c) 2020 Douglas Miller <durgadas311@gmail.com>
 
 import java.util.Arrays;
 import java.util.Vector;
@@ -7,22 +7,20 @@ import java.io.*;
 import java.awt.event.*;
 import javax.swing.*;
 import java.lang.reflect.Constructor;
-import java.util.concurrent.Semaphore;
 
-public class ParallelPrinter
-		implements IODevice, GppListener, GppProvider, VirtualPPort {
-	static final int ctrl_PRSTB_c = 0x08;
-	static final int ctrl_PRBSY_c = 0x40;	// "1" == "Busy"
+public class ParallelPrinterPIO
+		implements GppListener, GppProvider, PPortDevice {
+	static final int ctrl_PRSTB_c = 0x10;	// active "1"
+	static final int ctrl_PRRDY_c = 0x08;	// "0" == "Busy"
 
 	private int data;
 	private boolean strobe;
 	private PPortDevice attObj;
 	private OutputStream attFile;
 	private boolean excl = true;
-	private Semaphore wait;
 
-	public ParallelPrinter(Properties props, GeneralPurposePort gpio) {
-		wait = new Semaphore(0);
+	public ParallelPrinterPIO(Properties props, GeneralPurposePort gpio,
+			VirtualPPort pio) {
 		String s = props.getProperty("pprinter_att");
 		if (s != null && s.length() > 1) {
 			if (s.charAt(0) == '>') { // redirect output to file
@@ -33,9 +31,10 @@ public class ParallelPrinter
 				attachClass(props, s);
 			}
 		}
-		reset();
+		data = 0;
 		gpio.addGppListener(this);
 		gpio.addGppProvider(this);
+		pio.attach(this);
 	}
 
 	private void attachFile(String s) {
@@ -97,29 +96,19 @@ public class ParallelPrinter
 		}
 	}
 
-	public int getBaseAddress() { return 0x18; }
-	public int getNumPorts() { return 4; }
-
-	public void reset() {
-		data = 0;
+	// PPortDevice interface
+	public void refresh() {}		// poke any passive inputs
+	public boolean ready() {	// ready for output?
+		return (attObj == null || attObj.ready());
 	}
-
-	public int in(int addr) {
-		// not possible
-		return 0;
-	}
-
-	public void out(int addr, int val) {
+	public void outputs(int val) {	// outputs have changed
 		// Nothing happens until STROBE...
 		data = val;
 	}
 
-	public String getDeviceName() {
-		return "ParallelPrinter";
-	}
-
 	public int gppInputs() {
-		return (attObj != null && !attObj.ready() ? ctrl_PRBSY_c : 0);
+		// "0" indicates BUSY, so only if we're certain...
+		return (attObj != null && !attObj.ready() ? 0 : ctrl_PRRDY_c);
 	}
 
 	public int interestedBits() {
@@ -127,8 +116,8 @@ public class ParallelPrinter
 	}
 
 	public void gppNewValue(int gpio) {
-		// falling edge of ctrl_PRSTB_c triggers action
-		if ((gpio & ctrl_PRSTB_c) == 0) {
+		// rising (leading) edge of ctrl_PRSTB_c triggers action
+		if ((gpio & ctrl_PRSTB_c) == 1) {
 			// we have a byte to send...
 			if (attFile != null) {
 				try {
@@ -145,7 +134,7 @@ public class ParallelPrinter
 	public int available() { return 0; }
 	public int take(boolean sleep) { return 0; }
 	// No input allowed on this port
-	public boolean ready() { return false; }
+	//public boolean ready() { return false; }
 	public void put(int ch, boolean sleep) { }
 
 	// new VirtualPPort interface
@@ -160,9 +149,8 @@ public class ParallelPrinter
 	public void detach() {
 		// Wake up sleepers, dereference object.
 		// Must null attObj first to prevent looping
-		System.err.format("%s detaching peripheral\n", getDeviceName());
+		System.err.format("%s detaching peripheral\n", "ParallelPrinterPIO");
 		attObj = null;
-		wait.release();
 	}
 
 	public String dumpDebug() {

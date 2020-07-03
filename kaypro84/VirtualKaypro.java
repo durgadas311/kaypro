@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Douglas Miller
+// Copyright (c) 2020 Douglas Miller <durgadas311@gmail.com>
 import java.awt.*;
 import javax.swing.*;
 import java.io.*;
@@ -48,6 +48,10 @@ public class VirtualKaypro {
 		String title = "Virtual Kaypro " + model.name().substring(1) + " Computer";
 
 		KayproCrt crt = null;
+		if (model == Interruptor.Model.K2 ||
+				model == Interruptor.Model.K4) {
+			crt = new Kaypro83Crt(props);
+		}
 		// TODO: configure CRT based on model...
 		// For now, all supported models use compatible CRT.
 		if (crt == null) {

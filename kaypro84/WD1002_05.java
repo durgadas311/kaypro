@@ -154,7 +154,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	// TODO: handle multiple drives
 	// TODO: handle programmable sector size?
 	WD1002_05(Properties props, LEDHandler lh,
-			Interruptor intr, SystemPort gpio) {
+			Interruptor intr, GeneralPurposePort gpio) {
 		this.intr = intr;
 		
 		driveFd = null;

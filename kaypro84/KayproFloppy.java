@@ -24,20 +24,40 @@ public class KayproFloppy extends WD1793
 	static final int ctrl_Motor_c = 0x10;
 	static final int ctrl_SetMFMRecordingN_c = 0x20;
 
+	// Differences for models II and 4/83
+	static final int ctr2_Motor_c = 0x40;
+	static final int ctr2_Side_c = 0x00;	// no side-select...
+
 	private int controlReg_m = 0;
 	private GenericFloppyDrive[] drives_m;
 	private LED[] leds_m;
 	private Interruptor intr;
 	private int numDisks_m = 2;
-	private int interesting = ctrl_DSxN_c | ctrl_Side_c |
-			ctrl_Motor_c | ctrl_SetMFMRecordingN_c;
+	private int interesting;
 	private boolean HDDrives = false;
+	private int xor = 0;
+	private int motorBit = ctrl_Motor_c;
+	private int sselBit = ctrl_Side_c;
 
 	public KayproFloppy(Properties props, LEDHandler lh,
-			Interruptor intr, SystemPort gpio, int numDrives, boolean HD) {
+			Interruptor intr, GeneralPurposePort gpio, int numDrives) {
 		super(BasePort_c + Wd1793_Offset_c, intr);
 		super.setController(this);
 		this.intr = intr;
+		Interruptor.Model mod = intr.getModel();
+		boolean HD = (mod == Interruptor.Model.K12X ||
+				mod == Interruptor.Model.K4X ||
+				mod == Interruptor.Model.KROBIE);
+		if (mod == Interruptor.Model.K2 ||
+				mod == Interruptor.Model.K4) {
+			motorBit = ctr2_Motor_c;
+			if (mod == Interruptor.Model.K2) {
+				sselBit = ctr2_Side_c;
+			}
+			xor = (ctr2_Motor_c | sselBit | ctrl_DSxN_c);
+		}
+		interesting = ctrl_DSxN_c | sselBit |
+			motorBit | ctrl_SetMFMRecordingN_c;
 		// Caller must know if SASI is installed, and set numDrives
 		if (numDrives > 4) {
 			numDrives = 4;
@@ -72,6 +92,8 @@ public class KayproFloppy extends WD1793
 		if (n <= 0) {
 			if (HD) {
 				s = "FDD_5_25_DS_QT";
+			} else if (mod == Interruptor.Model.K2) {
+				s = "FDD_5_25_SS_ST";
 			} else {
 				s = "FDD_5_25_DS_ST";
 			}
@@ -155,8 +177,9 @@ public class KayproFloppy extends WD1793
 			//System.err.format("Drive select %d\n", next);
 		}
 		if (next >= 0 && drives_m[next] != null) {
-			drives_m[next].selectSide((controlReg_m & ctrl_Side_c) == 0 ? 1 : 0);
-			drives_m[next].motor((controlReg_m & ctrl_Motor_c) != 0);
+			drives_m[next].selectSide((sselBit != 0 &&
+				(controlReg_m & sselBit) == 0) ? 1 : 0);
+			drives_m[next].motor((controlReg_m & motorBit) != 0);
 		}
 		
 	}
@@ -291,7 +314,7 @@ public class KayproFloppy extends WD1793
 	public int densityFactor() {
 		int dd = (controlReg_m & ctrl_SetMFMRecordingN_c) == 0 ? 1 : 0;
 		if (HDDrives) {
-			if ((controlReg_m & ctrl_Motor_c) != 0) {
+			if ((controlReg_m & motorBit) != 0) {
 				// high speed... lower density...
 			} else {
 				// low speed... higher density...
@@ -306,6 +329,7 @@ public class KayproFloppy extends WD1793
 	}
 
 	public void gppNewValue(int gpio) {
+		gpio ^= xor;
 		setCtrlReg(gpio);
 	}
 
@@ -318,6 +342,10 @@ public class KayproFloppy extends WD1793
 			trackReg_m, sectorReg_m, dataReg_m,
 			Boolean.toString(drqRaised_m), Boolean.toString(intrqRaised_m),
 			Boolean.toString(headLoaded_m));
+		ret += String.format("SIDE=%d DDEN=%s MOTOR=%s\n",
+			(sselBit != 0 && (controlReg_m & sselBit) == 0) ? 1 : 0,
+			(controlReg_m & ctrl_SetMFMRecordingN_c) == 0,
+			(controlReg_m & motorBit) != 0);
 		return ret;
 	}
 }

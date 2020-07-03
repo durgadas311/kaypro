@@ -1,0 +1,8 @@
+# Kaypro IV a.k.a. 4/83
+kaypro_model = IV
+monitor_rom = 81-232.rom
+
+floppy_drive1 = FDD_5_25_DS_ST A
+floppy_drive2 = FDD_5_25_DS_ST B
+
+#floppy_disk1 = kpivdsdd.logdisk rw

@@ -1,0 +1,8 @@
+# Kaypro II
+kaypro_model = II
+monitor_rom = 81-149c.rom
+
+floppy_drive1 = FDD_5_25_SS_ST A
+floppy_drive2 = FDD_5_25_SS_ST B
+
+#floppy_disk1 = kpii-149.logdisk rw

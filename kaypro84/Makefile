@@ -16,7 +16,7 @@ run:
 VirtualKaypro.jar: all temp
 	echo "Main-Class: VirtualKaypro" >Manifest.txt
 	jar -cmf Manifest.txt VirtualKaypro.jar *.class \
-		*.rom *.ttf *.wav \
+		81-*.rom *.ttf *.wav \
 		-C temp .
 	rm -rf temp
 

@@ -3,14 +3,17 @@
 import java.util.Properties;
 import java.io.*;
 
-public class KayproMemory extends KayproRoms implements Memory, GppListener {
+public class Kaypro2Memory extends KayproRoms implements Memory, GppListener {
 	GeneralPurposePort gpp;
 	// One single bank of 64K, plus ROMs...
 	private byte[] mem;
 	private boolean rom;
+	AuxMemory aux;
 
-	public KayproMemory(Properties props, GeneralPurposePort gpio, String defrom) {
+	public Kaypro2Memory(Properties props, GeneralPurposePort gpio, String defrom,
+			AuxMemory aux) {
 		super(props, defrom);
+		this.aux = aux;
 		gpp = gpio;
 		// rely entirely on notifications for 'rom' value.
 		gpp.addGppListener(this);
@@ -19,9 +22,12 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 
 	public int read(boolean rom, int bank, int address) {
 		address &= 0xffff; // necessary?
-		if (rom && address < 0x8000) {
+		if (rom && address < 0x4000) {
 			if (address <= monMask) {
 				return mon[address] & 0xff;
+			}
+			if (address >= aux.base() && address < aux.end()) {
+				return aux.read(address);
 			}
 			return 0;
 		}
@@ -32,7 +38,11 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 		return read(rom, 0, address);
 	}
 	public void write(int address, int value) {
-		if (rom && address < 0x8000) {
+		if (rom && address < 0x4000) {
+			if (address >= aux.base() && address < aux.end()) {
+				aux.write(address, value);
+				return;
+			}
 			// TODO: what did the Kaypro do in this case?
 			return;
 		}

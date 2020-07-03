@@ -4,14 +4,14 @@ import java.util.Properties;
 import java.io.*;
 
 public class Memory84X extends KayproRoms implements Memory, GppListener, IODevice {
-	SystemPort gpp;
+	GeneralPurposePort gpp;
 	private byte[] mem;
 	private boolean rom;
 	private int commPage;
 	private int wrBank;
 	private int rdBank;
 
-	public Memory84X(Properties props, SystemPort gpio, String defrom) {
+	public Memory84X(Properties props, GeneralPurposePort gpio, String defrom) {
 		super(props, defrom);
 		gpp = gpio;
 		mem = new byte[256*1024];

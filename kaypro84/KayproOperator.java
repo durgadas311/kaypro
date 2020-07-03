@@ -222,8 +222,8 @@ public class KayproOperator
 		Thread th = new Thread(this);
 		th.start();
 
-		String s = props.getProperty("h89_image_sufx");
-		String t = props.getProperty("h89_image_sufd");
+		String s = props.getProperty("kaypro_image_sufx");
+		String t = props.getProperty("kaypro_image_sufd");
 		if (s == null || t == null) {
 			return;
 		}

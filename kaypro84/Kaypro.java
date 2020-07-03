@@ -19,7 +19,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private Vector<DiskController> dsks;
 	private Vector<InterruptController> intrs;
 	private Memory mem = null;
-	private SystemPort gpp;
+	private GeneralPurposePort gpp;
 	private KayproCrt crt;
 	private boolean running;
 	private boolean stopped;
@@ -49,7 +49,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 
 	private static boolean needPio = false; // PIO + RTC (+ MODEM)
 	private static boolean needWin = false;
-	private static boolean needHD = false;
 	private static boolean need256K = false;
 	private static int nFlpy = 2;
 	private static String defRom = "81-478a.rom";	// The "Universal ROM" (CP/M 2.2u)
@@ -108,9 +107,26 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			// TODO: log error?
 		}
 
+		if (model == Interruptor.Model.K2 || model == Interruptor.Model.K4) {
+			configEarlyModel(model, props, lh, crt);
+		} else {
+			configLaterModel(model, props, lh, crt);
+		}
+
+		s = props.getProperty("kaypro_disas");
+		if (s != null && s.equalsIgnoreCase("zilog")) {
+			disas = new Z80DisassemblerZilog(mem);
+		} else {
+			disas = new Z80DisassemblerMAC80(mem);
+		}
+	}
+
+	private void configLaterModel(Interruptor.Model mod,
+			Properties props, LEDHandler lh, KayproCrt crt) {
 		// Order of instantiation is vital, establishes interrupt daisy-chain.
-		gpp = new SystemPort(props, this);
-		addDevice(gpp);
+		SystemPort sp = new SystemPort(props, this);
+		addDevice(sp);
+		gpp = sp;
 		addDevice(crt);
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
 		WD1943 baudB = new WD1943(0x08, 4, "baud-B");
@@ -126,7 +142,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		// Order of instantiation is vital, establishes interrupt daisy-chain.
 		// + ---> PIO ---> SIO1 ---> SIO2 ---> WD1002 ---> CPU
 		if (needPio) {
-			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this);
+			Z80PIO pio1 = new Z80PIO(props, null, null, 0x20, this, false);
 			addDevice(pio1);
 			addDevice(new MM58167(props, 0x24, pio1.portA()));
 			// addDevice(new TMS99531_2(props, 0x24, pio1.portB(), sio2.portB()));
@@ -136,7 +152,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (needWin) {
 			addDiskDevice(new WD1002_05(props, lh, this, gpp));
 		}
-		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy, needHD));
+		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		baudA.addBaudListener(sio1.clockA());
 		sio1.clockB().setBaud(300 * 16);
 		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
@@ -150,13 +166,41 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		if (CPNetDevice.isConfigured(props)) {
 			addDevice(new CPNetDevice(props, lh, this));
 		}
+	}
 
-		s = props.getProperty("kaypro_disas");
-		if (s != null && s.equalsIgnoreCase("zilog")) {
-			disas = new Z80DisassemblerZilog(mem);
-		} else {
-			disas = new Z80DisassemblerMAC80(mem);
+	private void configEarlyModel(Interruptor.Model mod,
+			Properties props, LEDHandler lh, KayproCrt crt) {
+		// 2.5MHz, 400nS per cycle.
+		intervalTicks = 2500;	// 1mS in CPU cycles
+		// TODO: ...
+		// "banked": 0000-07FF = ROM
+		//           3000-3FFF = video RAM
+		// !banked:  0000-FFFF = DRAM
+		if (!(crt instanceof AuxMemory)) {
+			System.err.format("Internal error: crt is not AuxMemory\n");
+			System.exit(1);
 		}
+		// Order of instantiation is vital, establishes interrupt daisy-chain.
+		// + ---> SIO ---> SYSPIO ---> PARPIO ---> CPU
+		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
+		WD1943 baudB = new WD1943(0x0c, 4, "baud-B");
+		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
+		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
+		Z80PIO pio1 = new Z80PIO(props, null, null, 0x1c, this, true);
+		addDevice(pio1);
+		gpp = new SystemPortPIO(props, pio1.portA());
+		// Need 'gpp' before can call this...
+		mem = new Kaypro2Memory(props, gpp, defRom, (AuxMemory)crt);
+		Z80PIO pio2 = new Z80PIO(props, null, null, 0x08, this, true);
+		addDevice(pio2);
+		// attaches self to PIO - should be enough to stay alive?
+		ParallelPrinterPIO xxx = new ParallelPrinterPIO(props, gpp, pio2.portA());
+		addDiskDevice(new KayproFloppy(props, lh, this, gpp, 2));
+		baudA.addBaudListener(sio1.clockA());
+		baudB.addBaudListener(sio1.clockB());
+		addDevice(sio1);
+		addDevice(baudA);
+		addDevice(baudB);
 	}
 
 	public static Interruptor.Model setModel(Properties props) {
@@ -179,6 +223,12 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			model = Interruptor.Model.K10X;
 		} else if (s.equalsIgnoreCase("12X")) {
 			model = Interruptor.Model.K12X;
+		} else if (s.equalsIgnoreCase("2") ||
+				s.equalsIgnoreCase("II") || s.equalsIgnoreCase("2/83")) {
+			model = Interruptor.Model.K2;
+		} else if (s.equalsIgnoreCase("4") ||
+				s.equalsIgnoreCase("IV") || s.equalsIgnoreCase("4/83")) {
+			model = Interruptor.Model.K4;
 		} else if (s.equalsIgnoreCase("2X") ||
 				s.equalsIgnoreCase("2/84")) {
 			model = Interruptor.Model.K2X;
@@ -194,6 +244,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		} else {
 			System.err.format("Unknown model: %s\n", s);
 		}
+		// Early models ignore all this...
 		if (enhanced) {
 			need256K = true;
 			needPio = true; // might already get set
@@ -206,7 +257,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			break;
 
 		case K12X:
-			needHD = true;
 			// FALLTHROUGH
 		case K10X:	// "10 W/MODEM and CLOCK"
 			needWin = true;
@@ -219,13 +269,11 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 
 		case K4X:
 			defRom = "81-326.rom";
-			needHD = true;
 			needPio = true;
 			break;
 
 		case KROBIE:
 			defRom = "81-478a.rom";
-			needHD = true;
 			needPio = true;
 			break;
 
@@ -234,6 +282,12 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			// FALLTHROUGH
 		case K2X:
 			defRom = "81-292a.rom";
+			break;
+		case K2:
+			defRom = "81-149c.rom";
+			break;
+		case K4:
+			defRom = "81-232.rom";
 			break;
 		}
 		return model;

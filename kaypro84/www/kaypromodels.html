@@ -36,6 +36,8 @@ The user must ensure the CP/M version is compatible with ROM.
 
 <P><TABLE BORDER>
 <TR><TH>ROM P/N</TH><TH>ROM Ver</TH><TH>Model(s)</TH><TH>CP/M Version(s)</TH></TR>
+<TR><TD>81-149c</TD><TD>n/a</TD><TD>II</TD><TD>2.2*</TD></TR>
+<TR><TD>81-232</TD><TD>n/a</TD><TD>IV</TD><TD>2.2*</TD></TR>
 <TR><TD>81-188e</TD><TD>1.9</TD><TD>10</TD><TD>2.2H</TD></TR>
 <TR><TD>81-277</TD><TD>1.9E(F)</TD><TD>10</TD><TD>2.2H</TD></TR>
 <TR><TD>81-292a</TD><TD>n/a</TD><TD>2X, 2/84, 4/84</TD><TD>2.2G, 2.2H, 2.20d</TD></TR>
@@ -44,7 +46,8 @@ The user must ensure the CP/M version is compatible with ROM.
 <TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 2/84, 4/84,<BR>
 			4X, 12X, ROBIE</TD><TD>2.2u1</TD></TR>
 </TABLE>
-
+(*) CP/M versions not differentiated, signon strings indicate model supported.
+<P>
 <P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
 were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
 plus the ROMs changed how they interpret the boot loader sector
@@ -65,10 +68,10 @@ The manual, and schematics, also describes these model features:
 
 <P><TABLE BORDER>
 <TR><TH>Model</TH><TH>CRTC</TH><TH>Centr</TH><TH>SIO<BR>Ports</TH><TH>Modem<BR>RTC</TH><TH>Floppy</TH><TH>Winch</TH><TH>CPU</TH><TH>ROM</TH></TR>
-<TR BGCOLOR=lightyellow><TD>2 (II)</TD>
-	<TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD><TD>81-149c</TD></TR>
-<TR BGCOLOR=lightyellow><TD>4</TD>
-	<TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD><TD>81-232a</TD></TR>
+<TR><TD>2 (II)</TD>
+	<TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD(SS)</TD><TD></TD><TD>2.5MHz</TD><TD>81-149c</TD></TR>
+<TR><TD>4 (IV, 4/83)</TD>
+	<TD>logic</TD><TD>Y</TD><TD>2*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>2.5MHz</TD><TD>81-232</TD></TR>
 <TR><TD>2/84, 2X</TD>
 	<TD>6545</TD><TD>Y</TD><TD>4*</TD><TD></TD><TD>2xDD</TD><TD></TD><TD>4MHz</TD><TD>81-292a</TD></TR>
 <TR><TD>4/84 (84)</TD>
@@ -97,7 +100,8 @@ not installed.
 <P CLASS="hi">QD = hi-density 160-track drives, DD = standard 40-track drives.
 <P CLASS="hi">Models 2 and 4 use Z80-PIOs for Centr and system port. Half of each is unused.
 <P CLASS="hi">Models shown with yellow background are not supported by the Virtual Kaypro.
-<P CLASS="hi">The model string used for the VirtualKaypro may have an "E" appended,
+<P CLASS="hi">The model string used for the later models VirtualKaypro
+may have an "E" appended,
 in which case memory will be upgraded to 256K (and RTC added if not already present).
 
 <P>There seemed to be a lot of variation in model designations, and

@@ -3,54 +3,21 @@
 import java.util.Vector;
 import java.util.Properties;
 
-public class SystemPort implements IODevice, GeneralPurposePort {
+public class SystemPortPIO implements GeneralPurposePort, PPortDevice {
 	private int gpo;
-	private Interruptor intr;
 	private Vector<GppListener> notif;
 	private Vector<GppProvider> inps;
-	static final int inputs = 0x40;
+	static final int inputs = 0x08;
 
-	public SystemPort(Properties props, Interruptor intr) {
-		this.intr = intr;
+	public SystemPortPIO(Properties props, VirtualPPort pport) {
 		notif = new Vector<GppListener>();
 		inps = new Vector<GppProvider>();
-		reset();
+		pport.attach(this);
 	}
 
 	// Used by memory controller for bank select
 	public int get() {
 		return gpo;
-	}
-
-	/// IODevice interface ///
-
-	public void reset() {
-		gpo = 0xff;	// special FF effectively resets to 1's
-		notify(0xff); // might contradict device resets?
-	}
-
-	public int getBaseAddress() {
-		return 0x14;
-	}
-	public int getNumPorts() {
-		return 4;
-	}
-	public String getDeviceName() { return null; }
-
-	public int in(int port) {
-		// check port?
-		int val = gpo & ~inputs;
-		for (GppProvider inp : inps) {
-			val |= (inp.gppInputs() & inputs);
-		}
-		return val;
-	}
-	public void out(int port, int value) {
-		// check port?
-		value &= 0xff;
-		int diff = gpo ^ value;
-		gpo = value;
-		notify(diff);
 	}
 
 	private void notify(int diff) {
@@ -61,6 +28,16 @@ public class SystemPort implements IODevice, GeneralPurposePort {
 			if ((diff & lstn.interestedBits()) != 0) {
 				lstn.gppNewValue(gpo);
 			}
+		}
+	}
+
+	public void refresh() {}		// poke any passive inputs
+	public boolean ready() { return true; }	// ready for output?
+	public void outputs(int val) {	// outputs have changed
+		int diff = gpo ^ val;
+		gpo = val;
+		if (diff != 0) {
+			notify(diff);
 		}
 	}
 

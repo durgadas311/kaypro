@@ -1,0 +1,128 @@
+<HTML>
+<HEAD>
+<TITLE>Kaypro Computer Configuration</TITLE>
+</HEAD>
+<BODY>
+<H2>Kaypro Computer Configuration</H2>
+
+<P>Beyond the defaults used when specifying only the model string,
+a configuration file may be created to specify more detail.
+The file is plain-text with "property=value" lines.
+The following properties are recognized:
+
+<P><DL>
+<DT>kaypro_model</DT>
+<DD>The Kaypro model to use.
+Recognized model strings are described in the
+<A HREF="kaypromodels.html">models summary</A>.
+The models are repeated here:
+<TABLE BORDER>
+<TR><TH>Model</TH><TH>Description/mainboard</TH></TR>
+<TR><TD>II<BR>2</TD><TD>Kaypro II<BR>81-110</TD></TR>
+<TR><TD>IV<BR>4<BR>4/83</TD><TD>Kaypro 4<BR>81-240</TD></TR>
+<TR><TD>2X<BR>2/84</TD><TD>Kaypro 2X<BR>81-294</TD></TR>
+<TR><TD>84<BR>4/84</TD><TD>Kaypro 4/84<BR>81-294</TD></TR>
+<TR><TD>4X</TD><TD>Kaypro 4X<BR>81-297</TD></TR>
+<TR><TD>ROBIE</TD><TD>Kaypro ROBIE<BR>81-296</TD></TR>
+<TR><TD>10</TD><TD>Kaypro 10<BR>81-180</TD></TR>
+<TR><TD>10X</TD><TD>Kaypro 10 w/modem+rtc<BR>81-582</TD></TR>
+<TR><TD>2XX</TD><TD>Kaypro 2X w/modem+rtc<BR>81-580</TD></TR>
+<TR><TD>12X</TD><TD>Kaypro 12X<BR>81-582?</TD></TR>
+</TABLE>
+</DD>
+<DT>monitor_rom</DT>
+<DD>Override default monitor ROM image to use.
+Warning, the ROM is usually closely tied to the model.
+It is not the case that any ROM can be used on any model.
+</DD>
+<DT>kaypro_log</DT>
+<DD>Specify the file to send simulator messages to, default is stderr.
+File name/path to desired log file. File will be truncated by default
+each time the simulator starts.
+Add an "a" argument after the file name to cause the file to be appended
+(previous content preserved).
+</DD>
+<DT>kaypro_trace</DT>
+<DD>Special debug property used to setup a trace operation before the
+user can access the menus. For example, to trace the ROM code at "power on".
+Use with caution, may result in a flood of output/log.
+</DD>
+<DT>kaypro_disas</DT>
+<DD>Select the disassembly mnemonic style. Either "MAC80" or "ZILOG",
+default is "MAC80".
+</DD>
+<DT>kaypro_beep</DT>
+<DD>(keyboard) Specify the audio clip to use for the beep.
+</DD>
+<DT>kaypro_beep_volume</DT>
+<DD>(keyboard) Specify the beep volume, in percent.
+Default will be 50%.
+</DD>
+<DT>kaypro_paste_rate</DT>
+<DD>(keyboard) Specify the rate to throttle input when pasting text.
+Value is in Chars/Sec.
+</DD>
+<DT>kaypro_paste_cr_delay</DT>
+<DD>(keyboard) Delay to use after pasting a CR. Value is in milliseconds.
+</DD>
+<DT>kaypro_font</DT>
+<DD>(CRT) Font to use for CRT display. Should normally be left to default,
+based on model, for proper operation. JAR includes TTF fonts derived
+from character generator EPROMs.
+</DD>
+<DT>kaypro_font_size</DT>
+<DD>(CRT) Size to use for CRT font. For default fonts, this must be a
+multiple of 16 to get clean font rendering. Default is 16.
+</DD>
+<DT>kaypro_font_color</DT>
+<DD>(CRT) Color to use for display. Default is green, to match the CRTs normally
+installed in Kaypros. String is a 6-digit hexadecimal value representing
+an RGB value.
+</DD>
+<DT>kaypro_font_color2</DT>
+<DD>(CRT) Color to use for "highlighted" text on the CRT. This is the color
+used for the dim character attribute. Since differences in color intensity
+can be difficult to discern, it may be advantageous to alter the color slightly.
+Default is a slightly darker version of "kaypro_font_color".
+</DD>
+<DT>floppy_drive#</DT>
+<DD>(floppy) Specify details on the type of floppy disk drive installed
+("#" is either "1" or "2"). Strings are typically "FDD_5_25_SS_ST",
+"FDD_5_25_DS_ST", or "FDD_5_25_DS_QT". Note that the drive type
+must match the capabilities of the monitor ROM, as well as the model.
+Default is chosen based on model. Second argument is an optional label
+to use on the front panel.
+</DD>
+<DT>floppy_disk#</DT>
+<DD>(floppy) Specify the initial floppy image file to insert.
+This can be used to avoid the normal power-on sequence of timing-out,
+inserting disk image, and performing a RESET.
+By default, an image file will be mounted read-only, so add a "rw" argument
+to make it read-write.
+</DD>
+<DT>kaypro_image_sufx</DT>
+<DD>(floppy) List of floppy image file "types" (suffixes).
+Default is "logdisk". Multiple suffixes may be specified, but there
+must be corresponding values in "kaypro_image_sufd". This only affects
+the file names, not the actual required image format.
+</DD>
+<DT>kaypro_image_sufd</DT>
+<DD>(floppy) List of suffix descriptions that correspond to "kaypro_image_sufx".
+</DD>
+<DT>wd1002_drive1</DT>
+<DD>(winchester) Specify the HDD details. This should normally be left to
+default, as the Kaypro ROMs did not allow for alternate HDD models.
+</DD>
+<DT>wd1002_disk1</DT>
+<DD>(winchester) Specify the HDD image file to use. Default will be "WD1002-1".
+This file is a sector image followed by a 128-byte "header" that contains
+drive geometry information.
+</DD>
+<DT>pprinter_att</DT>
+<DD>(printer) Configure what is attached to the parallel printer port.
+Typically, this would be set to "Diablo630Parallel".
+</DD>
+</DL>
+
+</BODY>
+</HTML>
