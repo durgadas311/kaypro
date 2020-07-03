@@ -514,6 +514,9 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 				return ret;
 			}
 			if (args[0].equalsIgnoreCase("dump") && args.length > 1) {
+				if (args[1].equalsIgnoreCase("core") && args.length > 2) {
+					mem.dumpCore(args[2]);
+				}
 				if (args[1].equalsIgnoreCase("cpu")) {
 					ret.add(cpu.dumpDebug());
 					ret.add(disas.disas(cpu.getRegPC()) + "\n");

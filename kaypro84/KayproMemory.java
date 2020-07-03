@@ -1,6 +1,7 @@
 // Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
 
 import java.util.Properties;
+import java.io.*;
 
 public class KayproMemory extends KayproRoms implements Memory, GppListener {
 	SystemPort gpp;
@@ -46,5 +47,12 @@ public class KayproMemory extends KayproRoms implements Memory, GppListener {
 	}
 
 	public void dumpCore(String file) {
+		try {
+			OutputStream core = new FileOutputStream(file);
+			core.write(mem);
+			core.close();
+		} catch (Exception ee) {
+			KayproOperator.error(null, "Core Dump", ee.getMessage());
+		}
 	}
 }

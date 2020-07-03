@@ -29,6 +29,8 @@ public class KayproOperator
 	int _traceon_key;
 	int _traceoff_key;
 	int _dump_key;
+	int _core_key;
+	File _last_core;
 	JMenuItem _dump_mi;
 	int _cpu_key;
 	int _mach_key;
@@ -133,6 +135,11 @@ public class KayproOperator
 		_dbg_mu.add(mi);
 		_mach_key = _key++;
 		mi = new JMenuItem("Dump Machine", _mach_key);
+		mi.addActionListener(this);
+		_dbg_mu.add(mi);
+		_last_core = new File(".");
+		_core_key = _key++;
+		mi = new JMenuItem("Dump Core", _core_key);
 		mi.addActionListener(this);
 		_dbg_mu.add(mi);
 		_page_key = _key++;
@@ -386,6 +393,25 @@ public class KayproOperator
 		}
 	}
 
+	private void doDumpCoreDialog() {
+		SuffFileChooser ch = new SuffFileChooser("Core Dump",
+			new String[]{ "vkp" },
+			new String[]{ "VKaypro Core Dump" },
+			null, null, _last_core, true);
+		int rv = ch.showDialog(_main);
+		_main.requestFocus();
+		if (rv != JFileChooser.APPROVE_OPTION) {
+			return;
+		}
+		_last_core = ch.getSelectedFile();
+		String core = _last_core.getAbsolutePath();
+		String cmd = "dump core " + core;
+		Vector<String> resp = _cmdr.sendCommand(cmd);
+		if (!resp.get(0).equals("ok")) {
+			error(_main, cmd, join(resp));
+		}
+	}
+
 	private void doDumpPageDialog() {
 		if (dump_bnk != null) {
 			dump_bnk.setText("");
@@ -525,6 +551,10 @@ public class KayproOperator
 				} else {
 					handleResp("Machine Debug", r);
 				}
+				continue;
+			}
+			if (key == _core_key) {
+				doDumpCoreDialog();
 				continue;
 			}
 			if (key == _page_key) {

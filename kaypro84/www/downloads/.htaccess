@@ -4,6 +4,7 @@ IndexIgnore header.html footer.html
 IndexOrderDefault Descending Date
 AddDescription "Software bundle for virtual Kaypro CP/NET 3" cpnet3kp.tgz
 AddDescription "Software bundle for virtual Kaypro CP/NET 1.2" cpnet12kp.tgz
+AddDescription "Software bundle for Z80-SIO Kaypro CP/NET 1.2" cpnet12.tgz
 AddDescription "Kaypro Schematic by Micro Cornucopia" KayproSchematic.pdf
 AddDescription "Kaypro Theory of Operation by Micro Cornucopia" KayproOperation.pdf
 AddDescription "Kaypro Addendum to User's Guide" KayproAddendum.pdf
