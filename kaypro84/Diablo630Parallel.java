@@ -45,6 +45,11 @@ public class Diablo630Parallel extends InputStream implements PPortDevice, Runna
 		fifo.add(val & 0xff);
 	}
 
+	public String dumpDebug() {
+		String ret = String.format("Diablo630Parallel fifo=%d\n", fifo.size());
+		return ret;
+	}
+
 	public void run() {
 		front_end.runPrinter(file); // this callsback our InputStream
 		System.err.println("Diablo 630 detaching");

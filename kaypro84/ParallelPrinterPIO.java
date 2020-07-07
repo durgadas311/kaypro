@@ -9,7 +9,7 @@ import javax.swing.*;
 import java.lang.reflect.Constructor;
 
 public class ParallelPrinterPIO
-		implements GppListener, GppProvider, PPortDevice {
+		implements GppListener, GppProvider, PPortDevice, VirtualPPort {
 	static final int ctrl_PRSTB_c = 0x10;	// active "1"
 	static final int ctrl_PRRDY_c = 0x08;	// "0" == "Busy"
 
@@ -91,6 +91,7 @@ public class ParallelPrinterPIO
 					(VirtualPPort)this);
 			attach((PPortDevice)obj);
 		} catch (Exception ee) {
+			//ee.printStackTrace();
 			System.err.format("Invalid class in attachment: %s\n", s);
 			return;
 		}
@@ -108,7 +109,7 @@ public class ParallelPrinterPIO
 
 	public int gppInputs() {
 		// "0" indicates BUSY, so only if we're certain...
-		return (attObj != null && !attObj.ready() ? 0 : ctrl_PRRDY_c);
+		return ((attObj != null && !attObj.ready()) ? 0 : ctrl_PRRDY_c);
 	}
 
 	public int interestedBits() {
@@ -117,7 +118,7 @@ public class ParallelPrinterPIO
 
 	public void gppNewValue(int gpio) {
 		// rising (leading) edge of ctrl_PRSTB_c triggers action
-		if ((gpio & ctrl_PRSTB_c) == 1) {
+		if ((gpio & ctrl_PRSTB_c) != 0) {
 			// we have a byte to send...
 			if (attFile != null) {
 				try {
@@ -155,7 +156,10 @@ public class ParallelPrinterPIO
 
 	public String dumpDebug() {
 		String ret = String.format(
-			"DAT=%02x STB=%s\n", data, strobe);
+			"ParallelPrinterPIO DAT=%02x STB=%s\n", data, strobe);
+		if (attObj != null) {
+			ret += attObj.dumpDebug();
+		}
 		return ret;
 	}
 }

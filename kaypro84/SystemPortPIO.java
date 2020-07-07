@@ -8,8 +8,10 @@ public class SystemPortPIO implements GeneralPurposePort, PPortDevice {
 	private Vector<GppListener> notif;
 	private Vector<GppProvider> inps;
 	static final int inputs = 0x08;
+	VirtualPPort pport;
 
 	public SystemPortPIO(Properties props, VirtualPPort pport) {
+		this.pport = pport;
 		notif = new Vector<GppListener>();
 		inps = new Vector<GppProvider>();
 		pport.attach(this);
@@ -31,7 +33,13 @@ public class SystemPortPIO implements GeneralPurposePort, PPortDevice {
 		}
 	}
 
-	public void refresh() {}		// poke any passive inputs
+	public void refresh() {		// poke any passive inputs
+		int val = 0;
+		for (GppProvider inp : inps) {
+			val |= (inp.gppInputs() & inputs);
+		}
+		pport.poke(val, inputs);
+	}
 	public boolean ready() { return true; }	// ready for output?
 	public void outputs(int val) {	// outputs have changed
 		int diff = gpo ^ val;

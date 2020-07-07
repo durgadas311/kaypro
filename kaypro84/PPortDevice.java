@@ -4,4 +4,5 @@ public interface PPortDevice {
 	void refresh();		// poke any passive inputs
 	boolean ready();	// ready for output?
 	void outputs(int val);	// outputs have changed
+	String dumpDebug();
 }

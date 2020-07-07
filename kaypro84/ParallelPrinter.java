@@ -92,6 +92,7 @@ public class ParallelPrinter
 					(VirtualPPort)this);
 			attach((PPortDevice)obj);
 		} catch (Exception ee) {
+			//ee.printStackTrace();
 			System.err.format("Invalid class in attachment: %s\n", s);
 			return;
 		}
@@ -167,7 +168,10 @@ public class ParallelPrinter
 
 	public String dumpDebug() {
 		String ret = String.format(
-			"DAT=%02x STB=%s\n", data, strobe);
+			"ParallelPrinter DAT=%02x STB=%s\n", data, strobe);
+		if (attObj != null) {
+			ret += attObj.dumpDebug();
+		}
 		return ret;
 	}
 }

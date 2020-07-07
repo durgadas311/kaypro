@@ -481,6 +481,9 @@ public class Z80PIO implements IODevice, InterruptController {
 				index + 'A', vec, mode, inputs, data,
 				intrEnable, and, high, disables,
 				avail, ready);
+			if (attObj != null) {
+				ret += attObj.dumpDebug();
+			}
 			return ret;
 		}
 	}
@@ -489,6 +492,7 @@ public class Z80PIO implements IODevice, InterruptController {
 		String ret = new String();
 		ret += String.format("port %02x intrs = %02x\n", basePort, intrs);
 		ret += ports[0].dumpDebug();
+		ret += '\n';
 		ret += ports[1].dumpDebug();
 		return ret;
 	}
