@@ -114,8 +114,6 @@ public class Kaypro83Crt extends KayproCrt
 		_fa = _fm.getAscent();
 		//_fd = _fm.getDescent();
 		_fw = _fm.charWidth('M');
-		// TODO: fix TTF width...
-		_fw = 8;
 		_fh = _fm.getHeight();
 
 		_fh = (int)Math.floor(_fz);
