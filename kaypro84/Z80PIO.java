@@ -382,64 +382,6 @@ public class Z80PIO implements IODevice, InterruptController {
 			chkIntr(); // normally results in lowerINT(index)
 		}
 
-		////////////////////////////////////////////////////
-		/// Interfaces for the virtual peripheral device ///
-		/// DEPRECATED
-		public int available() {
-			return avail ? 1 : 0;
-		}
-
-		// TODO: must sleep?
-		public int take(boolean sleep) {
-			int val = 0;
-			switch (mode) {
-			case 0:
-			case 2:
-//				while (sleep && attObj != null && !avail) {
-//					// TODO: sleep
-//				}
-				val = data;
-				avail = false;
-				// TODO: strobe
-				chkIntr();
-				break;
-			case 1:
-				break;
-			case 3:
-				val = (data & ~inputs);
-				break;
-			}
-			return val;
-		}
-
-		public boolean ready() {
-			return ready;
-		}
-		// Must NOT sleep
-		public synchronized void put(int ch, boolean sleep) {
-			switch (mode) {
-			case 0:
-				break;
-			case 1:
-			case 2:
-				// TODO: wait on !ready if 'sleep'
-//				while (sleep && attObj != null && !ready) {
-//					// TODO: sleep
-//				}
-				data = ch & 0xff;
-				ready = false;
-				// status?
-				chkIntr();
-				break;
-			case 3:
-				// no sleep here
-				data = (data & ~inputs) | (ch & inputs);
-				chkIntr();
-				break;
-			}
-		}
-		////// END DEPRECATED //////////////////////////////
-
 		// New interface
 		public void poke(int val, int msk) {
 			if (mode == 3) {

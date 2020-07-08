@@ -6,12 +6,14 @@ import java.util.Properties;
 import java.io.*;
 import java.awt.Font;
 
-public class ProgramParallel extends InputStream implements Runnable {
+public class ProgramParallel extends InputStream implements PPortDevice, Runnable {
 	VirtualPPort pport;
 	RunProgram prog;
+	java.util.concurrent.LinkedBlockingDeque<Integer> fifo;
 
 	public ProgramParallel(Properties props, Vector<String> argv, VirtualPPort pport) {
 		this.pport = pport;
+		fifo = new java.util.concurrent.LinkedBlockingDeque<Integer>();
 		// WARNING! destructive to caller's 'argv'!
 		argv.removeElementAt(0);
 		prog = new RunProgram(argv, this, true);
@@ -23,15 +25,32 @@ public class ProgramParallel extends InputStream implements Runnable {
 		}
 	}
 
+	// PPortDevice interface
+	public void refresh() {		// poke any passive inputs
+	}
+	public boolean ready() {	// ready for output?
+		// throttle to 1 char?
+		return (fifo.size() == 0);
+	}
+	public void outputs(int val) {	// outputs have changed
+		fifo.add(val);
+	}
+	public String dumpDebug() {
+		// TODO: print command, process and fifo status
+		return "";
+	}
+
+	// InputStream interface
 	public int read() {
-		int c = pport.take(true);
-		if (c < 0) { // EOF
-			pport.detach(); // will close() do this?
+		try {
+			int c = fifo.take();
+			return c;
+		} catch (Exception ee) {
+			return -1;
 		}
-		return c;
 	}
 	public int available() {
-		return pport.available();
+		return fifo.size();
 	}
 	public void close() {
 		pport.detach();
@@ -45,7 +64,7 @@ public class ProgramParallel extends InputStream implements Runnable {
 			try {
 				// This probably needs to be throttled...
 				int c = prog.proc.getInputStream().read();
-				pport.put(c, true);
+				pport.poke(c, 0xff);
 			} catch (Exception ee) {
 				ee.printStackTrace();
 				pport.detach(); // repetative?

@@ -131,13 +131,6 @@ public class ParallelPrinterPIO
 		}
 	}
 
-	// DEPRECATED VirtualPPort interface
-	public int available() { return 0; }
-	public int take(boolean sleep) { return 0; }
-	// No input allowed on this port
-	//public boolean ready() { return false; }
-	public void put(int ch, boolean sleep) { }
-
 	// new VirtualPPort interface
 	public void poke(int val, int msk) {}	// no inputs
 	public boolean attach(PPortDevice periph) {
