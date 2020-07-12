@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Douglas Miller <durgadas311@gmail.com>
+// Copyright (c) 2020 Douglas Miller <durgadas311@gmail.com>
 
 import java.util.Arrays;
 import java.util.Vector;
@@ -6,12 +6,15 @@ import java.util.Properties;
 import java.io.*;
 import java.awt.Font;
 
-public class ProgramModem extends InputStream implements Runnable {
+public class ProgramModem extends InputStream implements SerialDevice, Runnable {
 	VirtualUART uart;
 	RunProgram prog;
+	java.util.concurrent.LinkedBlockingDeque<Integer> fifo;
 
 	public ProgramModem(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
+		fifo = new java.util.concurrent.LinkedBlockingDeque<Integer>();
+		uart.attachDevice(this);
 		// WARNING! destructive to 'argv'!
 		argv.removeElementAt(0);
 		prog = new RunProgram(argv, this);
@@ -29,6 +32,7 @@ public class ProgramModem extends InputStream implements Runnable {
 		} else {
 			prog.excp.printStackTrace();
 			uart.detach(); // repetative?
+			fifo.clear();
 		}
 	}
 
@@ -42,33 +46,41 @@ public class ProgramModem extends InputStream implements Runnable {
 		} else {
 			prog.excp.printStackTrace();
 			uart.detach(); // repetative?
+			fifo.clear();
 		}
 	}
 
-	private void doModem(int mdm) {
+	// SerialDevice interface
+	public void write(int b) {	// CPU is writing the serial data port
+		fifo.add(b);
+	}
+	//int read();		// CPU is reading the serial data port
+	//int available();	// returns number available bytes on Rx (0/1)
+	public void rewind() {}
+	// bits a la VirtualUART get/setModem()
+	public void modemChange(VirtualUART me, int mdm) {
 System.err.format("MODEM LINES %04x\n", mdm);
 		// if ... start();
 		// else stop();
 	}
+	public int dir() { return SerialDevice.DIR_OUT; }
 
+	// InputStream interface
 	public int read() {
-		while (true) {
-			int c = uart.take();
-			if (c < 0) { // EOF
-				uart.detach(); // repetative?
-				return c;
-			}
-			if ((c & VirtualUART.GET_CHR) == 0) {
-				return c;
-			}
-			doModem(c);
+		try {
+			int c = fifo.take();
+			return c;
+		} catch (Exception ee) {
+			// ee.printStackTrace();
+			return -1;
 		}
 	}
 	public int available() {
-		return uart.available();
+		return fifo.size();
 	}
 	public void close() {
 		uart.detach();
+		fifo.clear();
 	}
 
 	// This thread reads program stdout and sends to UART

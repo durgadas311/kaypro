@@ -8,7 +8,7 @@ import java.util.Properties;
 import javax.sound.sampled.*;
 
 public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
-	VirtualUART _port;
+	VirtualUART _uart;
 	java.util.concurrent.LinkedBlockingDeque<String> fifo;
 	int paste_delay = 0;	// mS, 1000/cps
 	int cr_delay = 0;	// mS
@@ -33,13 +33,12 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		altKeys.put((int)'.', 0xb2);
 	}
 
-	class KeyboardBeep implements Runnable {
+	class KeyboardBeep implements SerialDevice {
 		Clip beep;
 
-		public KeyboardBeep(Properties props) {
+		public KeyboardBeep(Properties props, VirtualUART uart) {
 			setupBeep(props);
-			Thread t = new Thread(this);
-			t.start();
+			uart.attachDevice(this);
 		}
 
 		private void setupBeep(Properties props) {
@@ -94,28 +93,23 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 			}
 		}
 
-		public void run() {
-			while (true) {
-				int k = -1;
-				try {
-					k = _port.take();
-				} catch (Exception ee) {
-					k = -1;
-				}
-				if (k < 0) {
-					break;
-				}
-				if (k == 0x04) {
-					beep();
-				}
+		// SerialDevice interface
+		public void write(int b) {	// CPU is writing the serial data port
+			if (b == 0x04) {
+				beep();
 			}
 		}
+		public int read() { return 0; }
+		public int available() { return 0; }
+		public void rewind() {}
+		public void modemChange(VirtualUART me, int mdm) {}
+		public int dir() { return SerialDevice.DIR_OUT; }
 	}
 
 	public KayproKeyboard(Properties props, Vector<String> argv,
-			VirtualUART port) {
-		_port = port;
-		_kbd = new KeyboardBeep(props);
+			VirtualUART uart) {
+		_uart = uart;
+		_kbd = new KeyboardBeep(props, uart);
 		fifo = new java.util.concurrent.LinkedBlockingDeque<String>();
 		String s = props.getProperty("kaypro_paste_rate");
 		int cps = 0;
@@ -145,7 +139,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		setPasteRate(cps, crd);
 		Thread t = new Thread(this);
 		t.start();
-		port.attach(this);
+		uart.attach(this);
 	}
 
 	public void setPasteRate(int cps, int cr) {
@@ -203,7 +197,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		// TODO: do we ever NOT consume event?
 		if (s >= 0) {
 			// We cannot sleep here, so risk overrun...
-			_port.put(s, false);
+			_uart.put(s, false);
 			e.consume();
 		}
         }
@@ -222,7 +216,7 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 				continue;
 			}
 			for (byte b : s.getBytes()) {
-				_port.put(b & 0xff, true);
+				_uart.put(b & 0xff, true);
 				if (paste_delay > 0) try {
 					if (b == '\r') {
 						Thread.sleep(cr_delay);

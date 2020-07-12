@@ -135,6 +135,10 @@ public class Z80SIO implements IODevice, InterruptController {
 		private int modem = -1;
 		private Semaphore wait;
 
+		private SerialDevice io = null;
+		private boolean io_in;
+		private boolean io_out;
+
 		public Z80SIOPort(Properties props, String pfx, int idx, Z80SIOPort alt) {
 			chA = alt;
 			attObj = null;
@@ -284,6 +288,10 @@ public class Z80SIO implements IODevice, InterruptController {
 				if (r != 0) {
 					wr[0] &= ~0x07;
 				}
+				// never used? not working: need io.read() above...
+				if (io_in && r == 0 && io.available() > 0) {
+					val |= rr0_rxr_c;
+				}
 				// TODO: any required updates?
 			}
 			return val;
@@ -298,7 +306,10 @@ public class Z80SIO implements IODevice, InterruptController {
 						attFile.write(val);
 					} catch (Exception ee) {}
 				}
-				if (attFile == null || !excl) {
+				if (io_out) {
+					io.write(val);
+				}
+				if ((attFile == null && !io_out) || !excl) {
 					synchronized (this) {
 						fifo.add(val);
 						if (attObj != null) {
@@ -332,7 +343,6 @@ public class Z80SIO implements IODevice, InterruptController {
 						// TODO: INT on next Rx char
 						break;
 					case 5:
-						updateModemOut();
 						updateIntr(intrs & ~2);
 						break;
 					case 6:
@@ -355,10 +365,9 @@ public class Z80SIO implements IODevice, InterruptController {
 						// TODO: reset Tx Underrun/EOM
 						break;
 					}
+				} else if (r == 5) {
+					updateModemOut();
 				}
-				// TODO: implement notification of modem lines...
-				// attached object needs callback. Perhaps
-				// combine with data stream via OOB values.
 			}
 		}
 
@@ -373,6 +382,7 @@ public class Z80SIO implements IODevice, InterruptController {
 			// We essentially made space in Rx...
 			// wake up sleeper...
 			wait.release();
+			updateModemForce();
 		}
 
 		private int getIntr() {
@@ -501,6 +511,9 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((wr[5] & wr5_rts_c) != 0) {
 				mdm |= VirtualUART.GET_RTS;
 			}
+			if ((wr[5] & wr5_brk_c) != 0) {
+				mdm |= VirtualUART.GET_BREAK;
+			}
 			if ((rr[0] & rr0_cts_c) != 0) {
 				mdm |= VirtualUART.SET_CTS;
 			}
@@ -520,19 +533,35 @@ public class Z80SIO implements IODevice, InterruptController {
 			System.err.format("%s-%c detaching peripheral\n",
 						name, index + 'A');
 			attObj = null;
+			io = null;
+			io_in = false;
+			io_out = false;
 			wait.release();
-			try {
-				fifo.addFirst(-1);
-			} catch (Exception ee) {
-				fifo.add(-1);
-			}
 		}
-		public void attachDevice(SerialDevice io) {}
+		public void attachDevice(SerialDevice io) {
+			this.io = io;
+			if (io == null) {
+				io_in = false;
+				io_out = false;
+				return;
+			}
+			io_in = (io != null && (io.dir() & SerialDevice.DIR_IN) != 0);
+			io_out = (io != null && (io.dir() & SerialDevice.DIR_OUT) != 0);
+			updateModemForce();
+		}
 		public String getPortId() {
 			return String.format("%s%c", name, index + 'A');
 		}
 
+		// Force a changeModem() event.
+		private void updateModemForce() {
+			modem = getModem() ^ VirtualUART.GET_ONLY; // force event?
+			updateModemOut();
+		}
+
 		private void updateModemOut() {
+			// only SerialDevice can handle these events...
+			if (io == null) return;
 			int mdm = modem & ~VirtualUART.GET_ONLY;
 			if ((wr[5] & wr5_dtr_c) != 0) {
 				mdm |= VirtualUART.GET_DTR;
@@ -543,15 +572,10 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((wr[5] & wr5_brk_c) != 0) {
 				mdm |= VirtualUART.GET_BREAK;
 			}
-			int diff = mdm ^ modem;
+			int diff = (mdm ^ modem) & VirtualUART.GET_ONLY;
 			modem = mdm;
-			mdm |= VirtualUART.GET_CHR;
 			if (diff != 0) {
-				try {
-					fifo.addFirst(mdm);
-				} catch (Exception ee) {
-					fifo.add(mdm);
-				}
+				io.modemChange(this, modem);
 			}
 		}
 

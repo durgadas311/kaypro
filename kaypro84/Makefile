@@ -10,6 +10,12 @@ all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 %.class: %.java
 	javac -cp $(CLASS_PATH) $?
 
+TtySerial.class: TtySerial.java jSerialComm-2.6.2.jar
+	javac -cp .:jSerialComm-2.6.2.jar $<
+
+jSerialComm-2.6.2.jar:
+	ln -s ~/Downloads/jSerialComm-2.6.2.jar .
+
 run:
 	java -cp $(CLASS_PATH) VirtualKaypro
 
