@@ -1,0 +1,56 @@
+<HTML>
+<HEAD>
+<TITLE>Kaypro Computer Serial Ports</TITLE>
+</HEAD>
+<BODY>
+<H2>Kaypro Computer Serial Ports</H2>
+
+<P>Serials ports may be configured to attach to an application
+or built-in class. The property has the port mnemonic with "_att"
+appended. The mnemonic "data" is for the "Serial Data I/O" port (later models)
+or the "Serial I/O" port (early models). The mnemonic "aux" is for
+the "Serial Printer" port on later models.
+The following built-in classes may be used:
+
+<P><DL>
+<DT>ProgramSerial</DT>
+<DD>The arguments form a commandline to be executed on the host.
+The input of the command is fed from the serial port output,
+and the output of the command feeds the serial port input.
+</DD>
+<DT>Diablo630Serial</DT>
+<DD>The output of the serial port is sent to the Diablo630 emulation.
+Arguments set the defaults for the emulation, which includes "conf=file"
+where "file" may specify the same config file as used for VirtualKaypro.
+See <A HREF="http://mms89.durgadas.com/mms89diablo.html">Diable630 properties</A>.
+</DD>
+<DT>TelnetSerial</DT>
+<DD>This emulates a serial-to-ethernet module. Arguments specify the
+host and port number on which to listen for connections.
+Optional third argument is the keyword "modem" which directs
+TelnetSerial to use the modem controls to control whether the program
+runs, and indicate if it is running.
+</DD>
+<DT>TtySerial</DT>
+<DD>This connects the simulation serial port to an actual serial port
+(tty) on the host. The arguments are "tty=dev,baud" and "modem".
+The "dev" should be the correct string for the host to resolve to
+a specific serial port.
+"baud" defaults to 9600, but must match the virtual serial
+port setting.
+The optional "modem" flag causes this class to pass along modem control
+changes between the virtual serial port and the real host serial port.
+
+<P>Use of this class requires that the simulation be started with
+jSerial JAR included. This typically requires a command of the form:
+<P><UL>
+java -cp VirtualKaypro.jar:jSerialComm-X.Y.X.jar VirtualKaypro args...
+</UL>
+<P>See <A HREF="https://fazecast.github.io/jSerialComm/">
+https://fazecast.github.io/jSerialComm/</A>.
+
+</DD>
+</DL>
+
+</BODY>
+</HTML>
