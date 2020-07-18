@@ -64,6 +64,9 @@ System.err.format("MODEM LINES %04x\n", mdm);
 		// else stop();
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
+	public String dumpDebug() {
+		return "";	// TODO: debug data
+	}
 
 	// InputStream interface
 	public int read() {

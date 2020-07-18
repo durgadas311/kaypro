@@ -104,6 +104,9 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		public void rewind() {}
 		public void modemChange(VirtualUART me, int mdm) {}
 		public int dir() { return SerialDevice.DIR_OUT; }
+		public String dumpDebug() {
+			return "";
+		}
 	}
 
 	public KayproKeyboard(Properties props, Vector<String> argv,

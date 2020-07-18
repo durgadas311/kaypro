@@ -18,4 +18,5 @@ public interface SerialDevice {
 	// bits a la VirtualUART get/setModem()
 	void modemChange(VirtualUART me, int mdm);
 	int dir();	// DIR_*
+	String dumpDebug();
 }

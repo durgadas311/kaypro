@@ -10,6 +10,9 @@ public class TelnetSerial implements SerialDevice, Runnable {
 	VirtualUART uart;
 	ServerSocket listen;
 	Socket conn;
+	String remote;
+	int remPort;
+	String dbg;
 	InputStream inp;
 	OutputStream out;
 	boolean modem;
@@ -23,6 +26,7 @@ public class TelnetSerial implements SerialDevice, Runnable {
 		modem = (argv.size() > 3 && argv.get(3).equalsIgnoreCase("modem"));
 		String host = argv.get(1);
 		int port = Integer.valueOf(argv.get(2));
+		dbg = String.format("TelnetSerial %s %d\n", host, port);
 		InetAddress ia;
 		try {
 			if (host.length() == 0 || host.equals("localhost")) {
@@ -95,6 +99,18 @@ public class TelnetSerial implements SerialDevice, Runnable {
 		}
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
+
+	public String dumpDebug() {
+		String ret = dbg;
+		if (conn != null) {
+			ret += String.format("Connected: %s %d\n", remote, remPort);
+		} else if (listen != null) {
+			ret += "Listening...\n";
+		} else {
+			ret += "DEAD.\n";
+		}
+		return ret;
+	}
 	/////////////////////////////
 
 	private void discon() {
@@ -121,6 +137,9 @@ public class TelnetSerial implements SerialDevice, Runnable {
 		}
 		conn = nc;
 		try {
+			InetAddress ia = conn.getInetAddress();
+			remote = ia.getCanonicalHostName();
+			remPort = conn.getLocalPort();
 			inp = conn.getInputStream();
 			out = conn.getOutputStream();
 		} catch (Exception ee) {

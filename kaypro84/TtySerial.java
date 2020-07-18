@@ -139,6 +139,17 @@ public class TtySerial implements SerialDevice, Runnable {
 		}
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
+	public String dumpDebug() {
+		String ret = String.format("%s: %3s %3s %3s %3s %3s %3s\n",
+			tty,
+			comm.getCTS() ? "CTS" : "cts",
+			comm.getDSR() ? "DSR" : "dsr",
+			comm.getDCD() ? "DCD" : "dcd",
+			comm.getRI()  ? "RI"  : "ri",
+			comm.getRTS() ? "RTS" : "rts",
+			comm.getDTR() ? "DTR" : "dtr");
+		return ret;
+	}
 	/////////////////////////////
 
 	private void updateModem() {

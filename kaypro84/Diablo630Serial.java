@@ -43,6 +43,9 @@ public class Diablo630Serial extends InputStream implements SerialDevice, Runnab
 		// ignore modem control outputs?
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
+	public String dumpDebug() {
+		return "";	// TODO: add some debug
+	}
 
 	// InputStream interface
 	public int read() {

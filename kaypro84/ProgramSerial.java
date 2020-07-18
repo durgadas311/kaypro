@@ -43,6 +43,9 @@ public class ProgramSerial extends InputStream implements SerialDevice, Runnable
 		// For test purposes:
 		System.err.format("MODEM LINES %04x\n", mdm);
 	}
+	public String dumpDebug() {
+		return "";
+	}
 
 	// InputStream interface
 	public int read() {

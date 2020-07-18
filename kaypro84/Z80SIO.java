@@ -132,6 +132,7 @@ public class Z80SIO implements IODevice, InterruptController {
 		private int index;
 		private Z80SIOPort chA; // null on Ch A
 		private int intrs;
+		private int mdms = 0;	// modem inputs, floating
 		private int modem = -1;
 		private Semaphore wait;
 
@@ -335,6 +336,8 @@ public class Z80SIO implements IODevice, InterruptController {
 					case 2:
 						updateIntr(intrs & ~4);
 						// TODO: clear latched state?
+						rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
+						rr[0] |= (mdms & (rr0_cts_c | rr0_dcd_c));
 						break;
 					case 3:
 						reset(); // right?
@@ -377,6 +380,7 @@ public class Z80SIO implements IODevice, InterruptController {
 			Arrays.fill(wr, (byte)0);
 			Arrays.fill(rr, (byte)0);
 			rr[0] |= rr0_txp_c;
+			rr[0] |= (mdms & (rr0_cts_c | rr0_dcd_c));
 			updateIntr(0);
 			// TODO: chkIntr()? must exclude TxE
 			// We essentially made space in Rx...
@@ -486,7 +490,6 @@ public class Z80SIO implements IODevice, InterruptController {
 		}
 
 		public void setModem(int mdm) {
-			int old = rr[0];
 			int nuw = 0;
 			if ((mdm & VirtualUART.SET_CTS) != 0) {
 				nuw |= rr0_cts_c;
@@ -494,6 +497,8 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((mdm & VirtualUART.SET_DCD) != 0) {
 				nuw |= rr0_dcd_c;
 			}
+			mdms &= ~(rr0_cts_c | rr0_dcd_c);
+			mdms |= nuw;
 			// TODO: these bits latch, must maintain separate static state...
 			rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
 			rr[0] |= nuw;
@@ -591,7 +596,9 @@ public class Z80SIO implements IODevice, InterruptController {
 				wr[0], wr[1], wr[2], wr[3],
 				wr[4], wr[5], wr[6], wr[7],
 				rr[0], rr[1], rr[2], rr[3]);
-			// TODO: dump WR and RR...
+			if (io != null) {
+				ret += io.dumpDebug();
+			}
 			return ret;
 		}
 	}
@@ -600,6 +607,7 @@ public class Z80SIO implements IODevice, InterruptController {
 		String ret = new String();
 		ret += String.format("port %02x\n", basePort);
 		ret += ports[0].dumpDebug();
+		ret += '\n';
 		ret += ports[1].dumpDebug();
 		return ret;
 	}
