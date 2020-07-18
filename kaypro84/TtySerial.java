@@ -63,6 +63,8 @@ public class TtySerial implements SerialDevice, Runnable {
 			uart.setModem(VirtualUART.SET_CTS |
 					VirtualUART.SET_DSR |
 					VirtualUART.SET_DCD);
+		} else {
+			updateModem();
 		}
 		Thread t = new Thread(this);
 		t.start();

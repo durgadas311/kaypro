@@ -1,4 +1,4 @@
-vers equ '1b' ; March 11, 2017  21:34  drm "MBIOS3KP.ASM"
+vers equ '1c' ; July 18, 2020  07:43  drm "MBIOS3KP.ASM"
 ;****************************************************************
 ; Main BIOS module for CP/M 3 (CP/M plus) on the KAYPRO computer*
 ; Copyright (c) 1985 Douglas Miller				*
@@ -346,13 +346,14 @@ nulli:	mvi	a,1ah	;E.O.F. character, also [NZ] to be always ready.
 	ora	a	;sets [NZ] condition.
 null:	ret
 
-cinit:	mvi	b,0	;C=device number (0-11)
+; Calls char module INIT with B=dev num (0-11)
+cinit:	mov	e,c	;C=device number (0-11)
 	bit	3,c	;devices 8-11?
 	rnz		;cannot init those
-	mvi	b,0	;C=device number (0-7)
-	slar	c	;*2 for table index
+	mvi	d,0	;C=device number (0-7)
+	slar	e	;*2 for table index
 	lxi	h,cdtbl
-	dad	b  
+	dad	d  
 	mov	e,m
 	inx	h
 	mov	d,m
