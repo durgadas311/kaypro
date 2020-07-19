@@ -606,6 +606,7 @@ public class Z80SIO implements IODevice, InterruptController {
 				wr[0], wr[1], wr[2], wr[3],
 				wr[4], wr[5], wr[6], wr[7],
 				rr[0], rr[1], rr[2], rr[3]);
+			ret += String.format("Modem=%04x latched=%s\n", mdms, rr0Latch);
 			if (io != null) {
 				ret += io.dumpDebug();
 			}
