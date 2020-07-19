@@ -1,0 +1,223 @@
+TITLE T
+.comment @
+##############################################################################
+#                                                                            #
+#                Main Driver Initialization Procedure for                    #
+#                Universal Copy Program                                      #
+#                                                                            #
+#                By Steven R. Fabian                                         #
+#                                                                            #
+#                Copyright (c) 1983, By Kaypro Corporation	             #		
+#                No waranty is implied, express or made.                     #
+#                                                                            #
+##############################################################################
+#  09/28/84                                                            [01]  #
+##############################################################################
+@
+	.z80
+	cseg
+line	macro	str
+	db	str,0
+	endm
+rtne	macro	ycord,func
+	db	2 + 32, ycord + 32
+	dw	func
+	endm
+	extrn	copy,mendvr,menuops,fmt,blank,image,sysgen,dmenu,numops,mmenu
+	extrn	sginit,cmenu,cnops,cbline,ctline,botmsg,topmsg,acof,bcof,ccof
+	entry	systyp
+
+kp10flg	equ	0fff7h
+verno	equ	0fff8h
+
+.comment @
+##########################################################################
+#                                                                        #
+#             Test for correct type of computer board rom                #
+#             to allow for program execution                             #
+#                                                                        #
+##########################################################################
+@
+	db	'(C) 1984 by Kaypro Corporation'
+	db	'533 Stevens Avenue'
+	db	'Solana Beach, CA 92075'
+;
+;
+test:
+	ld	hl,verno		; set to version # address
+	xor	a			; clear the accum.
+	ld	b,4			; set b to counter value of 4
+lpe:	add	a,(hl)			; add value into accum
+	inc	hl			; inc. to next byte value
+	djnz	lpe			; loop if counter not 0
+	cp	(hl)			; test 0fffc byte value to a.
+	jp	nz,ead			; if 0 a.o.k if not incorect board
+;
+	call	sginit
+	ld	sp,(6)
+;
+	
+	ld	a,(kp10flg)		; retreive system flag
+	cp	0fdh			; is system running on a hard disk
+	jp	z,hdmen			; do selection of which menu 4 hd.
+;
+	ld	a,(acof)		; no, lets search for Drivetec drive
+	call	skimoff			; mask and check
+	jp	z,itsdr			; a drive is drivetec
+;
+	ld	a,(bcof)		; no, lets search for Drivetec drive
+	call	skimoff			; mask and check
+	jp	z,itsdr			; b drive is drivetec
+;
+	ld	a,(ccof)		; no lets search for Drivetec drive
+	call	skimoff			; mask and check
+	jp	z,itsdr			; c drive is drivetec
+;
+	ld	a,04h			; none of the drives are drivetec
+	ld	(systyp),a		; set up sys. for floppy value
+	ld	a,nfunc
+	ld	(numops),a
+	ld	hl,rtnetbl
+	ld	de,mmenu
+	ld	bc,nfunc*4
+	ldir
+	ld	a,2			; set flag value accordingly
+	ld	(hb),a
+
+further:ld	ix,mmenu
+	ld	(cmenu),ix
+;
+	ld	hl,botmsg
+	ld	(cbline),hl
+	ld	hl,topmsg
+	ld	(ctline),hl
+;
+	call	curoff
+	call	dmenu
+;
+	ld	ix,mmenu
+	ld	a,(hb)			; retreive option flag
+	cp	0			; was flag set to hard disk
+	ld	c,hfunc			; if so set for # of functions
+	jp	z,fur1			;
+	cp	1			; was flag set to drivetec
+	ld	c,dfunc			; if so set for # of functions
+	jp	z,fur1			;
+	cp	4			;
+	ld	c,hfunc1		; set to dt hd funct.
+	jp	z,fur1			;
+;
+	ld	a,nfunc			; set for full # of options
+	ld	(numops),a
+	ld	(cnops),a
+	ld	c,a
+fur1:	call	mendvr
+	call	curon
+	jp	0
+curoff:
+	ld	de,offstr
+	ld	c,9
+	call	5
+	ret
+curon:
+	ld	de,onstr
+	ld	c,9
+	call	5
+	ret
+distat:
+	ret
+offstr:
+	db	1bh,'C4$'
+onstr:
+	db	1bh,'B4',1bh,'=',32 + 21,32 + 0,'$'
+rtnetbl:
+	rtne	3,copy
+	rtne	5,blank
+	rtne	7,image
+	rtne	9,sysgen
+	rtne	11,fmt
+nfunc	equ	($-rtnetbl)/4
+;
+hdmen:	ld	a,(acof)		; get a conf value
+	and	0ch			; mask
+	cp	0			; is it a hard disk ?
+	jp	nz,zrocnd		; if not zero must be flpy  
+	ld	a,(ccof)		; a is hd. c is flpy get value
+	and	0ch			; mask
+zrocnd:	cp	04h			; its a flpy, is it a drive tec
+	jp	z,kx12			; yes its a 12
+	jp	hdmnu0			; no its a std 10 
+
+
+hdmnu0:	ld	a,10h			; set to hard disk
+	ld	(systyp),a		; store value
+	ld	a,hfunc			; set to # of functions
+	ld	(numops),a		; store # of options
+	ld	(cnops),a
+	ld	hl,hdmnu		; set up move
+	ld	de,mmenu		;
+	ld	bc,hfunc*4		;
+	ldir
+	xor	a			; set to hard disk value
+	ld	(hb),a			; 
+	jp	further			; return processing
+;
+hdmnu:	rtne	3,blank
+	rtne	5,sysgen
+	rtne	7,fmt
+hfunc	equ	($-hdmnu)/4
+;
+kx12:	ld	a,10h			; set to hard disk
+	ld	(systyp),a		; store value
+	ld	a,hfunc1		; set to # of functions
+	ld	(numops),a		; store # of options
+	ld	(cnops),a
+	ld	hl,hdmnu1		; set up move
+	ld	de,mmenu		;
+	ld	bc,hfunc1*4		;
+	ldir
+	ld	a,4			; set flag value
+	ld	(hb),a			; 
+	jp	further			; return processing
+;
+hdmnu1:	rtne	3,blank
+	rtne	5,sysgen
+hfunc1	equ	($-hdmnu1)/4
+
+;
+itsdr:	ld	a,04h		; set to floppy value
+	ld	(systyp),a	; store it
+	ld	a,dfunc		; retrieve # of functions
+	ld	(numops),a	; store value
+	ld	(cnops),a
+	ld	hl,dtmnu	; set up move
+	ld	de,mmenu	;
+	ld	bc,dfunc*4	;
+	ldir
+	ld	a,1
+	ld	(hb),a
+	jp	further
+
+dtmnu:	rtne	3,copy
+	rtne	5,image
+	rtne	7,blank
+	rtne	9,sysgen
+dfunc	equ	($-dtmnu)/4
+;
+skimoff:and	0ch		; strip off configuration bytes
+	cp	04h		; is it a drivetec value
+	ret			; return to caller
+;
+ead:	ld	de,trstr	; load to terminate string
+	ld	c,09h		; set to print sting oper.
+	call	5		; do function
+	jp	0		; exit and die
+
+trstr:	db	'This program requires ROM Version 2.00 or greater to run'
+	db	'$'
+
+systyp:	db	10h
+
+hb:	db	0
+	end	test
+

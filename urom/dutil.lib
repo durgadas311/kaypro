@@ -1,0 +1,792 @@
+.xlist
+line	macro	str
+	db	str,0
+	endm
+rtne	macro	ycord,func
+	db	2 + 32, ycord + 32
+	dw	func
+	endm
+
+;****************************************************************
+.comment &
+*****************************************************************
+*							        *
+*                     For Copy Module                           *
+*         							*
+*****************************************************************
+&
+
+	if	copymod	
+cpymsg	macro
+
+;
+cpytxt:
+	line	'Copy             '
+	line	'This option is used to copy a diskette in drive A to a'
+	line	'diskette in drive B.  The diskette in drive B will be'
+	line	'formatted (erased) during the copy operation. At the'
+	line	'end of the operation, a copy of CP/M will be placed on'
+	line	'the diskette in drive B'
+	db	0ffh
+scrmsg:
+	line	'Copy             '
+	line	'This option is used to copy the diskette in drive A to'
+	line	'a diskette in drive B.  The type of diskette in drive'
+	line	'A (single- or double-sided) will determine the type of '
+	line	'diskette which will be produced in drive B.'
+	line	'         '
+	line	'WARNING! The contents of the diskette in the B drive'
+	line	'will be ERASED.'
+	line	'        '
+	line	'To copy a diskette:'
+	line	' '
+	line	'  1. Place the original diskette into drive A.'
+	line	'  2. Insert into drive B a new diskette or a used'
+	line	'     diskette that may be erased.'
+	line	'  3. Begin the copy operation by pressing the'
+	line	'     RETURN key.'
+	db	0ffh
+
+hdmsg:	line	'     ERROR       '
+	line	'  This program will not run in the hard disk'
+	line	'environment.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY          '
+	db	0ffh
+;
+bdmsg:	line	'     ERROR       '
+	line	'  This program will not run in the currently-defined '
+	line	'system.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+error1:	line	'     COPY ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+error2:	line	'     COPY ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;	
+errr1:	line	'     COPY ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+errr2:	line	'     COPY ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+badmsg:	line	'    COPY ERROR   '
+	line	'The system has detected a faulty disk in the A drive.'
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY      '
+	db	0ffh
+
+cpyhdr:	line	'Version 1.05            Diskette Copying'
+	db	0ffh
+
+spces:	line	'                                        '
+	db	0ffh
+
+rdmsg:	line	'   READ ERROR    '
+	line	'  The computer has distinguished a READ ERROR !!!' 
+	line	'and is unable to copy the diskette on drive A.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+
+wrmsg:	line	'  WRITE ERROR    '
+	line	'  The computer has distinguished a WRITE ERROR !!!' 
+	line	'and is unable to write to the diskette on drive B.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+
+sumer:	line	' CHECK SUM ERROR  '
+	line	'  The computer has experienced a checksum error,'
+	line	'and is unable to successfully copy the diskette.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the copy selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+trkmgs:	db	'Track Number   '
+
+tksp:	db	'     '
+	line	'            Copied and verified. To abort, press ESC'
+	db	0ffh
+	endm
+	endif
+
+;**********************************************************************
+.comment &
+*********************************************************
+*							*
+*          For Blank Module                             *
+*							*
+*********************************************************
+&
+
+	if	blkmod
+blkmsg	macro
+
+blanktxt:
+	line	'Blank            '
+	line	'This option will prepare a new or previously-used '
+	line	'diskette to receive data by ERASING WHATEVER DATA'
+	line	'IS ON IT.  All data areas of the diskette will be'
+	line	'initialized.  A copy of CP/M will be put on that'
+	line	'area of the diskette reserved for it.  During this'
+	line	'process, the diskette will be checked for errors.'
+	db	0ffh
+
+bkmsg1:
+	line	'Blank Drivetec Disk'
+	line	'This option is used to blank a high-density'
+	line	'diskette only.  All information on this diskette'
+	line	'will be overwritten. A copy of CP/M will be put on'
+	line	'the area of the diskette reserved for it.'
+	line	' '
+	line	'To begin this operation:'
+	line	'  1. Place a high-density diskette in drive B.'
+	line	'  2. Press the RETURN key.'
+	db	0ffh
+
+bkmsg2:
+	line	'Blank Two Sides    '
+	line	'This option will prepare a double-sided diskette'
+	line	'for use.  A copy of CP/M will be put on an area'
+	line	'of the diskette which is reserved for it. WARNING!'
+	line	'All information on this diskette will be erased.'
+	line	' '
+	line	'To begin this operation:'
+	line	'  1. Place a diskette in drive B.'
+	line	'  2. Press the RETURN key.'
+	db	0ffh
+
+bkmsg3:
+	line	'Blank One Side     '
+	line	'This option will prepare a single-sided diskette'
+	line	'for use.  A copy of CP/M will be put on an area'
+	line	'of the diskette which is reserved for it. WARNING!'
+	line	'All information on this diskette will be erased.'
+	line	' '
+	line	'To begin this operation:'
+	line	'  1. Place a diskette in drive B.'
+	line	'  2. Press the RETURN key.'
+	db	0ffh
+
+btpmsg:	line	'Version 1.05           Blank Diskettes'
+	db	0ffh
+
+hdmsg:	line	'   BLANK ERROR     '
+	line	'This program will not run in the hard disk'
+	line	'environment.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+bsmsg:	line	'   BLANK ERROR     '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'a high-density diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the blank selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+bwmdt:	line	'   BLANK ERROR     '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'a high-density diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the blank selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+bwrmsg:	line	'  WRITE ERROR        '
+	line	'  The computer has distinguished a WRITE ERROR !!!' 
+	line	'and is unable to write to the diskette on drive B.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the blank selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+
+bsumer:	line	' CHECK SUM ERROR   '
+	line	'  The computer has experienced a checksum error,'
+	line	'and is unable to successfully blank the diskette.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the blank selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+btkms:	db	'Track Number   '
+
+btksp:	db	'     '
+	line	'            Blanked and verified. Press ESC to abort'
+	db	0ffh
+	endm
+	endif
+
+;****************************************************************
+.comment &
+*****************************************************************
+*							        *
+*                     For Format Module                         *
+*         							*
+*****************************************************************
+&
+
+	if	formod
+formsg	macro
+
+fmttxt:
+	line	'Format           '
+	line	'This option will format and initialize diskettes.'
+	line	'  '
+	line	'CAUTION!!!  Formatting will erase all information'
+	line	'on the diskette.'
+	db	0ffh
+;
+fdblop:
+	line	'Format Two Sides '
+	line	'This option will format a double-density, double-sided'
+	line	'diskette.'
+	line	' '
+	line	'CAUTION!!! Formatting will erase all information'
+	line	'on the diskette.'
+	line	' '
+	line	'To format a diskette:'
+	line	' '
+	line	'  1. Put the diskette to be formatted into the indicated'
+	line	'     diskette drive.'
+	line	'  2. When prompted, press RETURN.'
+	db	0ffh
+fsglop:
+	line	'Format One Sided '
+	line	'This option will format a double-density, single-sided'
+	line	'diskette.'
+	line	' '
+	line	'CAUTION!!! Formatting will erase all information'
+	line	'on the diskette'
+	line	' '
+	line	'To format a diskette:'
+	line	' '
+	line	'  1. Put the diskette to be formatted into the indicated'
+	line	'     diskette drive.'
+	line	'  2. When prompted, press RETURN.'
+	db	0ffh
+ftrkop:
+	line	'Format One Track '
+	line	'This option will format a single track on either a'
+	line	'double-sided or single-sided diskette.'
+	line	' '
+	line	'CAUTION!!!  Formatting will erase all information'
+	line	'on the diskette.'
+	db	0ffh
+fmtmsg:
+	db	'Press RETURN to format the diskette in drive '
+drno:	line	'   -  ESC to abort'
+
+trdone:
+	db	'Track Number   '
+tno:
+	db	'     '
+	line	'            Formatted and verified. To abort press ESC'
+	db	0ffh
+ferrmsg:
+	db	'Format error on track number'
+etrk:
+	db	'     '
+	line	', To continue, press RETURN'
+	db	0ffh
+fmthdr:
+	line	'Version 1.05                 Diskette Formatting'
+	db	0ffh
+;
+ssdsmsg:
+	line	'Is diskette single or double-sided? Type S or D. To abort, press ESC'
+	db	0ffh
+;
+trkmsg:
+	line	'Enter the number of the track to be formatted.       To abort, press ESC'
+	db	0ffh
+
+fmenu:
+	rtne	3,fdbl
+	rtne	5,fsgl
+	rtne	7,ftrk
+fmencnt	equ	($-fmenu)/4
+
+	endm
+	endif
+
+;*******************************************************************
+.comment &
+*****************************************************************
+*							        *
+*                     For Sysgen Module                         *
+*         							*
+*****************************************************************
+&
+
+	if	sysmod
+sysmsg	macro
+
+systxt:	line	'Sysgen           '
+	line	'This option will write a copy of CP/M  or a copy'
+	line	'of any specially prepared CPM.SYS file onto any'
+	line	'diskette.'
+	line	' '
+	line	'To use this option, insert the diskette with'
+	line	'CP/M or CPM.SYS into drive A.  Then follow the'
+	line	'selection process and instruction of the next'
+	line	'menu.  To begin, press the RETURN key.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+systop:	line	'Version 1.05                         Sysgen'
+	db	0ffh
+sysbot:	line	'         Please make a selection from the above options'
+	db	0ffh
+osmsg:	line	'              Writing your operating system to disk'
+	db	0ffh
+;
+wrmdcdt:line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive C with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+wrmdcst:line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive C with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+wrmdbdt:line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+wrmdbst:line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+wmcdt:	line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive C with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+wmcst:	line	'   SYSGEN ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive C with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the sysgen selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;	
+bymg:	line	' BAD SYSTEM       '
+	line	'The computer has detected a bad read of the'
+	line 	'operating system.'
+	line	' '
+	line	'To correct this error:'
+	line	' '
+	line	'  1.  Terminate this program.'
+	line	'  2.  Use PIP program to transfer DUTIL program to'
+	line	'      a diskette with a good operating system.'
+	line	'  3.  Repeat sysgen process.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+bddce:	line	'  ERROR       '
+	line	'The computer has detected that one of the disk drives'
+	line 	'is not properly configured.'
+	line	' '
+	line	'To correct this error:'
+	line	' '
+	line	'  1. Terminate this program.'
+	line	'  2. System has then done a warm boot.'
+	line	'  3. Rerun this program.'
+	line	' ' 
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+bdrdmg:	line	'  ERROR       '
+	line	'The computer has detected that a read error has taken'
+	line 	'place and a number of retries have been attempted.'
+	line	' '
+	line	'To correct this error:'
+	line	' '
+	line	'  1. Format a new disk.'
+	line	'  2. Terminate this program.'
+	line	'  3. Use PIP program and try to transfer all files'
+	line	'     from one diskette to another.'
+	line	'  4. Repeat sysgen process.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+;
+bdwrmg:	line	'  ERROR       '
+	line	'The computer has detected that a write error has taken'
+	line 	'place and a number of retries have been attempted.'
+	line	' '
+	line	'To correct this error:'
+	line	' '
+	line	'  1. Format a new disk.'
+	line	'  2. Terminate this program.'
+	line	'  3. Use PIP program and try to transfer all files'
+	line	'     from one diskette to another.'
+	line	'  4. Repeat sysgen process.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+
+
+inval:	line	'  ERROR       '
+	line	'The computer has detected an invalid selection'
+	line 	'error and cannot proceed.  Please return to first'
+	line	'menu and repeat process.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+flemsg:	line	'    CPM.SYS    '
+	line	'This option will write a copy of any specially-'
+	line	'prepared CPM.SYS file currently stored on drive'
+	line	'A onto any diskette.'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+cpmmsg:	line	'    STD.CPM    '
+	line	'To write a standard version of CP/M to a drive'
+	line	'of your choice, press the RETURN key.  This will'
+	line	'take you to the Select a Drive Menu.' 
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+sysamsg:line	'SELECT DRIVE A '
+	line	'To write your selection choice to the A Drive'
+	line	'press the RETURN key.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+sysbmsg:line	'SELECT DRIVE B '
+	line	'To write your selection choice to the B Drive'
+	line	'press the RETURN key.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+syscmsg:line	'SELECT DRIVE C '
+	line	'To write your selection choice to the C Drive'
+	line	'press the RETURN key.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+	endm
+	endif
+
+;****************************************************************
+.comment &
+*****************************************************************
+*							        *
+*                     For Image Module                          *
+*         							*
+*****************************************************************
+&
+;
+	if	imgmod
+imgmsg	macro
+
+imgtxt:
+	line	'Image            '
+	line	'This option will make an image of the diskette in'
+	line	'drive A.  During the operation, the diskette in'
+	line	'drive B is checked for errors (verified).  The type'
+	line	'of diskette in drive A (single- or double-sided) will'
+	line	'determine the type of diskette which will be produced'
+	line	'in drive B.'
+	line	' '
+	line	'All information on the diskette in the B drive will'
+	line	'be erased.'
+	db	0ffh
+
+imgscr3:
+	line	'Image            '
+	line	'To image a diskette:'
+	line	' '
+	line	'  1. Place the original diskette into drive A.'
+	line	'  2. Insert into drive B a new diskette or a used'
+	line	'     diskette that may be erased.'
+	line	'  3. Begin the image operation by pressing the RETURN'
+	line	'     key.'
+	db	0ffh
+
+ihdmsg:	line	'    ERROR        '
+	line	'  This program will not run in the hard disk environment.'
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+ibdmsg:	line	'    ERROR        '
+	line	'  This program will not run in the currently-defined'
+	line	'system'
+	line	' '
+	line	' '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+irror1:	line	'    IMAGE ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+irror2:	line	'    IMAGE ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;	
+irrr1:	line	'    IMAGE ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+irrr2:	line	'    IMAGE ERROR   '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+ibadmsg:line	'    IMAGE ERROR   '
+	line	'  The system has detected a faulty disk in the A drive.'
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+imghdr:	line	'Version 1.05                 Diskette Imaging'
+	db	0ffh
+
+irdmsg:	line	'   READ ERROR    '
+	line	'  The computer has distinguished a READ ERROR !!!' 
+	line	'and is unable to image the diskette on drive A.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive A with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+iwrmsg:	line	'  WRITE ERROR    '
+	line	'  The computer has distinguished a WRITE ERROR !!!' 
+	line	'and is unable to write to the diskette on drive B.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+;
+isumer:	line	' CHECK SUM ERROR '
+	line	'  The computer has experienced a checksum error,'
+	line	'and is unable to image the diskette.'
+	line	' '
+	line	'To correct this error:'
+	line	'   '
+	line	'  1. Replace the diskette which is in drive B with' 
+	line	'another diskette.'
+	line	'  2. Return to the previous menu by pressing the'
+	line	'ESCape key.'
+	line	'  3. Repeat the image selection process again.'
+	line	'  '
+	line	'      TO EXIT, PLEASE PRESS THE ESCAPE KEY         '
+	db	0ffh
+
+trkmg1:	db	'Track Number   '
+
+tks1:	db	'     '
+	line	'            Imaged and verified. To abort, press ESC'
+	db	0ffh
+	endm
+	endif

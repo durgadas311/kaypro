@@ -1,0 +1,73 @@
+        title   INTINI:  Interrupt System Initialization
+        .z80
+        include macro.lib
+        cseg
+        entry   intini
+;
+        cpyrit
+;
+;       Interrupt vector initialization
+;
+;       Written by:     T. Hayes
+;
+;       This routine receives the base of the interrupt handlers in
+;       the BC register pair.  It will create a vector table to those
+;       routines at FFD0h with the the following assignments:
+;
+;       FFD0    KBD data out
+;       FFD2    KBD external status change
+;       FFD4    KBD data in
+;       FFD6    KBD special receive condition
+;       FFD8    Comm port data out
+;       FFDA    Comm port external status change
+;       FFDC    Comm port data in
+;       FFDE    Comm port special receive condition
+;       FFE0    Modem data out
+;       FFE2    Modem external status change
+;       FFE4    Modem data in
+;       FFE6    Modem special receive condition
+;       FFE8    Printer port data out
+;       FFEA    Printer port external status change
+;       FFEC    Printer port data in
+;       FFEE    Printer port special receive condition
+;       FFF0    Clock control port
+;       FFF2    Modem control port
+;
+;       Ther service routines in RAM are arranged such that the appropriate
+;       routines appear every four (4) bytes starting with the address
+;       passed to this routine in BC.
+;
+;       This routine will also set the I register and select mode 2 operation.
+;
+;
+intini:
+        ld      ix,vector               ;point to the base of the vector table
+        ld      h,b                     ;initialize hl to the first address
+        ld      l,c
+        ld      de,rtnlen               ;this is the routine length
+        ld      b,numvecs               ;this is the number of vectors
+intin1:
+        ld      (ix + 0),l              ;store the vector
+        ld      (ix + 1),h
+        inc     ix                      ;point to the next vector
+        inc     ix
+        add     hl,de                   ;make the next address
+        djnz    intin1
+;
+        ld      a,vector shr 8          ;the vector table base
+        ld      i,a
+;
+        im      2                       ;select interrupt mode 2
+;
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+vector  equ     0ffd0h                  ;interrupt vector table base
+rtnlen  equ     4                       ;number of bytes in each vector routine
+numvecs equ     18                      ;number of interrupt vectors supported
+        end

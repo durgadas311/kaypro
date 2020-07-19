@@ -1,0 +1,169 @@
+	.xlist
+;
+bufequ	macro
+;		DISPL	TYPE	NAME	DEF
+;		0	dw	ibstrt	Input buffer starting address
+;		2	dw	ibend	Input buffer ending address
+;		4	db	ibmax	Input buffer maximum byte count
+;		5	db	ibcnt	Input buffer number of active bytes 
+;		6	dw	ibinxt	Next input character location in the input buffer
+;		8	dw	ibonxt	Next output character location in the input buffer
+;		10	dw	obstrt	Output buffer starting address
+;		12	dw	obend	Output buffer ending address
+;		14	db	obmax	Output buffer maximum byte count
+;		15	db	obcnt	Output buffer number of active bytes
+;		16	dw	obinxt	Next input character location in the output buffer
+;		18	dw	obonxt	Next output character location in the output buffer
+;		20	db	bflags 	Handshake protocol flags
+;
+ibstrt	equ	0
+ibend	equ	2
+ibmax	equ	4
+ibcnt	equ	5
+ibinxt	equ	6
+ibonxt	equ	8
+obstrt	equ	10
+obend	equ	12
+obmax	equ	14
+obcnt	equ	15
+obinxt	equ	16
+obonxt	equ	18
+bflags	equ	20
+;
+;
+bufstrt	equ	0		;buffer starting address
+bufend	equ	2		;buffer ending address
+bufmax	equ	4		;buffer size
+bufcnt	equ	5		;number of characters in the buffer
+bufinxt	equ	6		;next input location
+bufonxt	equ	8		;next output location
+flags	equ	20		;handshake control flags
+	endm
+;
+biocal	macro	vec
+	call	bioset
+	db	vec
+	endm
+bufdef	macro	isize,osize
+	dw	0 
+	dw	0 + isize 
+	db	isize
+	db	0
+	dw	0 
+	dw	0 
+	dw	0 + isize 
+	dw	0 + isize + osize 
+	db	osize
+	db	0
+	dw	0 + isize 
+	dw	0 + isize 
+	db	0
+	endm
+at	macro	ycord,xcord,msg
+	db	1bh,'=',ycord + 32,xcord + 32
+	ifnb	<msg>
+	db	msg
+	endif
+	endm
+dph	macro	dpba,csva,alva
+	dw	0000h			;interleave is not used
+	dw	0,0,0			;cp/m scratchpat locations
+	dw	dirbuf			;directory buffer
+	dw	dpba			;dpb address
+	dw	csva			;csv address
+	dw	alva			;alv address
+	endm
+dpb	macro	spt,bsize,dsm,drm,rem,off
+	dw	spt			;sectors per track
+	if	bsize eq 1
+	db	3,7			;block shift factors
+	db	0			;extent mask
+	endif
+	if	bsize eq 2
+	db	4,15			;block shift factors
+	if	dsm lt 256
+	db	1			;extent mask
+	else
+	db	0			;extent mask
+	endif
+	endif
+	if	bsize eq 4
+	db	5,31			;block shift factors
+	if	dsm lt 256
+	db	3			;extent mask
+	else
+	db	1			;extent mask
+	endif
+	endif
+	if	bsize eq 8
+	db	6,63			;block shift factors
+	if	dsm lt 256
+	db	7			;extent mask
+	else
+	db	3			;extent mask
+	endif
+	endif
+	if	bsize eq 16
+	db	7,127			;block shift factors
+	if	dsm lt 256
+	db	15			;extent mask
+	else
+	db	7			;extent mask
+	endif
+	endif
+	dw	dsm-1			;disk size
+	dw	drm-1			;directory size
+	db	high(0ffffh shl (16 - (drm / ((bsize * 1024) / 32))))
+	db	low(0ffffh shl (16 - (drm / ((bsize * 1024) / 32))))
+	dw	(drm/4) * rem
+	dw	off
+	endm
+saverr	macro	typ
+	call	errstat
+	db	typ
+	endm
+;
+cpyrit	macro
+;
+;	********************************************************
+;	********************************************************
+;	**                                                    **
+;	**              Kaypro '84 Universal ROM              **
+;	**              Version 2.02                          **
+;	**                                                    **
+;	**              (C) Copyright 1984 by                 **
+;	**              Kaypro Computer Corporation           **
+;	**              533 Stevens Avenue                    **
+;	**              Solana Beach, CA 92075                **
+;	**                                                    **
+;	********************************************************
+;	********************************************************
+;
+;	2.01	T. Hayes
+;		10/30/84
+;
+;		Increase upspeed wait in Winchester restore routine
+;		Expand timeout in select when floppy not ready and wp
+;		  occur.
+;		Take modem off hook in devinit
+;	
+;	2.02	T. Hayes
+;		1/28/85
+;
+;		Include modem on hook in module UROM by calling it.
+;		This is so that the system will put the phone on hook on
+;		power up.
+;
+;
+	endm
+int	macro	rtne
+	call	savreg
+	db	rtne
+	endm
+switch	macro
+	ld	a,b
+	ld	b,c
+	ld	c,a
+	endm
+	.list
+	.lall

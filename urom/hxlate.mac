@@ -1,0 +1,203 @@
+
+        title   HXLATE:  Winchester Disk Spares Mapping 
+        .z80
+        include macro.lib
+        cseg
+        entry   hxlate,lodspr,hdmap
+;
+        extrn   winoff,scr,xhd,xcyl,bittab,trtab,d1size,d2size
+;
+        cpyrit
+;
+;       Winchester disk mapping routines
+;
+;       Written by:     T. Hayes
+;
+;       These routines are responsible for mapping the logical request from
+;       the operating system into physical allocations.  It is assumed that
+;       hard disk 0 is composed of heads 0 and 1 and that hard disk 1 is
+;       heads 2 and 3.  Logical cylinder 0 is composed of heads 0 and 1 on
+;       physical cylinder 0 and heads 2 and 3 on physical cylinder 6.  The
+;       intervening tracks are reserved for sparing and are not available from
+;       the operating system or RAM resident routines.  Cylinder 305 is reserved
+;       as a landing zone for the heads.
+;
+;       On entry:
+;               HL contains the requested track number
+;               A contains the platter number
+;
+;       On exit:
+;               HL contains the physical cylinder number
+;               A contains the physical head number
+;
+;       All other registers are maintained
+;
+hxlate:
+        push    de                      ;save the caller's registers
+        push    bc
+        push    ix
+;
+        add     a,a                     ;compute the head offset as a function
+        ld      b,a                     ;of the platter number and save it
+;
+        ld      ix,d1size + 2           ;find the cylinder offset
+        add     a,a                     ;the table is 4 wide
+        ld      e,a
+        ld      d,0
+        add     ix,de                   ;ix now points to the correct offset value
+        ld      e,(ix + 0)              ;now put it into offset
+        ld      d,(ix + 1)
+; 
+        xor     a                       ;separate the logical head from the track
+        rr      h                       ;by shifting through the carry bit
+        rr      l                       ;into a
+        rla
+;
+        add     a,b                     ;add this to the head offset
+        ld      b,a                     ;to find the physical head requested
+;
+        add     hl,de                   ;add the logical drive offset to the cylinder
+;
+        ld      a,h                     ;check for cylinder 0
+        or      l                       ;it is a special case if so
+        jp      nz,hx2
+;
+        ld      a,b                     ;if the head is > 1
+        cp      2
+        jp      c,hx1
+        ld      hl,6                    ;the cylinder number is 6
+hx1:
+        pop     ix
+        pop     bc                      ;restore the caller's regisgers
+        pop     de
+        ret                             ;and return the mapped values
+        page
+hx2:
+        ld      a,b                     ;store the current values
+        ld      (xhd),a                 ;for head
+;
+        ld      de,6                    ;any cylinder > 0 receives an offset
+        add     hl,de                   ;of 6
+        ld      (xcyl),hl               ;save that value too
+;
+                                        ;move the head number to the ms 2 bits
+        rrca
+        rrca
+;
+        or      a                       ;clear the carry
+        rr      h                       ;then the lsb of hl to
+        rr      l                       ;the msb of a
+        rra
+;
+        rlca                            ;now move back to the lsb position
+        rlca
+        rlca
+;
+        inc     a                       ;adjust
+        ld      b,a                     ;for use in a loop counter - min of 1
+        xor     a                       ;clear the accumulator
+        scf                             ;the carry flag will be shifted in
+;
+hx3:
+        rra                             ;move the bit 1 right
+        djnz    hx3                     ;go back if it needs to move more
+                                        ;a now contains the bit mask
+        ld      de,bittab               ;compute the address of the bit to test
+        add     hl,de
+;
+        and     (hl)                    ;test the bit
+        ld      a,(xhd)                 ;get back the previous values
+        ld      hl,(xcyl)
+;
+        jp      nz,hx4                  ;if the bit is not set, the track was not spared
+;
+        pop     ix
+        pop     bc                      ;restore the user context
+        pop     de
+;
+        ret                             ;and return to caller
+        page
+hx4:
+        rrca                            ;move the head into the ms 2 bits of HL
+        rrca
+        or      h
+        ld      h,a
+;
+        ld      ix,trtab                ;and point to the xlate table
+        ld      de,4                    ;the number of bytes per entry
+        ld      b,24                    ;maximum number of entries
+;
+hx5:
+        ld      a,h                     ;check the first byte in the table
+        cp      (ix + 1)
+        jr      nz,hx6                  ;if not the same
+;
+        ld      a,l
+        cp      (ix + 0)                ;then check the second byte
+        jr      nz,hx6
+;
+        ld      h,(ix + 3)              ;entry is found
+        ld      l,(ix + 2)              ;load the translated value
+;
+        ld      a,h                     ;separate out the head
+        push    af
+        and     3fh
+        ld      h,a
+        pop     af
+;
+        rlca                            ;then put the head into ls 2 bits
+        rlca
+        and     03                      ;mask off any trash
+;
+        pop     ix                      ;and restore the user registers
+        pop     bc
+        pop     de
+        ret                             ;return to caller
+hx6:
+        add     ix,de                   ;not found, point to the next entry
+        djnz    hx5                     ;then go back if more
+;
+;       This point should never be reached.  If it does, the map table has
+;       been contaminated.  Safe the drive, disable interrupts and halt to 
+;       avoid doing damage.
+;
+        call    winoff
+        di
+        halt
+        page
+;
+;       Disk Spares Table Loader
+;
+lodspr:
+        ld      hl,scr                  ;spares indicator table
+        ld      de,bittab               ;and spares translation table
+        ld      bc,254
+        ldir
+;
+        ld      hl,scr + 302
+;
+        ld      bc,8                    ;offset and size table
+        ldir
+        ret
+        page
+hdmap:
+;
+;       Return address of hard disk map
+;
+;       On entry:
+;               No parameters passed
+;
+;       On exit:
+;               HL points to the winchester disk size size and starting
+;               cylinder parameters
+;
+        ld      hl,d1size
+        ret     
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+        end

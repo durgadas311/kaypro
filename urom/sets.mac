@@ -1,0 +1,63 @@
+        title   SETS:  Set Disk Read/Write Parameters
+        .z80
+        cseg
+        include macro.lib
+;
+        entry   settrk,setsec,setdma,home,sectran
+;
+        extrn   sektrk,seksec,dmaddr,recloc     ;select,select,select,select
+        extrn   hstbuf,psec                     ;select,select
+;
+        cpyrit
+;
+;       Set read/write parameters
+;
+;       Written by:     T. Hayes
+;
+;       These are the routines to set the track,sector and dma address
+;       for the next read or write operation.  
+;       
+;       On entry:
+;               BC contains the parameter
+;
+;       On exit:
+;               No parameters returned
+;
+settrk:
+        ld      (sektrk),bc             ;save the track number
+        ret
+;
+setsec:
+        ld      (psec),bc               ;save the sector number for raw read
+;
+        xor     a                       ;clear l and the carry bit
+        ld      l,a
+;
+        rr      b                       ;shift the ls 2 bits of BC
+        rr      c                       ;into the ms 2 bits of l
+        rr      l
+;
+        rr      b
+        rr      c
+        rr      l
+;
+        ld      (seksec),bc             ;bc is the physical sector
+;
+        ld      h,0                     ;make a the ls 2 bits a displacement
+        add     hl,hl                   ;mod 128
+;
+        ld      bc,hstbuf               ;now add that to the buffer base
+        add     hl,bc                   ;to determine the physical location
+        ld      (recloc),hl
+;
+        ret
+;
+setdma:
+        ld      (dmaddr),bc             ;save the dma address
+        ret
+home:
+sectran:
+        ld      h,b
+        ld      l,c
+        ret
+        end

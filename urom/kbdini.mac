@@ -1,0 +1,157 @@
+.comment &
+#########################################################################
+#                                                                       #
+#          Keyboard High ram initialization routine                     #
+#                                                                       #
+#          By Steven R. Fabian and Thomas Hayes                         #
+#                                                                       #
+#          Copyright (c) 1983, By Non-Linear Systems Inc.               #
+#          No warranty is made, expressed or implied.                   #
+#                                                                       #
+#########################################################################
+## 06/14/84                                                    [01]    ##
+#########################################################################
+&
+
+        .z80
+        cseg
+;
+        entry   kbdini, bfdata, bulr, altbl, esltbl, esstbl
+        entry   fltbl, sltbl, fsstbl, ina, fsevout, asevout
+        entry   trnswhl, spctbl
+        entry   pntr, offset, flag, cnt
+        entry   curinit,funcinit,gettabs
+;
+        extrn   xfer
+;
+;       Keyboard table initialization
+;
+;       On entry:
+;               BC points to the following data structure:
+;
+;               DISP    LEN     DEF
+;               0       255     fdata - Function key buffer
+;               255     80      atbl  - Euro or Usa language table 
+;               335     80      eltbl - select table for euro
+;               415     80      esltl - shift select table for euro
+;               495     80      ftbl  - Foreign language table
+;               575     80      stbl  - select table for foreign 
+;               655     80      fstl  - shift select table for foreign
+;               735     32      ina   - foreign 8/bit to 7/bit (video)
+;               767     32      fsvout- foreign 8/bit to 7/bit (lst,tty)
+;               799     32      esvout- euro    8/bit to 7/bit (lst,tty)
+;               831     128     trnwl- table for printer wheel
+;               959     15      spctl - special foreign 8/bit table
+;
+;       On exit:
+;
+kbdini:
+        ld      (bfdata),bc
+;
+        ld      hl,255                          ;add a displacement to find the next
+        add     hl,bc
+        ld      (bulr),hl
+        ld      (altbl),hl
+;
+        ld      hl,335                          ;etc...
+        add     hl,bc
+        ld      (esltbl),hl
+;
+        ld      hl,415
+        add     hl,bc
+        ld      (esstbl),hl
+;
+        ld      hl,495
+        add     hl,bc
+        ld      (fltbl),hl
+;
+        ld      hl,575
+        add     hl,bc
+        ld      (sltbl),hl
+;
+        ld      hl,655
+        add     hl,bc
+        ld      (fsstbl),hl
+;
+        ld      hl,735
+        add     hl,bc
+        ld      (ina),hl
+;
+        ld      hl,767
+        add     hl,bc
+        ld      (fsevout),hl
+;
+        ld      hl,799
+        add     hl,bc
+        ld      (asevout),hl
+;
+        ld      hl,831
+        add     hl,bc
+        ld      (trnswhl),hl
+;
+        ld      hl,959
+        add     hl,bc
+        ld      (spctbl),hl
+;
+        ld      hl,0                            ;the following get initialized to 0
+;
+        ld      (pntr),hl
+        ld      (offset),hl
+        ld      a,0
+        ld      (cnt),a
+;
+        ret
+        page
+curinit:
+;
+;       Reload the cursor control keys from the string pointed to by BC
+;
+        ld      de,(bulr)
+        ld      h,b
+        ld      l,c
+        ld      bc,4
+        jp      xfer
+;
+;
+funcinit:
+;
+;       Reload the function keys from the string pointed to by BC
+;
+        ld      de,(bfdata)
+        ld      h,b
+        ld      l,c
+        ld      bc,255
+        jp      xfer
+;
+gettabs:
+;
+;       Return the base address of the keyboard tables
+;
+        ld      hl,(bfdata)
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+        dseg
+bfdata: ds      2
+bulr:   ds      2
+altbl:  ds      2
+esltbl: ds      2
+esstbl: ds      2
+fltbl:  ds      2
+sltbl:  ds      2
+fsstbl: ds      2
+ina:    ds      2
+fsevout:ds      2
+asevout:ds      2
+trnswhl:ds      2
+spctbl: ds      2
+pntr:   ds      2
+offset: ds      2
+flag:   ds      1
+cnt:    ds      1
+        end

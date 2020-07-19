@@ -1,0 +1,14 @@
+title BUFS
+.comment @
+################################################################
+#                                                              #
+#          This module is set up for buffer allocation         #
+#                                                              #
+################################################################
+@
+.z80
+	entry	cpybuf,fmtbuf,cpmbuf
+cpmbuf	equ	$
+fmtbuf	equ	cpmbuf+(128*56)
+cpybuf	equ	fmtbuf+(1024*9)
+	end

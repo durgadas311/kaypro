@@ -1,0 +1,251 @@
+TITLE SGINIT
+.comment &
+########################################################################
+#                                                                      #
+#             Kaypro Universal Copy program, sysgen initialization     #
+#             routine                                                  #
+#                                                                      #
+#             By Steven R. Fabian                                      #
+#                                                                      #
+#             Copyright (c) 1983 By Non-Linear Systems  Inc.           #
+#             No warranty is made, expressed or implied.               #
+#                                                                      #
+########################################################################
+#   09/04/84                                                     [01]  #
+########################################################################
+&
+.z80
+cseg
+
+EXTRN	seta,trk,read,sec,dispth,setsec,acof,adjbuf,shrtsec,sqplay
+EXTRN	track,drtp,bddce,ertne,cpmbuf
+ENTRY	ngsys,grtot,sginit,cpmdma,cpmsum,dskrst
+
+sginit:	ld	e,0		; set for major init.
+	call	seta		; select a drive
+	ld	a,h		; test for sucessful operation
+	or	l		; was it sucessful
+	jp	nz,whss		; yes continue forward
+	ld	a,1		; no set flag
+	ld	(ngsys),a	; set it
+	xor	a		; clear the accum
+	call	dskrst		; do a disk reset operation
+	ret			; return to caller
+
+
+.comment @
+############################################################################
+#                                                                          #
+#                 Read CPM OS From Disk Routines                           #
+#                                                                          #
+############################################################################
+@
+dot1:	push	bc		; save off registers
+	push	hl		;
+	ld	e,1		; set to partial init
+	call	seta		; set up a drive
+;
+	call	sqplay		; set up trk,sector,dma address
+	pop	hl		; retreive values
+	pop	bc
+;
+	ld	a,(drtp)	; retreive drive type
+	cp	2		; is it a standard floppy system
+	jp	z,rdstdfp	; yes go read a standard floppy system
+;
+	xor	a		; clear good read flag
+	ld	(rbr),a		; store it off 
+	ld	(cbf),a		; set up return flag
+lyn1:	push	bc
+	push	hl
+	call	read		; read sequential 14 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the read any good
+	jp	nz,strfg	; no do retry and error routine
+	jp	brh2
+;	
+
+tryb:	push	bc
+	push	hl
+	ld	bc,01		; set bc value to 1 for track 1
+	ld	(track),bc	; set this value to track one
+	call	sqplay		; set up trk,sector,dma address
+	pop	hl
+	pop	bc
+;
+	ld	a,1		; set up which return value
+	ld	(cbf),a		; to return from on a retry of read
+	xor	a		; clear good read flag
+	ld	(rbr),a		; store it off 
+lyn2:	push	bc
+	push	hl
+	call	read		; read sequential 14 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the read any good
+	jp	nz,strfg1	; no do retry and error routine
+	jp	brh2
+;	
+rdstdfp:ld	a,2		; set up which return value
+	ld	(cbf),a		; to return from on a retry of read
+	xor	a		; clear good read flag
+	ld	(rbr),a		; store it off 
+lyn3:	push	bc
+	push	hl
+	call	read		; read sequential 10 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the read any good
+	jp	nz,strfg1	; no do retry and error routine
+;
+	ld	a,3		; set up which return value
+	ld	(cbf),a		; to return from on a retry of read
+	xor	a		; clear good read flag
+	ld	(rbr),a		; store it off 
+	push	bc
+	push	hl
+	ld	e,1		; set to part. init.
+	call	seta		; set to a drive
+;
+	ld	bc,01		; set to storage addr.
+	ld	(track),bc	; set to track 1
+	call	trk		; init sys. to this
+;
+	call	shrtsec		; set to begin at sector #4
+;
+	call	adjbuf		; set buffer up to correct displacement
+;
+	ld	a,4		; set to read only 4 physical sectors
+	ld	(sec),a		; store this value off
+	pop	hl
+	pop	bc
+;
+lyn4:	push	bc
+	push	hl
+	call	read		; this should read in one shot above parameter
+	pop	hl
+	pop	bc
+	and	a		; was read into buf any good
+	jp	nz,strfg1	; if not go here
+;
+brh2:	xor	a		; clear out sector #
+	ld	(sec),a		; lets clear the sec #
+;
+	call	cpmsum		; do a checksum of first 126 bytes of os.
+;
+	ld	bc,(cpmbuf+126)	; set up address for last two bytes of buf.
+	or	a		; clear the carry flag
+	sbc	hl,bc		; see if values match
+	call	dskrst
+	ret	z		; buffer has a sucessful fill read
+	ld	a,1		; set up flag
+	ld	(ngsys),a	; set flag
+	xor	a		; clear the accum
+	ret			; return to the caller
+
+.comment &
+#########################################################################
+#                                                                       #
+#                      Sub Routines                                     #
+#                                                                       #
+#########################################################################
+&
+;
+cpmdma:	ld	bc,cpmbuf
+	ld	d,35
+	call	dispth
+	ret
+
+cpmsum:	ld	hl,cpmbuf
+	ld	ix,0
+	ld	de,0
+	ld	b,126
+sm1:	ld	e,(hl)
+	add	ix,de
+	inc	hl
+	djnz	sm1
+	push	ix
+	pop	hl
+	ld	(grtot),hl
+	ret
+
+dskrst:	push	hl
+	push	bc
+	push	de
+	push	af
+	ld	c,0dh
+	call	5
+	pop	af
+	pop	de
+	pop	bc
+	pop	hl
+	ret
+
+strfg:	ld	a,(drtp)	; retreive drive type
+	cp	0
+	jp	nz,strfg1	; not a hard disk system
+	ld	a,(rbr)		; retreive read flag
+	cp	1		; was it on
+	jp	z,tryb		; yes it is
+	ld	a,1		; no it wasn't
+	ld	(rbr),a		; set it on
+	jp	lyn1		; return for retry
+
+strfg1:	ld	a,(rbr)		; retreive read flag
+	cp	1
+	jp	z,tryc		; bail out routine
+	ld	a,1		; not yet set it and move on
+	ld	(rbr),a		; set on
+	ld	a,(cbf)		; see where to return to
+	cp	1
+	jp	z,lyn2
+	cp	2
+	jp	z,lyn3
+	jp	lyn4
+
+tryc:	ld	a,1
+	ld	(ngsys),a	; set bad read flag for sys.
+	call	dskrst
+	ret			; return to caller
+
+whss:	ld	a,(acof)
+	and	30h
+	cp	0		; is it a winchester media
+	jp	z,hsys		; yes go there
+	cp	10h		; is it a drivetec media
+	jp	z,dsys		; yes go there
+	cp	20h		; is it a standard system
+	jp	z,ssys		; yes it it
+	cp	30h		; is it a standard system
+	jp	z,ssys		; its a standard system media
+	jp	bdvce		; bad system.
+
+hsys:	ld	a,14		; set to 14 physical sectors
+	ld	(sec),a		; store the value off
+	ld	a,0		; set to winchester value
+	ld	(drtp),a	; save this value
+	jp	dot1		; continue 
+;
+dsys:	ld	a,14		; set to 14 physical sectors
+	ld	(sec),a		; store the value off
+	ld	a,1		; set to drivtec value
+	ld	(drtp),a	; set this value
+	jp	dot1		; continue
+;
+ssys:	ld	a,10		; set to 10 physical sectors
+	ld	(sec),a		; store the value
+	ld	a,2		; set to standard floppy value
+	ld	(drtp),a	; store this value
+	jp	dot1		; continue
+;
+bdvce:	push	bc		; save off registers
+	push	hl
+	ld	hl,bddce	; bad device message for a system
+	jp	ertne		; go to error routine
+
+ngsys:	db 	0
+rbr:	db	0
+cbf:	db	0
+grtot:	dw	00
+	end

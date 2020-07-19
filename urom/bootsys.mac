@@ -1,0 +1,297 @@
+        title   BOOTSYS:  System Cold Boot and CP/M Warm Start
+        .z80
+        cseg
+        include macro.lib
+        entry   bootsys,sysld,disuser
+;
+        extrn   ltoptab,k10flg,wbstat,seldsk    ;select,select,select,select
+        extrn   settrk,setsec,setdma,read       ;select,sets,sets,lrw
+        extrn   csum,msgout,diskoff,vidout      ;diskinit,sgnon,lrw,video
+        extrn   timer,flush                     ;winio,lrw
+;
+        cpyrit
+;
+;       System cold boot routine. 
+;
+;       Written by:     T. Hayes
+;
+;       It is assumed that the disk system has been initialized and that
+;       ltoptab, k10flg and wbstat are properly configured (see diskinit).
+;
+bootsys:
+        ld      a,(k10flg)                      ;first see if there is a winchester
+        cp      -1
+        jr      z,bootfd                        ;if not, boot from floppy only
+;
+        ld      a,(wbstat)                      ;if there is not a system on
+        cp      -1                              ;the winchester
+        jr      z,bootfd                        ;boot from the floppy
+;
+        ld      hl,(ltoptab)                    ;change to floppy as drive a
+        ld      a,(ltoptab + 2)
+        ld      (ltoptab),a
+        ld      (ltoptab + 1),hl
+;
+        call    read1                           ;attempt to read the boot sector
+        jr      z,bootfd                        ;boot from floppy if good sector
+;
+        ld      hl,(ltoptab + 1)                ;floppy select failed
+        ld      a,(ltoptab)                     ;go back to winchester as a
+        ld      (ltoptab),hl
+        ld      (ltoptab + 2),a                 ;and fall through to winchester boot
+;
+        page
+bootwd:
+;
+;       Boot either a winchester system or a drivetec, high density diskette
+;
+        call    read1                           ;read the boot sector
+;
+        jp      nz,bootwd                       ;it was a bad read or does not checksum properly
+;
+        ld      hl,(temp + 6)                   ;get the number of records to read
+        ld      de,1                            ;the starting sector number
+        ld      bc,0                            ;on track 0
+        call    rdblock                         ;read a block of sectors
+;
+        jr      nz,bootwd                       ;if there was an error
+;
+        jr      gosys                           ;go to the operating system
+        page
+bootfd:
+;
+;       Boot a standard floppy
+;
+        call    read1                           ;attempt to read the boot sector
+        jr      nz,bootfd
+;
+        ld      a,(ltoptab)                     ;make sure this is a standard floppy
+        and     media
+        cp      dtmedia                         ;if it is drivetec
+        jr      z,bootwd                        ;use the other boot system
+;
+        ld      hl,39                           ;read the first 39 records
+        ld      de,1                            ;starting with sector 1
+        ld      bc,0                            ;on track 0
+        call    rdblock
+;
+        jr      nz,bootfd                       ;if error in read
+;
+        ld      hl,16                           ;else read the next 16 records
+        ld      de,16                           ;starting with sector 16
+        ld      bc,1                            ;on track 1
+        call    rdblock                 
+;
+        jp      nz,bootfd                       ;if error in read
+;
+gosys:
+        ld      hl,(temp + 4)                   ;get the entry point
+        jp      (hl)                            ;and go to the os
+        page
+rdblock:
+;
+;       Read a block of records
+;
+;       On entry:
+;               HL contains the number of records to read
+;               DE contains the starting sector number
+;               BC contains the track number
+;               temp + 2 contains the dma address
+;               Drive A has been selected
+;               
+;       On exit:
+;               a = 0 if read was ok (zero set)
+;               a = 1 if an error occured (zero reset)
+;
+;       During the read operation, the dma address at temp + 2 will be updated
+;       for the next read.
+;
+        ld      (temp + 8),hl           ;save the entry values
+        ld      (temp + 10),de
+        ld      (temp + 12),bc
+;
+rdblock1:
+        ld      bc,(temp + 12)  
+        call    settrk                  ;set the track number
+;
+        ld      bc,(temp + 10)          ;sector
+        call    setsec
+;
+        ld      bc,(temp + 2)           ;dma address
+        call    setdma
+;
+        call    read                    ;do the read
+        and     a                       ;if error
+        ret     nz                      ;return to caller
+;
+        ld      hl,(temp + 2)           ;point to the next dma location
+        ld      de,128
+        add     hl,de
+        ld      (temp + 2),hl
+;
+        ld      hl,(temp + 10)          ;next sector number)
+        inc     hl
+        ld      (temp + 10),hl
+;
+        ld      hl,(temp + 8)           ;decrement the counter
+        dec     hl
+        ld      (temp + 8),hl
+;
+        ld      a,h                     ;see if it went 0
+        or      l
+        ret     z                       ;return to caller if so
+;
+        jr      rdblock1                        ;go back for the next sector
+        page
+read1:
+;
+;       Read the system boot sector from drive a
+;
+        ld      bc,0                    ;select drive a
+        ld      e,0                     ;initial select
+        call    seldsk
+;
+        ld      a,h                     ;check for good select
+        or      l
+        jr      nz,read11
+        inc     a
+        ret                             ;return to caller if not
+;
+read11:
+        ld      bc,0                    ;track 0
+        call    settrk
+;
+        ld      bc,0                    ;sector 0
+        call    setsec
+;
+        ld      bc,temp                 ;use the temp area
+        call    setdma
+;
+        call    read                    ;read the record
+        and     a                       ;set the flags
+        ret     nz                      ;and return to caller if error
+;
+        ld      hl,temp                 ;now checksum it
+        ld      bc,126
+        call    csum
+;
+        ld      bc,(temp + 126)         ;if they don't agree
+        or      a
+        sbc     hl,bc
+        jr      nz,booterr              ;do the error message
+;
+        ld      de,(temp + 2)           ;get the ccp address
+        ld      hl,0b41h                ;compute the address of current user
+        add     hl,de
+        ld      (usrnum),hl             ;store the user address
+;
+        xor     a                       ;return good status
+        ret
+        page
+booterr:
+        call    diskoff                 ;de-select disk drives
+        ld      hl,bootmsg              ;display the error message
+        call    msgout
+        ld      h,7                     ;wait for new disk
+booterr1:
+        call    timer
+        jr      nz,booterr1
+;
+        ld      hl,clrmsg               ;clear the status line
+        call    msgout
+;
+        jr      read1
+        page
+sysld:
+;
+;       Do a system warm boot
+;
+        di                              ;disable interrupts until the boot is done
+;
+        call    flush                   ;flush the host buffer
+;
+sysld1:
+        call    read1                   ;attempt to read the first sector
+        jr      nz,sysld1               ;stay here until it succeds
+;
+        ld      a,(ltoptab)             ;see what the a config is
+        and     30h                     ;if winchester
+        jr      z,winsys
+        cp      10h                     ;or drivetec
+        jr      z,winsys
+;
+        ld      hl,39                   ;set up to read first track
+        ld      de,1
+        ld      bc,0
+        call    rdblock                 ;read that track
+        and     a
+        jr      nz,sysld
+;
+        ld      hl,5                    ;read the 5 sectors
+        ld      de,16                   ;from the second track
+        ld      bc,1                    ;starting at record 16
+        call    rdblock
+        and     a
+        jr      nz,sysld
+;
+        ret
+        page
+winsys:
+;
+;       Warm boot a winchester system
+;
+        ld      hl,43                   ;set up for a block read
+        ld      de,1
+        ld      bc,0
+        call    rdblock                 ;read the records
+        and     a
+        jr      nz,winsys               ;on error, stay here
+;
+        ret                             ;return to user
+        page
+disuser:
+;
+;       Display the user number and >
+;
+        ld      hl,(usrnum)
+        ld      a,(hl)                  ;pick up the user number from ccp
+        cp      10                      ;if it is greater than 10
+        jr      c,disuser1
+;
+        push    af
+        ld      c,'1'                   ;display a 1
+        call    vidout
+        pop     af
+        sub     10                      ;and reduce the number by 10
+disuser1:
+        or      30h                     ;convert the number to ascii
+        ld      c,a
+        call    vidout                  ;display it
+        ld      c,'>'                   ;and the greater than
+        call    vidout
+        ret                             ;then return to caller
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+temp    equ     8000h                   ;temporary storage for boot & warm start
+media   equ     30h                     ;media type mask
+dtmedia equ     10h                     ;drivetec media type
+esc     equ     1bh
+;
+bootmsg:
+        db      esc,'B6'
+        at      24,0,'No operating system present on this disk'
+        db      esc,'C6'
+        db      0
+clrmsg:
+        db      esc,'B6'
+        at      24,0,18h
+        db      esc,'C6'
+        db      0
+        dseg
+usrnum: ds      2                       ;storage location for ccp user number
+        end

@@ -1,0 +1,236 @@
+;	UROM.MAC
+         .z80
+	include	macro.lib
+;
+        entry   ver,rev
+;
+;       Jump vector externals
+;
+        extrn   d1dph
+;
+        extrn   $pixon,$pixoff,$linon,$linoff
+        extrn   diskinit,home,seldsk,settrk,setsec,setdma,read,write,sectran
+
+        extrn   vidinit,devinit,diskon,diskoff
+	extrn	devin2
+        extrn   kbdstat,kbdin,kout,s2ist,s2in,s2out
+        extrn   liststat,list,s2ost,vidout
+;
+;       Extended ROM function externals
+;
+        extrn   intini
+        extrn   kbdoss,kbdess,kbdiss,kbspss
+        extrn   s1oss,s1ess,s1iss,s1spss
+        extrn   s2oss,s2ess,s2iss,s2spss
+        extrn   s3oss,s3ess,s3iss,s3spss
+        extrn   clkiss,modiss
+        extrn   bufin,bufout,bufist,bufost
+        extrn   bootsys
+        extrn   const,conin,conout,punch,reader,listst,sgnon
+        extrn   kbdinit,sysld
+        extrn   getdev,loddev
+        extrn   rdraw,wrraw
+        extrn   disuser,curinit,funcinit,gettabs
+        extrn   hdmap                           ;hxlate
+        extrn   fseek,ldbufs                    ;lrw,devinit
+;
+	cpyrit
+        page
+;
+;       ROM Jump Table
+;
+;       This table is provided to maintain compatiblity with earlier
+;       ROM releases.
+;
+        jp      start           ; start up computer
+        jp      diskinit        ; disk initialize
+        jp      vidinit         ; video initialize
+        jp      devinit         ; device initialize
+        
+        jp      home            ; home selected disk drive
+        jp      seldsk          ; select a disk drive
+        jp      settrk          ; seek a track
+        jp      setsec          ; set sector number to read
+        jp      setdma          ; set dma address
+        jp      read            ; read logical sector
+        jp      write           ; write logical sector
+        jp      sectran         ; xlate sector number
+        jp      diskon          ; turn on disk
+        jp      diskoff         ; turn off disk
+
+        jp      kbdstat         ; keyboard character ready
+        jp      kbdin           ; input from keyboard
+        jp      kout            ; output to keyboard (used to ring bell)
+        jp      s2ist           ; status of serial input port
+        jp      s2in            ; serial input
+        jp      s2out           ; serial output
+        jp      liststat        ; list output status (Centronics)
+        jp      list            ; list output
+        jp      s2ost           ; test status of serial output
+        jp      vidout          ; video output
+        jp      thnsd           ; short delay
+        jp      extend          ; extended ROM call handler
+start:
+        di                      ; stop interupts while setup
+        ld      sp,d1dph        ; rom stack point
+        ld      a,08fh          ; configure the control port
+        out     (14h),a
+;
+        ld      hl,verloc       ;put the  version and its checksum in high ram
+        ld      (hl),ver
+        inc     hl
+        ld      (hl),'.'
+        inc     hl
+        ld      (hl),rev and 0ffh
+        inc     hl
+        ld      (hl),rev shr 8 and 0ffh
+        jr      start1
+;
+;       Flexible disk interrupt handler
+;
+        org     66H             ; nmi vector
+        ret                     ; return from "halt", NMI sequence when in rom
+start1:
+        inc     hl
+        ld      (hl),versum
+;
+	call	devin2		; take modem on hook
+        call    vidinit         ; init video sub-system
+        call    diskinit        ; init disk sub-system
+        jp      bootsys         ; boot system
+thnsd:
+        ret
+        page
+extend:
+;
+;       Extended ROM call handler
+;
+;       On entry:
+;               a contains the current IO byte
+;               d contains an extended routine number
+;               bc contains any parameters needed by the called routines
+;
+;               The contents of e are preserved in the dispatching process
+;
+;       On exit:
+;               a returns any register based parameters or status
+;
+;       If RAM based parameters are passed to any of these routines, the
+;       associated RAM address must be above the memory locations occupied
+;       by the ROM (8000h or above)
+;
+        ld      l,a                     ;put iobyte & flags into hl
+;
+        ld      a,maxrtne               ;check for a routine number greater than allowed
+        sub     d
+        ret     c                       ;and return to caller if it is too large
+        ld      a,l
+;
+        push    de                      ;save the contents of de
+        ld      e,d
+        sla     e                       ;turn the routine number into a displacement
+        ld      hl,extab                ;add the displacement to the base of the table
+        ld      d,0
+        add     hl,de                   ;to form the address of the routine entry address
+;
+        ld      e,(hl)                  ;then load the routine address
+        inc     hl
+        ld      d,(hl)
+;
+        ex      de,hl                   ;and jump to it
+        pop     de                      ;restore callers de
+;
+        jp      (hl)
+        page
+;
+;       Extended ROM call vectors
+;
+;       Values in parenthesis are the corresponding function number
+;
+extab:
+        dw      intini                  ;(0) interrupt initialization
+;
+        dw      kbdoss                  ;(1) keyboard out iss
+        dw      kbdess                  ;(2) keyboard external status iss
+        dw      kbdiss                  ;(3) keyboard input iss
+        dw      kbspss                  ;(4) keyboard special receive iss
+;
+        dw      s1oss                   ;(5) comm port out iss
+        dw      s1ess                   ;(6) comm port external status iss
+        dw      s1iss                   ;(7) comm port input iss
+        dw      s1spss                  ;(8) comm port special receive iss
+;
+        dw      s2oss                   ;(9) printer port out iss
+        dw      s2ess                   ;(10) printer port external status iss
+        dw      s2iss                   ;(11) printer port input iss
+        dw      s2spss                  ;(12) printer port special receive iss
+;
+        dw      s3oss                   ;(13) modem output iss
+        dw      s3ess                   ;(14) modem external status iss
+        dw      s3iss                   ;(15) modem input iss
+        dw      s3spss                  ;(16) modem special receive iss
+;
+        dw      clkiss                  ;(17) clock PIO iss
+        dw      modiss                  ;(18) modem PIO iss
+;
+        dw      bufin                   ;(19) buffer input
+        dw      bufout                  ;(20) buffer output
+        dw      bufist                  ;(21) buffer input status
+        dw      bufost                  ;(22) buffer output status
+;
+        dw      hdmap                   ;(23) return address of hard disk parameters
+;
+        dw      bootsys                 ;(24) system cold boot
+;
+        dw      const                   ;(25) console status
+        dw      conin                   ;(26) console input
+        dw      conout                  ;(27) console output
+;
+        dw      list                    ;(28) list output
+;
+        dw      punch                   ;(29) punch output
+        dw      reader                  ;(30) reader input
+;
+        dw      home                    ;(31) home disk drive
+        dw      seldsk                  ;(32) select drive
+        dw      settrk                  ;(33) set track
+        dw      setsec                  ;(34) set sector
+        dw      setdma                  ;(35) set dma address
+        dw      read                    ;(36) read sector
+        dw      write                   ;(37) write sector
+;
+        dw      listst                  ;(38) list status
+;
+        dw      sectran                 ;(39) sector translation
+;
+        dw      sgnon                   ;(40) cold start sign on message
+        dw      sysld                   ;(41) warm start system reload
+        dw      devinit                 ;(42) character device initialization
+        dw      kbdinit                 ;(43) keyboard table initialization
+        dw      getdev                  ;(44) return address of last device table
+        dw      loddev                  ;(45) load new device table
+;
+        dw      rdraw                   ;(46) read raw sectors
+        dw      wrraw                   ;(47) write raw sectors 
+;
+        dw      disuser                 ;(48) display CP/M user number
+        dw      curinit                 ;(49) cursor key initialization
+        dw      funcinit                ;(50) function key initialization
+        dw      gettabs                 ;(51) return base of keyboard tables    
+        dw      diskoff                 ;(52) disk deselect
+        dw      fseek                   ;(53) floppy disk seek track
+        dw      ldbufs                  ;(54) load character IO buffers
+maxrtne equ     ($-extab)/2             ;maximum extended function number + 1
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+ver     equ     32h                     ;version number
+rev     equ     3230h                   ;revision
+versum  equ     ver + '.' + (rev shr 8 and 0ffh) + (rev and 0ffh)
+verloc  equ     0fff8h                  ;high ram location for version number
+        end
+        end

@@ -1,0 +1,443 @@
+
+TITLE IMAGE
+.comment &
+#############################################################################
+#                                                                           #
+#                  Universal Copy Program with safety catches for           #
+#                  Kaypro Hard disk that will stop the program from         #
+#                  running on a hard disk.                                  #
+#                                                                           #
+#                  Image Module                                             #
+#                                                                           #
+#                  By Steven R. Fabian                                      #
+#                                                                           #
+#                  Copyright (c) 1983 By Non-Linear Systems, Inc.           #
+#                  No warranty is made, expressed or implied.               #
+#                                                                           #
+#############################################################################
+#     10/15/84                                                    [01]      #
+#############################################################################
+&
+
+	.z80
+	cseg
+kp12	equ	0ffh
+kp10	equ	0ffh
+drtec	equ	 8h
+kp4	equ	 4h
+kp2	equ	 2h
+dio	equ	06h
+cr	equ	0dh
+esc	equ	1bh
+bdos	equ	05h
+true	equ	-1
+false	equ	not true
+copymod	equ	false
+blkmod	equ	false
+formod	equ	false
+sysmod	equ	false
+imgmod	equ	true
+
+	include dutil.lib
+	.list
+	.lall
+	entry	image
+
+	extrn	ertne,ffg,maxtrk,sec,ckffmt,trk,setsec,read
+	extrn	write,track,str,sumit,seta,setb,dma,ckit,sec1
+	extrn	acof,bcof,ccof,sytyp,tfg,dispth,spces
+	extrn	disopt,remopt,uresp,fmttrk,head,cyl,cvd
+	extrn	blops,tline,bline,botmsg,menuops,mendvr,rmenu
+	extrn	nsid,wd
+
+;
+;	Diskette image routine
+;
+;	On entry:
+;		IX points to the dispatcher table entry
+;		a contains 0 if this is display menu item only
+;		a contains 1 if full function call
+;
+;	
+image:
+	cp	0			;if menu item only
+	jp	z,imenu
+;
+	ld	hl,imgtxt		;display menu with help
+	call	disopt
+
+	call	uresp			;get user input
+	cp	cr			;if cr
+	jp	z,image2
+imenu:
+	push	af
+	ld	hl,imgtxt		;remove reverse video
+	call	remopt
+	pop	af
+	ret
+
+image2:	push	ix			; save current menu parameters
+	ld	hl,botmsg		; display bottom of screen
+	call	bline			; display it
+;
+	ld	hl,imghdr		; display top of screen
+	call	tline			; display it
+;
+	call	blops			; blank out current options
+	ld	ix,imscr2
+	ld	c,1
+	push	ix
+	push	bc
+	call	menuops
+	pop	bc
+	pop	ix
+imag2a:	call	mendvr
+;
+	cp	esc
+	jp	nz,imag2a
+;
+	pop	ix
+	call	rmenu
+	xor	a
+	ret
+
+imgdvr::
+	; Image a disk from a drive to b drive
+	
+	cp	0
+	jp	z,imgret
+;
+	ld	hl,imgscr3
+	call	disopt
+	push	bc
+	push	hl
+	call	uresp
+	pop	hl
+	pop	bc
+;
+	cp	cr
+	jp	nz,imgret
+
+	ld	a,1			; default to double sided
+	ld	(nsid),a
+;
+	push	bc			; save bc register
+	push	hl			; save hl register
+	ld	hl,spces
+	call	bline
+	ld	e,0			; do major initialization
+	call	seta			; set to a drive
+	jp	ckdsel			; check for disk sel. oper. ok
+ck1:	pop	hl			; restore hl value
+	pop	bc			; restore bc value
+	ld	a,(bcof)		; retreive b config value
+	res	6,a			; reset so first time sys dose
+	ld	(bcof),a		; a full configuration
+;
+	ld	a,(sytyp)		; get system type byte
+	cp	0fdh			; is it a winchester system
+	push	bc			; save off hl value
+	push	hl
+	ld	hl,ihdmsg		; error msg:
+	jp	z,ertne			; winchester not allowed
+	pop	hl			; restore the value
+	pop	bc			; restore the value
+;
+	ld	a,(ccof)		; get c drive system status
+	cp	0ffh			; is system a winchester drive
+	push	bc			; save off bc contents
+	push	hl			; save off hl contents
+	ld	hl,ihdmsg		; set to error message
+	jp	nz,ertne		; bad environment no need to be here
+	pop	hl			; restore hl value a.o.k.
+	pop	bc
+;
+	ld	a,(acof)		; get a drive system status
+	and	0ch			; strip off unneeded bits
+	cp	0			; is system a winchester drive
+	push	bc
+	push	hl
+	ld	hl,ihdmsg
+	jp	z,ertne			; if so not suppose to be here
+;
+	cp	0ch			; is system an bad device
+	ld	hl,ibdmsg		; bad device message
+	jp	z,ertne			; no good return
+	pop	hl			; restore hl value
+	pop	bc			; restore bc value
+;
+	cp	04h			; is it a drivetec system
+	jp	z,drtc1			; set up parameters
+	jp	stdfpy1			; 
+;
+drtc1:	ld	a,(acof)		; pull a drive configuration value
+	and	30h			; strip off uneeded bits
+	cp	10h			; is it a drivtec drive
+	jp	z,set1			; yes  check for matching media
+	push	bc			; save off 
+	push	hl			; save off 
+	ld	hl,irror1		; set up with error message
+	jp	ertne			; error routine
+;
+stdfpy1:ld	a,(acof)		; pull a drive configuration value
+	and	30h			; strip off uneeded bits
+	cp	30h			; is it a kp4 system
+	jp	z,stk4a			; yes it is
+	cp	20h			; is it a kp2 system
+	jp	z,stk2a			; yes it is
+	push	bc			; save off value
+	push	hl			; save off value	
+	ld	hl,irror2		; load up with message
+	jp	ertne			; error routine
+;
+set1:	ld	e,0			; set up major init.
+	call	setb			; set to b drive
+	ld	a,(bcof)		; get conf. value
+	and	30h			; mask
+	cp	10h			; is it drivetec
+	jp	z,setdt1		; yes
+	push	bc			; no
+	push	hl			;
+	ld	hl,irrr1		; wrong media message
+	jp	ertne			; error routine
+;
+stk4a:	push	bc
+	push	hl
+	ld	e,0			; set up major init.
+	call	setb			; set to b drive
+	ld	a,h			; is disk formatted
+	or	l
+	pop	hl
+	pop	bc
+	jp	z,ghjk			; no disk isn't formatted
+	ld	a,(bcof)		; yes test for wrong media
+	and	30h			; mask
+	cp	10h			; is this a drivetec disk
+	jp	nz,stk4			; no, and its ok
+	push	bc			; yes do error routine
+	push	hl
+	ld	hl,irrr2
+	jp	ertne
+;
+ghjk:	push	bc
+	push	hl
+	ld	hl,0fffdh		; retreive systen error status
+	ld	a,(hl)
+	cp	04h			; no address mark
+	jp	nz,kkot
+	inc	hl
+	ld	a,(hl)
+	cp	10h			; correct no address mark
+	jp	nz,kkot
+	pop	hl
+	pop	bc
+	jp	stk4
+;
+stk2a:
+	ld	a,0			; set to single sided
+	ld	(nsid),a
+;
+	push	bc
+	push	hl
+	ld	e,0			; set to major init.
+	call	setb			; set to b dirve
+	ld	a,h			; is disk formatted
+	or	l			;
+	pop	hl
+	pop	bc
+	jp	z,ghj			; no its not 
+	ld	a,(bcof)		; yes it is 
+	and	30h			; see above comments
+	cp	10h
+	jp	nz,stk2
+	push	bc
+	push	hl
+	ld	hl,irrr2
+	jp	ertne
+;
+ghj:	push	bc
+	push	hl
+	ld	hl,0fffdh		; retreive systen error status
+	ld	a,(hl)
+	cp	04h			; no address mark
+	jp	nz,kkot
+	inc	hl
+	ld	a,(hl)
+	cp	10h			; correct no address mark
+	jp	nz,kkot
+	pop	hl
+	pop	bc
+	jp	stk2
+;
+kkot:	ld	hl,irrr2		; wrong type of media
+	jp	ertne
+;
+jmf:	ld	bc,0			; clear bc value
+	ld	(track),bc		; set to 0 for first track
+	ld	bc,(maxtrk)		; set up loop counter
+jmf1::	push	bc			; save on the stack
+	ld	a,0			; clear the accumulator
+	ld	(tfg),a			; reset the flag valid checksum
+;
+jmf2:	ld	e,1			; do partial init
+	call	seta			; set to drive a
+;
+	call	trk			; do track set function
+;
+	call	setsec			; do set sector function
+;
+	call	dma			; set up dma address
+;
+	call	read			; do a raw read 
+	and	a			; test for good read
+	push	hl			; save off hl value
+	ld	hl,irdmsg		; reset to error message
+	jp	nz,ertne		; if no good go there
+	pop	hl			; if good restore hl
+;
+	call	sumit			; do check sum total
+	ld	(str),hl		; save value off
+;
+	ld	e,1
+	call	setb			; set to b drive
+;
+	call	trk			; set to track #
+;
+	call	setsec			; do set sector routine
+;
+	call	dma			; do dma function
+;
+	push	ix
+	call	ckffmt			; check to see if format disk
+	pop	ix
+;
+	call	trk			; set to track #
+;
+	call	setsec			; do set sector routine
+;
+	call	dma			; do dma function
+;
+	call	write			; do a raw write
+	and	a			; test for good read
+	push	hl			; save off hl value
+	ld	hl,iwrmsg		; reset to error message
+	jp	nz,ertne		; if no good go there
+	pop	hl			; if good restore hl
+;
+	ld	a,1			; set to b drive value
+	ld	(wd),a			; set to b drive
+	xor	a			; clear the accum
+	call	ckit			; this routine reads back the
+;					; info just written and dose checksum
+	jp	c,stflg 		; start all over from the top
+;
+	push	hl
+	push	de
+	ld	e,-1			; set up a bdos call
+	ld	c,dio			; use direct i/o
+	call	bdos			; do bdos call
+	cp	esc			; check for user input
+	pop	de
+	pop	hl
+	jp	z,dbot			; if abort kick out
+;
+	push	hl			; save off hl value
+	ld	hl,(track)		; retreive track number
+	ld	de,tks1			; set up buffer area, put in
+	ld	a,20h			; for zero suppression
+	call	cvd			; convert to ascii number
+	ld	hl,trkmg1		; set hl to msg prompt
+	call	bline			; display msg in bottom line
+	xor	a			; clear accumulator
+	pop	hl
+;
+	ld	bc,(track)		; retreive track number
+	inc	bc			; increment a
+	ld	(track),bc		; saver new value
+	pop	bc			; retreive new value
+	dec	bc			; decrement the counter
+	ld	a,b			; pull high value
+	or	c			; make test
+	jp	nz,jmf1			; continue the processing
+	ld	hl,botmsg
+	call	bline
+	xor	a
+	ret
+
+imgret:	push	af			; save input
+	ld	hl,imgscr3		; address of string
+	call	remopt			; turn of inverse
+	pop	af			; restore value
+	ret
+
+.comment &
+#########################################################################
+##                                                                     ##
+##                         SUB - ROUTINES                              ##
+##                                                                     ##
+#########################################################################
+&
+
+setdt1:	ld	bc,320
+	ld	(maxtrk),bc		; # of tracks for drivetec
+	ld	a,17
+	ld	(sec),a			; # of sectors per track
+	ld	a,0ffh			; turn format flag off
+	ld	(ffg),a			; set storage flag value
+	jp	jmf
+
+stk4:	ld	a,80
+	ld	(maxtrk),a
+	ld	a,10
+	ld	(sec),a
+	ld	a,00h
+	ld	(ffg),a
+	jp	setconfig		; set the b config byte for dsdd
+
+stk2:	ld	a,40			;
+	ld	(maxtrk),a		; set to max tracks for a 2
+	ld	a,10			;
+	ld	(sec),a			; set # of sectors to track
+	ld	a,00h
+	ld	(ffg),a
+	jp	setconfig		; set b config byte for ssdd
+
+setconfig:
+	ld	a,(acof)		; get the a config byte
+	inc	a			; increment the physical device
+	ld	(bcof),a		; make that the b config byte
+	jp	jmf
+
+stflg:	ld	a,(tfg)		; retreive flag value
+	cp	1		; test for retry's
+	push	hl		; save off value
+	ld	hl,isumer	; set up error message
+	jp	z,ertne		; if error's leave
+	pop	hl		; restore
+	ld	a,1		; set up value
+	ld	(tfg),a		; set up first retry value
+	jp	jmf2		; continue with one retry 
+
+ckdsel:	ld	a,l		; retreive hl value a 0 indicates
+	or	h		; a failure of the operation
+	jp	nz,ck1		; was it ok if so return
+	ld	hl,ibadmsg	; error message
+	jp	ertne		; display it and finish
+
+dbot:	ld	hl,botmsg
+	call	bline
+	pop	bc
+	xor	a
+	ret
+
+imscr2:	rtne	3,imgdvr
+;
+.comment &
+#######################################################################
+
+#######################################################################
+&
+	page
+	imgmsg
+;
+	end

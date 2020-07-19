@@ -1,0 +1,71 @@
+TITLE CVD
+	.Z80
+	ENTRY	CVD
+	EXTRN	DIV16
+CVD:
+;
+;	Convert to decimal.  
+;
+;	On entry:
+;
+;		HL contains the 16 bit value to be converted
+;		DE points to a 5 byte buffer to hold the string
+;		A contains the fill character
+;
+;	On exit:
+;
+;		The buffer contains the ASCII decimal equivalent of
+;		the binary value with leading zeros blanked.
+;
+;
+	LD	(BLCHAR),A		;SAVE THE BLANKING CHARACTER FOR LATER
+	PUSH	DE			;COSTRUCT THE END OF BUFFER ADDRESS
+	PUSH	DE			;SAVE A SECOND COPY FOR LATER
+	POP	IY
+;
+	LD	DE,4
+	ADD	IY,DE
+;
+	LD	B,5			;EXECUTE THE LOOP 5 TIMES
+;
+CVD1:
+	PUSH	BC			;SAVE THE LOOP COUNT
+	LD	DE,10			;CONVERSION USES DIVIDE BY 10
+;
+	CALL	DIV16
+;
+	LD	A,E			;E CONTAINS THE BCD DIGIT
+	OR	30H			;TURN IT INTO ASCII
+	LD	(IY+0),A		;STORE THE CHARACTER IN THE BUFFER
+;
+	DEC	IY			;POINT BACK ONE
+;
+	POP	BC			;GET BACK THE LOOP COUNT
+	DJNZ	CVD1			;GO BACK IF MORE
+;
+	POP	HL			;GET THE START OF BUFFER ADDRESS
+;
+	LD	A,(BLCHAR)		;PUT THE BLANKING CHARACTER IN C
+	LD	C,A
+;
+	LD	B,4			;ONLY DO 4 TIMES.  LEAVE AT LEAST ONE DIGIT
+CVD2:
+	LD	A,(HL)			;GET A CHARACTER FROM THE BUFFER
+	CP	'0'			;IF IT IS NOT A ZERO
+	RET	NZ			;RETURN TO CALLER
+;
+	LD	(HL),C			;ELSE BLANK IT
+	INC	HL			;POINT TO THE NEXT CHARACTER
+	DJNZ	CVD2			;AND GO BACK IF MORE
+;
+	RET
+	PAGE
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+BLCHAR:
+	DB	0
+	END

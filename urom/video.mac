@@ -1,0 +1,1394 @@
+title   VIDEO: Video driver routines for the KAYPRO-10  (C) 1983 By NLS.
+        include macro.lib
+        .z80
+.comment %
+########################################################
+##                                                    ##
+##      KAYPRO 10 System                              ##
+##                                                    ##
+##      By M. Sherman                                 ##
+##                                                    ##
+##      Video driver routines for the KAYPRO-10       ##
+##      and the 6545 video controller chip.           ##
+##                                                    ##
+########################################################
+##      Date: 04/14/83                    [01]        ##
+########################################################
+%
+
+public  vidout, vidinit
+
+public  col, col2, difx, dify, esccmd, newc, onoff, pix, row
+public  row2, saddr, vatt, vrbase, xoff, yoff
+
+extrn   kout,$pixon,$pixoff,$linon,$linoff,ina,flag
+;
+        cpyrit
+;
+; conditional assembly equates
+
+TRUE    equ     0ffffh
+FALSE   equ     NOT TRUE
+
+; video controller locations
+
+vcbase  equ     1ch             ; video controller base address
+vccmd   equ     vcbase          ; register select port
+vcstat  equ     vcbase          ; status port
+vcrdat  equ     vcbase+1        ; register data port
+vcdata  equ     vcbase+3        ; video controller data port
+
+; command format, video controller commands:
+; high byte = register to select, low byte = base addr. (register select)
+
+curcmd  equ     0e1ch           ; place cursor command
+rwcmd   equ     121ch           ; read/write command
+strcmd  equ     01fh            ; strobe, or "tickle", command
+scrcmd  equ     0c1ch           ; set start of display address command
+                                ; ("scroll" command)
+hiadd   equ     12h     ; high byte register #, video mem. address,
+loadd   equ     13h     ; low byte register #, video mem. address.
+cstart  equ     0ah     ; cursor starting row count, cursor def. reg #
+cstop   equ     0bh     ; cursor ending row count.
+
+csron   equ     60h     ; cursor on, blinking at 1/32, starting row=0
+csroff  equ     20h     ; no cursor, starting row=0 (irrelevant)
+
+; special character equates
+
+space   equ     020h
+nrmlatt equ     00h
+
+; single character control codes
+
+belli   equ     07h     ; bell code to video driver,
+bello   equ     04h     ; bell code to keyboard.
+cr      equ     0dh     ; carriage return
+lf      equ     0ah     ; line feed
+ceol    equ     18h     ; clear to end of line
+ceos    equ     17h     ; clear to end of screen
+clrscr  equ     1ah     ; clear screen
+homec   equ     1eh     ; home cursor
+lcur    equ     08h     ; left cursor (backspace)
+rcur    equ     0ch     ; right cursor (forespace)
+ucur    equ     0bh     ; up cursor
+esc     equ     1bh     ; escape code, initiates multi-
+                        ; -character control sequences
+
+; two-character commands
+
+dline   equ     'R'     ; delete line
+iline   equ     'E'     ; insert line
+
+; three-character commands
+
+atton   equ     'B'     ; set attribute
+attoff  equ     'C'     ; clear attribute
+;++++++++++++++++++++++++++++++++++++++++++++++++++++
+;
+foron   equ     'G'     ; enable foreign character
+foroff  equ     'A'     ; disable foreign character
+;
+;       Following ESC G, lower-case characters (60h-7Fh)
+;       are displayed as the corresponding control-characters
+;       (00h-1Fh) in the character generator address map.
+;
+;       ESC A returns lower-case characters to the normal
+;       ascii (60h-7Fh) range.
+;
+;++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+; four-character commands
+
+setpix  equ     '*'     ; set pixel
+clrpix  equ     ' '     ; clear pixel
+lodcur  equ     '='     ; load cursor address (cursor positioning)
+
+; six-character commands
+
+lindraw equ     'L'     ; draw a line
+lineras equ     'D'     ; erase a line
+
+; video driver equates
+
+linesiz equ     80              ; characters per line
+linesps equ     24              ; number of lines in the normal display
+statlin equ     linesps+1       ; line number, status line
+lastlin equ     (linesps-1)*linesiz     ; address, first chara last
+                                        ; normal display line
+                                        ; (the line above the status line)
+;++++++++++++++++++++++++++++++++++++++++++++++++++
+;vatt   bits
+;       0       =       reverse video
+;       1       =       low intensity
+;       2       =       blinking
+;       3       =       underlining
+;       4       =       video graphics mode
+;       5       =       preserve status line
+;
+FORBIT  equ     6       ;enable foreign character set
+;
+usascii equ     7       ;USASCII override switch - 0 = usascii - 1 = euroascii
+;
+;++++++++++++++++++++++++++++++++++++++++++++++++++
+
+;################################################
+;#                                              #
+;#              video drivers                   #
+;#                                              #
+;################################################
+
+        ; clear to end of line
+clreol: call    caleol          ; calculate end of line count
+        jr      clrdis
+
+        ; clear to end of screen
+clreos: ld      c,linesps-1
+        ld      a,(vatt)
+        and     20h
+        jr      nz,ceos22
+        inc     c
+ceos22: ld      a,(crow)
+        sub     c
+        jr      nc,clreol       ; clear to end of line if on last legal line
+        neg                     ; two's complement, number of lines to erase
+        ld      b,a
+        ld      de,linesiz
+        ld      hl,0
+clresl: add     hl,de
+        djnz    clresl
+        push    hl
+        call    caleol
+        pop     bc
+        add     hl,bc           ; total count in hl
+        jr      clrdis          ; do it
+
+caleol: ld      hl,linesiz
+        ld      de,(cursor)
+        ld      a,(ccol)
+        ld      c,a
+        xor     a               ; clear a, clear flags (especially carry!)
+        ld      b,a             ; clear b
+        sbc     hl,bc           ; hl=number of bytes to move
+        ret
+
+vidinit:; Video hardware/software initialization routine.  Will set
+        ; video driver ram storage to reset/restart values,
+        ; reprogram the video controller chip,
+        ; clear the screen and place the cursor in the upper right corner.
+        ;
+ramini:
+        ld      a,40h           ;set up flag to normal config
+        ld      (flag),a
+;
+        ld      hl,vidram       ; first, initialize the ram.
+        ld      b,ramlen
+        xor     a
+rinilp: ld      (hl),a
+        inc     hl
+        djnz    rinilp
+
+ctrini: ld      hl,ctrtbl       ; then initialize the controller,
+        ld      bc,ctblen*256+vcbase+1
+        xor     a               ; first register,=00
+cinilp: dec     c               ; c:=base
+        out     (c),a           ; select register
+        inc     a               ; a:=register to program
+        inc     c               ; c:=data port
+        outi                    ; (hl):=program data, out to (c)
+        jr      nz,cinilp       ; until b:=0
+        ld      a,strcmd
+        out     (vccmd),a       ; start video chip processing.
+        ; fall through to clear screen
+clear:  call    homecr          ; home cursor
+clear2: ld      a,(vatt)
+        and     0f0h            ; clear ordinary attributes
+        ld      (vatt),a        ; clear attribute byte
+        ld      de,(cursor)     ; same as vrbase, now
+        ld      hl,statlin*linesiz      ; screen size
+        and     20h
+        jr      z,clrdis
+        ld      hl,linesps*linesiz
+        ; fall through to clrdis...
+
+clrdis: ; clear display and associated attributes.
+        ; de := start address, hl := number of locations to clear
+        ; all registers affected...
+        ;
+        ld      bc,hiadd*100h+loadd
+cdislp: in      a,(vcstat)
+        or      a
+        jp      p,cdislp        ; wait until ready,
+        ld      a,b             ; high address byte register number,
+        out     (vccmd),a       ; select it
+        ld      a,d             ; get high byte, new address,
+        and     07h             ; qualify address,
+        ld      d,a             ; put it back,
+        out     (vcrdat),a      ; output it.
+        ld      a,c             ; select
+        out     (vccmd),a       ; low address byte register,
+        ld      a,e             ; get low address byte,
+        out     (vcrdat),a      ; output it.
+        ld      a,strcmd
+        out     (vccmd),a       ; start a new cycle,
+cdislp3:in      a,(vcstat)      ; wait until it's ready,
+        or      a
+        jp      p,cdislp3
+        ld      a,20h           ; clear data byte,
+        out     (vcdata),a
+        inc     de              ; set up for attr., next byte
+cdislp2:in      a,(vcstat)      ; go do attributes
+        or      a
+        jp      p,cdislp2
+        ld      a,b             ; high address byte register number,
+        out     (vccmd),a       ; select it
+        ld      a,d             ; get high byte, new address,
+        or      08h             ; qualify address,
+        out     (vcrdat),a      ; output it.
+        ld      a,c             ; select
+        out     (vccmd),a       ; low address byte register,
+        ld      a,e             ; get low address byte,
+        out     (vcrdat),a      ; output it.
+        ld      a,strcmd
+        out     (vccmd),a       ; start a new cycle,
+cdislp4:in      a,(vcstat)      ; wait until finished.
+        or      a
+        jp      p,cdislp4
+        xor     a               ; clear attribute byte
+        out     (vcdata),a
+        dec     hl
+        ld      a,h
+        or      l
+        jr      nz,cdislp
+        ret
+
+homecr: xor     a
+        ld      (ccol),a        ; reset column count
+        ld      (crow),a        ; reset row count
+        ld      hl,(vrbase)
+        ex      de,hl
+        jp      putcur          ; place cursor and exit
+
+; video controller initialization table, currently for a 25 by 80 display.
+;
+ctrtbl: db      6ah     ; reg00 total char/sweep including retrace, clocks
+        db      50h     ; reg01 total displayed, cclks
+        db      56h
+        db      99h
+        db      19h
+        db      0ah
+        db      19h
+        db      19h
+        db      78h
+        db      0fh
+        db      60h
+        db      0fh
+        db      00h
+        db      00h
+        db      00h
+        db      00h
+ctblen  equ     $-ctrtbl        ; table length
+
+; main entry point.
+
+vidout: ld      a,(leadflg)     ; set by escape sequences
+        or      a
+        jp      nz,escseq       ; an escape sequence is in progress
+        ld      a,c
+        or      a
+        ret     z               ; ignore nulls (requested by tech support)
+        jp      m,vgmod         ; video mode set? find out if negative (>80h)
+        cp      space
+        jp      c,spechar       ; special characters
+spcexe: ld      a,c
+;++++++++++++++++++++++++++++++++++++++++++++++++++++
+;++     1/14/84 switch to foreign character set, if enabled
+;++
+        ld      hl,vatt         ;if foreign characters enabled
+;
+        bit     usascii,(hl)    ;if the usascii switch is enabled
+        jr      z,spc2          ;no character translation is required
+;       
+        bit     FORBIT,m
+        jr      z,patch
+        cp      80h             ;..and not video graphics byte
+        jr      nc,spc2
+        cp      60h             ;..and a lower-case character
+        jr      c,patch
+        and     01Fh            ;then mask to control-character range
+                                ;..and send to controller
+spc2:   
+;++++++++++++++++++++++++++++++++++++++++++++++++++++
+        ld      c,a
+        ld      de,(cursor)     ; special character re-entry if non-control
+        call    putc
+        call    puta            ; place attribute
+vgmexe: ld      a,(ccol)
+        inc     a
+        cp      linesiz
+        jp      nc,crlf
+        ld      (ccol),a                ; save new count
+        ld      de,(cursor)
+        inc     de
+        jp      putcur                  ; reposition cursor and exit
+
+
+patch:  ld      c,a                     ; save off character before test
+        ld      a,(flag)                ; retrieve foreign flag
+        bit     5,a                     ; are we in foreign language
+        ld      a,c                     ; retreive character
+        jp      z,pat2                  ; no, check for 8 bit values 
+        ld      hl,(ina)                ; get table address
+        ld      b,0                     ; clear register value
+        ld      c,(hl)                  ; get counter value
+        push    bc                      ; save vlue on stack
+        inc     hl                      ; set to first search byte
+        cpir                            ; do table lookup
+        pop     de                      ; retreive counter value
+        jp      nz,pat1                 ; byte not in table
+        dec     e                       ; adjust value for hl offset
+        add     hl,de                   ; get new bytes address
+        ld      a,(hl)                  ; get the byte
+pat1:   cp      80h                     ; make check for mapping rom
+        jp      c,spc2                  ; if  less return
+        and     01fh                    ; reduce to special value
+        jp      spc2                    ; continue processing
+
+pat2:   cp      80h                     ; make check for mapping rom
+        jp      c,spc2                  ; if  less return
+        or      40h                     ;
+        and     07fh                    ;
+        jp      spc2                    ; continue processing
+
+vgmod:  ld      a,(vatt)
+        and     10h
+        jp      z,spcexe        ; not video graphics mode if not zero
+        ld      a,(vgb1)
+        and     40h
+        jr      z,vgmod2
+        ld      a,c
+        and     01
+        ld      (vgb1),a
+        ret
+vgmod2: ld      a,(vgb1)
+        or      a
+        ld      a,c
+        jr      z,vgmod5
+        cpl
+vgmod5: or      80h
+        ld      de,(cursor)
+        call    putc
+        ld      a,(vgb1)
+        ld      c,a
+        ld      a,(vatt)
+        or      c
+        call    putatt
+        ld      a,40h
+        ld      (vgb1),a        ; set first
+        jp      vgmexe
+
+; move the cursor to the beginning of the line
+
+carret: ld      hl,(cursor)
+        ld      a,(ccol)
+        ld      e,a
+        xor     a               ; clear flags,a
+        ld      d,a
+        ld      (ccol),a        ; reset line count to zero
+        sbc     hl,de           ; hl = beginning of line
+        ex      de,hl           ; de = beginning of line
+        jr      putcur          ; place cursor and exit
+
+; crlf places the cursor at the beginning of the next line and sets the
+; character column count, ccol, to zero.
+
+crlf:   call    carret          ; carriage return
+        ; fall through to linefeed...
+
+; move the cursor down one line, scroll if necc.
+
+linefd: ld      a,(crow)        ; character row count
+        cp      linesps-1       ; lines per screen
+        jr      c,linef2        ; not last line if carry,
+        cp      statlin-1       ; status line?
+        ret     z               ; if so, don't scroll
+        call    scroll          ; else is last line, scroll screen
+        jr      linef3          ; don't update character row count.
+
+linef2: inc     a               ; update character row count,
+        ld      (crow),a
+
+linef3: ld      hl,(cursor)     ; move the cursor down one line.
+        ld      de,linesiz
+        add     hl,de
+        ex      de,hl
+        ; fall through to putcur...
+
+; place cursor, new cursor address in de
+putcur: ld      a,d
+        and     07h
+        ld      d,a
+        ex      de,hl
+        ld      (cursor),hl
+        ld      bc,(vrbase)
+        sbc     hl,bc
+        jr      nc,putcr2
+        ld      de,0800h
+        add     hl,de
+putcr2: add     hl,bc
+        ex      de,hl
+        ld      bc,curcmd
+        jp      regrst
+
+upcur:  ld      a,(crow)
+        cp      statlin-1
+        ret     z               ; no cursor up from status line,
+        or      a
+        ret     z               ; or from top line
+        dec     a
+        ld      (crow),a        ; update row count
+        ld      hl,(cursor)
+        ld      de,linesiz
+        sbc     hl,de
+        ex      de,hl           ; put new value in de
+        jr      putcur
+
+lfcur:  ld      a,(ccol)
+        or      a
+        jr      nz,lcur2
+        ld      a,(crow)
+        or      a
+        ret     z               ; no way can do
+        cp      statlin-1       ; on status line?
+        jr      z,lcur3
+        dec     a
+        ld      (crow),a        ; update row count
+        ld      a,linesiz
+lcur2:  dec     a
+        ld      (ccol),a        ; update column count
+        ld      de,(cursor)
+        dec     de
+        jr      putcur          ; place and exit
+lcur3:  ld      a,linesiz-1
+        ld      (ccol),a        ; going to the end of the line
+        ld      hl,(cursor)
+        ld      de,linesiz-1
+        add     hl,de
+        ex      de,hl
+        jr      putcur
+
+rtcur:  ld      a,(ccol)
+        cp      linesiz-1
+        jp      nc,crlf         ; do a cr, do a lf if not status line
+        ld      de,(cursor)
+        inc     de
+        inc     a
+        ld      (ccol),a        ; reset column count
+        jr      putcur
+
+scroll: jp      movsts          ; fast scroll
+
+setatr: ld      hl,vatt
+        ld      a,c
+        sub     30h
+        jr      z,revid         ; set reverse video on
+        dec     a
+        jr      z,redint        ; set reduced intensity on
+        dec     a
+        jr      z,sblink        ; set blinking on
+        dec     a
+        jr      z,sunlin        ; set underlining on
+        dec     a
+        jr      z,setcur        ; set cursor on
+        dec     a
+        jr      z,setvid        ; set video mode on
+        dec     a
+        jr      z,savcur        ; save current cursor location
+        dec     a
+        jr      z,savsts        ; save contents of status line during scroll
+        ret                     ; illegal, exit
+
+; set attributes
+
+revid:  ld      a,(hl)
+        or      01h
+        ld      (hl),a
+        ret
+redint: ld      a,(hl)
+        or      02h
+        ld      (hl),a
+        ret
+sblink: ld      a,(hl)
+        or      04h
+        ld      (hl),a
+        ret
+sunlin: ld      a,(hl)
+        or      08h
+        ld      (hl),a
+        ret
+setcur: ld      c,csron         ; cursor on, 1/16 blink
+setcr2: ld      a,cstart        ; cursor select register
+        out     (vccmd),a
+        ld      a,c
+        out     (vcdata),a      ; turn on cursor, 1/16 blink
+        ret
+setvid: ld      a,(vatt)        ; turn on video mode.
+        or      10h             ; (GB1,GB2 graphics pairs)
+        ld      (vatt),a
+        ld      a,40h
+        ld      (vgb1),a
+        ret
+
+savcur: ld      hl,(crow)       ; save, or 'remember', current cursor position
+        ld      (precur),hl
+        ret
+
+savsts: ld      a,(vatt)        ; turn on status line preservation,
+        or      00100000b       ; protect it from scrolling.
+        ld      (vatt),a
+        ret
+
+; clear attributes
+
+clratr: ld      hl,vatt
+        ld      a,c
+        sub     30h
+        jr      z,nrmvid        ; set normal video on
+        dec     a
+        jr      z,nrmint        ; set normal intensity on
+        dec     a
+        jr      z,cblink        ; set blinking off
+        dec     a
+        jr      z,cunlin        ; set underlining off
+        dec     a
+        jr      z,clrcur        ; set cursor off
+        dec     a
+        jr      z,clrvid        ; set video mode off
+        dec     a
+        jr      z,rstcur        ; restore cursor to last loc.
+        dec     a
+        jr      z,scrsts        ; scroll contents of status line during scroll
+        ret                     ; illegal, exit
+
+; clear attributes:
+
+nrmvid: ld      a,(hl)          ; set to non-inverted display mode.
+        and     11111110b
+        ld      (hl),a
+        ret
+nrmint: ld      a,(hl)          ; set to normal intensity
+        and     11111101b
+        ld      (hl),a
+        ret
+cblink: ld      a,(hl)          ; set to no blinking.
+        and     11111011b
+        ld      (hl),a
+        ret
+cunlin: ld      a,(hl)          ; set to no underlining.
+        and     11110111b
+        ld      (hl),a
+        ret
+clrcur: ld      c,csroff        ; turn cursor off
+        jr      setcr2
+clrvid: ld      a,(hl)          ; turn off video mode
+        and     11101111b
+        ld      (hl),a
+        ret
+rstcur: ld      hl,(precur)     ; return cursor to last remembered location.
+        ld      a,h             ; ccol
+        add     a,space
+        ld      (col),a
+        ld      a,l
+        add     a,space
+        ld      (row),a
+        jp      curpos          ; restore previously saved cursor
+scrsts: ld      a,(vatt)        ; turn off status line preservation,
+        and     11011111b       ; scroll status line on scrolls
+        ld      (vatt),a
+        ret
+
+; X,Y cursor positioning routine
+;
+curpos: ld      hl,0
+        ld      c,l     ; set c to zero, too.
+        ld      a,(row)
+        sub     space
+        ret     c       ; error, exit
+        ld      b,a
+        jr      z,curpo3
+        cp      statlin         ; lines per screen
+        ret     nc              ; error, exit
+        ld      de,linesiz
+curpo2: add     hl,de
+        djnz    curpo2
+curpo3: ld      e,a     ; save row count
+        ld      a,(col)
+        sub      space
+        ret     c       ; error, exit
+        cp      linesiz
+        ret     nc      ; error, exit
+        ld      c,a
+        ld      (ccol),a        ; new column count
+        ld      a,e
+        ld      (crow),a        ; new row count
+        add     hl,bc
+        ld      de,(vrbase)
+        add     hl,de
+        ex      de,hl
+        jp      putcur          ; place cursor
+
+dtwait: ld      bc,rwcmd
+rgwait: call    regrst
+        dec     c               ; return c to original value
+        ld      a,strcmd        ; tickle the dummy
+        out     (c),a
+rgwt2:  in      a,(c)
+        or      a
+        jp      p,rgwt2
+        ret
+
+regrst: out     (c),b
+        inc     c
+        out     (c),d
+        dec     c
+        inc     b
+        out     (c),b
+        inc     c
+        out     (c),e
+        ret
+
+getc:   ld      a,d
+        and     07h
+        ld      d,a
+getc2:  call    dtwait
+        in      a,(vcdata)
+        ret
+
+putc:   push    af      ; save data
+        ld      a,d
+        and     07h
+        ld      d,a
+putc2:  call    dtwait
+        pop     af
+        out     (vcdata),a
+        ret
+
+puta:   ld      a,(vatt)        ; video attribute
+putatt: push    hl              ; save hl
+        push    af
+        call    addatt
+        call    dtwait
+        pop     af
+        out     (vcdata),a
+        ex      de,hl
+        pop     hl
+        ret
+
+getatt: push    hl
+        call    addatt
+        call    getc2
+        ex      de,hl
+        pop     hl
+        ret
+
+addatt: ld      hl,801h         ; video attribute offset
+        add     hl,de
+        ld      a,h
+        and     07h             ; 00000000 to 00000111
+        or      08h             ; 00001000 to 00001111
+        ld      h,a
+        ex      de,hl
+        ret
+
+escseq: ld      hl,leadflg
+        ld      (hl),0          ; clear flag
+        cp      1
+        jr      nz,esc2
+        ld      a,c
+        and     07fh
+        cp      dline           ; delete line?
+        jp      z,dltlin
+        cp      iline           ; insert line?
+        jp      z,inslin
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+;++
+;++     1/14/84 enable/disable foreign character mode
+;++
+;++     cp      'A'             ; Kaypro-II display lower case?
+;++     ret     z               ; yes, ignore
+;++     cp      'G'             ; Kaypro-II display greek?
+;++     ret     z               ; yes, ignore
+;++
+        ld      hl,vatt
+        cp      foron
+        jr      nz,escs1a
+        set     FORBIT,m        ;enable foreign char. mode
+        ret
+escs1a: cp      foroff
+        jr      nz,escs1b
+        res     FORBIT,m        ;disable foreign char. mode
+        ret
+escs1b: ld      hl,leadflg
+;++
+;++
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        ld      (esccmd),a      ; set command
+        ld      (hl),2
+        ret
+
+esc2:   cp      2
+        jr      nz,esc3
+        ld      a,(esccmd)
+        cp      atton
+        jp      z,setatr        ; set attribute command
+        cp      attoff
+        jp      z,clratr        ; clear attribute
+        ld      a,c
+        ld      (row),a
+        ld      (hl),3
+        ret
+
+esc3:   cp      3
+        jr      nz,esc4
+        ld      a,c
+        ld      (col),a
+        ld      a,(esccmd)
+        cp      lodcur
+        jp      z,curpos        ; cursor positioning
+        cp      setpix
+        jp      z,$pixon        ; pixel on
+        cp      clrpix
+        jp      z,$pixoff       ; pixel off
+        ld      (hl),4
+        ret
+esc4:   cp      4
+        jr      nz,esc5
+        ld      a,c
+        ld      (row2),a
+        ld      (hl),5
+        ret
+esc5:   ld      a,c
+        ld      (col2),a
+        ld      a,(esccmd)
+        cp      lindraw
+        jp      z,$linon
+        cp      lineras
+        jp      z,$linoff
+        ret                     ; illegal command, exit.
+
+bell:   ld      c,bello         ; put keyboard bell chara in c reg.,
+        jp      kout            ; ring bell
+
+spechar:cp      cr
+        jp      z,carret        ; carriage return
+        cp      lf
+        jp      z,linefd        ; line feed
+        cp      belli
+        jr      z,bell          ; bell
+        cp      ceol
+        jp      z,clreol        ; clear to end of line
+        cp      ceos
+        jp      z,clreos        ; clear to end of screen
+        cp      clrscr
+        jp      z,clear         ; clear screen
+        cp      lcur
+        jp      z,lfcur         ; left cursor
+        cp      rcur
+        jp      z,rtcur         ; right cursor
+        cp      ucur
+        jp      z,upcur         ; up cursor
+        cp      homec
+        jp      z,homecr        ; home cursor
+        cp      esc
+        ;++++++++++++++++++++++++++++++++++++++++++++++++++++
+;       1/14/84 don't display undefined control characters
+;
+        ret     nz
+;++     jp      nz,spcexe       ; not a control character, write it
+;++++++++++++++++++++++++++++++++++++++++++++++++++
+        ld      a,1
+        ld      (leadflg),a     ; set escape in progress
+        ret
+
+title Block Move Routines for the 6545 CRT Controller.  (C) 1983 By NLS
+.comment %
+########################################################
+##                                                    ##
+##      KAYPRO 10 System                              ##
+##                                                    ##
+##      By M. Sherman                                 ##
+##                                                    ##
+##      block move routines for the 6545              ##
+##                                                    ##
+##      Copyright (C) 1983 By Non-Linear Systems, Inc ##
+##      No warranty is made, expressed or implied.    ##
+##                                                    ##
+########################################################
+##      Date: 03/28/83                    [77]        ##
+########################################################
+
+        Current revision:       7.7             28-Mar-83
+        Previous revision:      7.6             11-Mar-83
+        Prev. working rev.:     7.5             14-Feb-83
+                Changes:  Attempt to add insert line.
+                 (revision 7.5)
+                Changes:  Updated scrolling (movsts), insert
+                 line (revision 7.6)
+                Changes:  Final modifications and debugging
+                 prior to shipping (version 7.7)
+
+includes the following routines:
+
+MOVSTS:         move status line (if preserved=true), scroll screen
+MDIR:           move data with attributes (emulates Z-80 LDIR)
+MDDR:           move data with attributes (emulates Z-80 LDDR)
+DLTLIN:         delete the current cursor line.
+INSLIN:         insert a line at the current cursor location.
+%
+page
+
+
+vcdata  equ     1fh             ; video ram data port
+vccmd   equ     1ch             ; register select port
+vcstat  equ     1ch             ; vc status port
+scrcmd  equ     0c1ch           ; used with regrst to alter base address
+rwcmd   equ     121ch           ; used with regrst to set up data address
+strcmd  equ     1fh             ; 'tickle', 'dummy' or strobe register.
+lastlin equ     0730h           ; beginning address of last line (except stat)
+linesiz equ     80              ; line length in counting numbers
+bufsiz  equ     linesiz         ; buffer size, if any
+hiadd   equ     12h             ; high byte of data address port
+loadd   equ     13h             ; low byte of data address port
+vcrdat  equ     vccmd+1         ; video controller register data port
+linesps equ     24
+
+.Z80
+
+page
+
+
+; move status line and scroll
+;
+
+movsts: ld      a,(vatt)        ; first, check to see if the status line
+        and     20h             ; is to be preserved or not.
+        jr      z,mvsts2        ; if bit 5 is zero, no. else...
+; status line preservation is TRUE.  Move the status line before doing
+; anything else.
+;
+mvsts:  ld      hl,(vrbase)
+        ld      de,lastlin+linesiz
+        ld      bc,linesiz      ; amount to move
+        add     hl,de           ; hl=source, de=statline
+        ld      a,h             ; qualify it
+        and     07h
+        ld      h,a
+        ld      d,h             ; copy it into de,
+        ld      e,l             ; de=source.
+        add     hl,bc           ; de=source, hl=destination
+        ld      a,h             ; qualify it
+        and     07h
+        ld      h,a
+        ex      de,hl           ; hl=source, de=destination
+        push    hl              ; save status line address
+        call    mdir            ; if so, move it
+        pop     de              ; status line address in de
+        ld      hl,linesiz      ; amount to clear
+        call    clrdis          ; clear it
+        ld      hl,(vrbase)
+        ld      de,linesiz
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      h,a
+        ld      (vrbase),hl
+        ex      de,hl
+        ld      bc,scrcmd
+        jp      regrst          ; scroll screen and exit
+
+; enter here for scroll if status line preservation IS NOT enabled.
+; MVSTS2 scrolls the screen, then clears the status line.
+;
+mvsts2: ld      hl,(vrbase)
+        ld      de,linesiz
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      h,a
+        ld      (vrbase),hl     ; new base address
+        ex      de,hl
+        ld      bc,scrcmd
+        call    regrst
+        ld      hl,(vrbase)
+        ld      de,linesps*linesiz      ; starting addr., status line
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      h,a
+        ex      de,hl
+        ld      hl,linesiz
+        jp      clrdis                  ; clear status line, exit.
+
+; move a block of data, source in hl, destination in de, count in bc.
+; (just like a Z-80 block move, or LDIR, command, only slower.)
+;
+
+mdir:   ld      a,b
+        and     07h             ; qualify the upper byte,
+        or      c               ; qualify the count
+        ret     z               ; not 65,535 please!
+mdir2:  push    bc              ; save the count
+rdlopx: in      a,(vcstat)
+        or      a
+        jp      p,rdlopx        ; wait until ready to begin
+        ld      bc,hiadd*100H+loadd     ; address register numbers
+                        ; change the data update address register:
+        ld      a,b             ; high address byte register, UA,
+        out     (vccmd),a       ; select it.
+        ld      a,h             ; get high byte, new address,
+        out     (vcrdat),a      ; put it in high byte, UA.
+        ld      a,c             ; low address byte, UA,
+        out     (vccmd),a       ; select it.
+        ld      a,l             ; new low address byte,
+        out     (vcrdat),a      ; set it.
+        ld      a,strcmd        ; strobe register
+        out     (vccmd),a       ; start a new cycle
+rdlop1: in      a,(vcstat)      ; get status
+        or      a               ; set flags
+        jp      p,rdlop1        ; wait until vc is ready
+        in      a,(vcdata)      ; get a data byte
+        ex      af,af'          ; save it
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,d
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,e
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+        ex      af,af'
+        out     (vcdata),a
+        inc     de
+        inc     hl
+        ld      a,d
+        and     7h
+        ld      d,a
+        ld      a,h
+        and     7h
+        ld      h,a
+; and now for the attributes
+rdlop2: in      a,(vcstat)
+        or      a
+        jp      p,rdlop2
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,h
+        or      08h             ; go to attribute ram
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,l
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+rdlop3: in      a,(vcstat)
+        or      a
+        jp      p,rdlop3
+        in      a,(vcdata)
+        ex      af,af'
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,d
+        or      08h             ; attribute ram
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,e
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+        ex      af,af'
+        out     (vcdata),a
+        pop     bc
+        dec     bc
+        ld      a,b
+        or      c
+        jp      nz,mdir2
+        jp      mdexlp          ; make sure last byte got moved
+
+; move a block of data, source in hl, destination in de, count in bc.
+; (just like a Z-80 block move, or LDDR, command, only slower.)
+;
+
+mddr:   ld      a,b
+        and     07h             ; qualify the upper byte,
+        or      c               ; qualify the count
+        ret     z               ; not 65,535 please!
+mddr2:  push    bc              ; save the count
+ddlopx: in      a,(vcstat)
+        or      a
+        jp      p,ddlopx        ; wait until ready to begin
+        ld      bc,hiadd*100H+loadd     ; address register numbers
+                        ; change the data update address register:
+        ld      a,b             ; high address byte register, UA,
+        out     (vccmd),a       ; select it.
+        ld      a,h             ; get high byte, new address,
+        and     07h             ; qualify it
+        out     (vcrdat),a      ; put it in high byte, UA.
+        ld      a,c             ; low address byte, UA,
+        out     (vccmd),a       ; select it.
+        ld      a,l             ; new low address byte,
+        out     (vcrdat),a      ; set it.
+        ld      a,strcmd        ; strobe register
+        out     (vccmd),a       ; start a new cycle
+ddlop1: in      a,(vcstat)      ; get status
+        or      a               ; set flags
+        jp      p,ddlop1        ; wait until vc is ready
+        in      a,(vcdata)      ; get a data byte
+        ex      af,af'          ; save it
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,d
+        and     07h
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,e
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+        ex      af,af'
+        out     (vcdata),a
+        inc     de
+        inc     hl
+        ld      a,d
+        and     7h
+        ld      d,a
+        ld      a,h
+        and     7h
+        ld      h,a
+; and now for the attributes
+ddlop2: in      a,(vcstat)
+        or      a
+        jp      p,ddlop2
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,h
+        or      08h             ; go to attribute ram
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,l
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+ddlop3: in      a,(vcstat)
+        or      a
+        jp      p,ddlop3
+        in      a,(vcdata)
+        ex      af,af'
+        ld      a,b             ; change address,
+        out     (vccmd),a
+        ld      a,d
+        or      08h             ; attribute ram
+        out     (vcrdat),a
+        ld      a,c
+        out     (vccmd),a
+        ld      a,e
+        out     (vcrdat),a
+        ld      a,strcmd
+        out     (vccmd),a
+        ex      af,af'
+        out     (vcdata),a
+        pop     bc
+        dec     hl
+        dec     hl
+        dec     de
+        dec     de
+        dec     bc
+        ld      a,b
+        or      c
+        jp      nz,mddr2
+mdexlp: in      a,(vcstat)
+        or      a
+        jp      p,mdexlp
+        ret
+
+dltlin: call    carret          ; do a carriage return
+        ld      a,(crow)
+        or      a
+        jp      z,dscroll       ; special scroll
+        ld      de,(cursor)
+        ld      hl,linesiz
+        cp      23
+        jp      nc,clrdis       ; clear last line or status line, exit
+        cp      11
+        jr      nc,dltl1a       ; normal delete line, lines 11-22
+        ex      de,hl           ; de=linesiz, hl=cursor
+        ld      bc,linesiz-1
+        add     hl,bc           ; hl=end of current line=dest
+        ld      a,h
+        and     07h             ; qualify it
+        ld      h,a             ; hl=dest.
+        ld      b,h
+        ld      c,l             ; bc=dest.
+        sbc     hl,de           ; hl=source
+        ld      a,h
+        and     7h              ; qualify it
+        ld      h,a             ; source in hl
+        push    hl              ; save source
+        ld      de,(vrbase)
+        sbc     hl,de           ; hl=source-vrbase
+        jr      nc,dltl2b       ; true count if no carry
+        ld      hl,0800h
+        or      a               ; clear carry
+        sbc     hl,de
+        pop     de              ; source in de
+        add     hl,de           ; count in hl
+        ld      a,h
+        and     07h
+        ld      h,b
+        ld      b,a
+        ld      a,l
+        ld      l,c
+        ld      c,a
+        ex      de,hl           ; hl=source, de=dest., bc=count
+dscrla: inc     bc              ; count=count-1
+        call    mddr
+dscroll:call    mvsts           ; scroll, saving status line
+        ld      hl,(cursor)
+        ld      de,linesiz
+        add     hl,de
+        ex      de,hl           ; new cursor position in de
+        jp      putcur          ; place cursor and exit
+
+dltl2b: ld      d,b
+        ld      e,c             ; de=dest.
+        ld      b,h
+        ld      c,l             ; bc=count
+        pop     hl              ; hl=source
+        jr      dscrla          ; go do it
+
+dltl1a: add     hl,de           ; source = linesiz+destination
+        ld      a,h
+        and     7h              ; qualify it,
+        ld      d,a
+        ld      e,l             ; put source in de.
+        ld      hl,(vrbase)
+        ld      bc,lastlin+linesiz
+        add     hl,bc           ; lastpos=vrbase+(lastlin+linesiz)
+        ld      a,h
+        and     07h             ; qualify it,
+        ld      h,a             ; put it back in hl,
+        ld      b,a
+        ld      c,l             ; save lastpos in bc.
+        sbc     hl,de           ; hl=lastpos-source
+        jr      nc,dltl3a       ; valid if no carry,
+        ld      hl,0800h        ; else put boundry in hl,
+        or      a               ; clear carry
+        sbc     hl,de           ; hl=boundry-source
+        add     hl,bc           ; +lastpos
+dltl3a: ld      b,h             ; put count in bc
+        ld      c,l
+        ld      hl,(cursor)     ; dest
+        ex      de,hl           ; in de, source in hl
+        call    mdir            ; move it.
+        ld      hl,(vrbase)
+        ld      de,lastlin
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      d,a
+        ld      e,l             ; last line in de
+        ld      hl,linesiz
+        jp      clrdis          ; clear the last line
+
+; insert a line
+
+inslin: ld      a,(crow)
+        cp      12
+        jp      nc,insln2       ; 'normal' insert line
+        ld      hl,(vrbase)     ; source
+        ld      de,linesiz
+        or      a               ; clear carry
+        sbc     hl,de           ; hl = new vrbase
+        ld      a,h
+        and     07h             ; qualify it
+        ld      h,a
+        ex      de,hl           ; dest in de,
+        ld      bc,scrcmd       ; scroll
+        call    regrst
+        ld      hl,(cursor)
+        ld      bc,(vrbase)
+        or      a
+        sbc     hl,bc
+        jr      nc,insl2a       ; hl=amount
+        ld      hl,0800h
+        or      a               ; clear carry flag
+        sbc     hl,bc           ; hl=800h-source
+        ld      a,h
+        and     07h
+        ld      h,a
+        ld      bc,(cursor)
+        add     hl,bc
+insl2a: ld      a,h
+        and     07h
+        ld      b,a
+        ld      c,l             ; amount in bc
+; test
+        ld      hl,80+48
+        add     hl,bc
+        ld      a,h
+        and     07h
+        ld      b,a
+        ld      c,l
+;
+        ld      hl,(vrbase)     ; source in hl
+; test
+        ld      de,23*linesiz
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      h,a
+        ex      de,hl
+        ld      hl,80
+        add     hl,de           ; source in hl, dest in de
+        ld      a,h
+        and     07h
+        ld      h,a
+;
+        call    mdir
+        ld      hl,(cursor)
+        ld      bc,linesiz
+        or      a               ; clear carry
+        sbc     hl,bc
+        ld      a,h
+        and     07h
+        ld      h,a             ; qualify address
+        ex      de,hl           ; put in de
+        ld      a,(ccol)
+        ld      c,a
+        ld      b,0
+        ld      hl,linesiz
+        sbc     hl,bc           ; hl=amount
+        push    de              ; save new cursor address
+        push    hl
+        call    clrdis          ; clear to end of inserted line
+        pop     bc              ; amount
+        push    bc
+        ld      hl,(cursor)
+        ld      a,(ccol)
+        ld      e,a
+        ld      d,0
+        or      a
+        sbc     hl,de
+        ld      a,h
+        and     07h
+        ld      d,a
+        ld      e,l             ; dest in de
+        ld      hl,(cursor)     ; source in hl
+        call    mdir
+        pop     bc              ; amount
+        ld      hl,linesiz
+        or      a
+        sbc     hl,bc
+        call    nz,clrdis
+        ld      hl,(vrbase)
+        ld      bc,linesiz
+        or      a
+        sbc     hl,bc
+        ld      a,h
+        and     07h
+        ld      h,a
+        ld      (vrbase),hl     ; new vr base, 
+        pop     de
+        jp      putcur          ; put cursor and exit
+
+insln2: sub     22
+        jr      z,inl33
+        jp      nc,clreol
+        neg                     ; two's complement, number of lines to move
+        push    af
+        ld      hl,(vrbase)
+        ld      de,79+22*80     ; source
+        ld      bc,80
+        add     hl,de
+        ld      a,h
+        and     07h
+        ld      d,a
+        ld      e,l
+        add     hl,bc           ; destination
+        ld      a,h
+        and     07h
+        ld      h,a
+        ex      de,hl           ; hl:=source, de:=dest.
+        pop     af
+        push    hl
+        ld      hl,0
+inl22:  add     hl,bc
+        dec     a
+        jr      nz,inl22
+        ld      b,h
+        ld      c,l             ; bc=amount
+        pop     hl              ; restore source to hl
+        call    mddr            ; move them
+inl33:  ld      hl,(cursor)     ; source in de,
+        ld      d,h
+        ld      e,l
+        ld      a,(ccol)
+        ld      c,a             ; amount to clear, next line
+        ld      a,80
+        sub     c               ; amount to move and distance to go
+        ld      c,a
+        ld      b,0
+        add     hl,bc           ; dest. in hl,
+        ld      a,h
+        and     07h
+        ld      h,a
+        ex      de,hl           ; now hl=source, de=dest, bc=amount
+        call    mdir            ; move the rest to beginning of next line
+        ld      a,(ccol)
+        ld      l,a
+        ld      h,0
+        or      a
+        call    nz,clrdis       ; clear to the end of the next line,
+        jp      clreol          ; clear to the end of this one.
+
+subttl RAM storage
+.comment %
+###############################################################
+##                                                           ##
+##       System scratch RAM used by ROM software             ##
+##                                                           ##
+###############################################################
+##       Last Update:05/31/82           [001]                ##
+###############################################################
+%
+.z80
+        dseg
+leadflg equ     $               ; video leadin seqeence count
+vidram: ds      1               ; initialization pointer
+crow:   ds      1
+ccol:   ds      1
+vatt:   ds      1
+cursor: ds      2
+vrbase: ds      2
+esccmd: ds      1
+precur: ds      2
+col:    ds      1
+col2:   ds      1
+row:    ds      1
+row2:   ds      1
+onoff:  ds      1
+newc:   ds      1
+pix:    ds      1
+saddr:  ds      2
+xoff:   ds      1
+yoff:   ds      1
+difx:   ds      1
+dify:   ds      1
+vgb1:   ds      2
+ramlen  equ     $-leadflg               ; number of bytes to initialize
+        end     

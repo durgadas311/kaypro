@@ -1,0 +1,4 @@
+l80 /p:0000,/d:f748,urom,sgnon,hxlate,sets,getbuf,lines,pixel,chario,newcio
+<bufmgr,iss,cdisp,intini,select,video,lrw,bootsys,winio,flpyio,devinit,kbdini
+<diskinit,urom/n/y/x/e
+<n

@@ -1,0 +1,33 @@
+TITLE DMENU
+	.z80
+	cseg
+	extrn	menuops,sq
+	entry	dmenu,mmenu,numops
+;
+;	Display the main menu screen
+;
+dmenu:
+	call	sq		;display the lines
+;
+	ld	ix,mmenu	;then the menu options
+	ld	a,(numops)
+	ld	c,a
+	call	menuops
+;
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+numops:	db	0		;current number of menu options
+;
+mmenu:
+;
+;	Main menu dispatcher table
+;
+	ds	4*20
+	db	0
+	end

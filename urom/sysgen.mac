@@ -1,0 +1,840 @@
+TITLE SYSGEN
+.comment @
+############################################################################
+#                                                                          #
+#                   Kaypro Computers Copy Program                          #
+#                                                                          #
+#                   Sysgen Module                                          #
+#                                                                          #
+#                   By Steven R. Fabian                                    #
+#                                                                          #
+#                   Copyright (c) 1983 By Non-Linear Systems Inc.          #
+#                   No warranty is made, expressed or implied.             #
+#                                                                          #
+############################################################################
+#   10/30/84                                                         [01]  #
+############################################################################
+@ 
+	.z80
+	cseg
+;
+bdos	equ	05h
+esc	equ	1bh
+cr	equ	0dh
+k10flg	equ	0fff7h
+true	equ	-1
+false	equ	not true
+copymod	equ	false
+blkmod	equ	false
+formod	equ	false
+sysmod	equ	true
+imgmod	equ	false
+;
+	include	dutil.lib
+	.list
+	.lall
+
+	entry	sysgen,shrtsec,adjbuf,sqplay,bddce,drtp,wd,setadsk,lyn1
+	extrn	disopt,remopt,uresp,botmsg,menuops,mendvr,tline,bline
+	extrn	blops,rmenu,ngsys,ertne,sec,acof,cpmdma,cpmbuf,dispth
+	extrn	track,read,write,setsec,trk,seta,setb,bcof,ccof,cpmsum
+	extrn	dma,numops,topmsg,mmenu,submenu,dskrst,cpybuf
+
+
+;	Diskette format routine
+;
+;	On entry:
+;		IX points to the dispatcher table entry
+;		a contains 0 if this is display menu item only
+;		a contains 1 if full function call
+;	
+
+sysgen:
+	cp	0			;if menu item only
+	jp	z,dmenu
+;
+	ld	hl,systxt		;display menu with help
+	call	disopt
+sys1:
+	call	uresp			;get user input
+	cp	0dh			;if cr
+	jp	z,sys1a
+dmenu:
+	push	af
+	ld	hl,systxt		;remove reverse video
+	call	remopt
+	pop	af
+	ret
+
+sys1a::	call	mvit		; move default os into place
+	push	bc		; save off registers
+	push	de		; 
+	call	dskrst		; do a bdos call to reset disk
+	ld	c,0fh		; set up open file call
+	ld	de,fcb		; set up
+	call	bdos		; do function
+	cp	0ffh		; was operation a failure
+	pop	de		; restore values
+	pop	bc
+	jp	z,vic1		; was a failure
+;
+	push	ix
+	ld	ix,sysche	; set ix to selection choices
+	ld	c,syscnt	; set c reg. with number of choices
+	ld	hl,systop	; set to upper display message
+	ld	de,botmsg	; set to bottom display message
+	call	submenu
+;
+	pop	ix		; pull of saved value
+	xor	a		; safety first
+	ret
+
+page
+
+sysche:	rtne	3,chefle	; choose the cpm file
+	rtne	5,checpm	; choose the existing system
+syscnt	equ	($-sysche)/4	; do math for correct value of options
+;
+chefle:	cp	0		; is it execute or display
+	jp	z,fledsp	; just display
+;
+	ld	hl,flemsg	; set up approaite msg.
+	call	disopt		; display option
+	push	bc		;
+	push	hl		;
+	call	uresp		; lets get user repsonse
+	pop	hl		;
+	pop	bc		;
+	cp	cr		; was it this choice
+	jr	nz,fledsp	; go back
+	ld	a,1		; set accum.
+	ld	(brflg),a	; set flag to read in cpm.sys
+	jp	whsys		; lets go determine what kind of sys. this is
+
+;
+fledsp:	push	af
+	ld	hl,flemsg	; set to approaite msg.
+	call	remopt
+	pop	af
+	ret
+
+page
+;
+checpm:	cp	0		; is it execute or display
+	jp	z,cpmdsp	; just display
+;
+	ld	hl,cpmmsg	; set up approaite msg.
+	call	disopt		; display option
+	push	bc		;
+	push	hl		;
+	call	uresp		; lets get user repsonse
+	pop	hl		;
+	pop	bc		;
+	cp	cr		; was it this choice
+	jp	nz,cpmdsp	; go back
+	call	mvit		; move os to high ram
+	ld	a,0		; clear accom.
+	ld	(brflg),a	; clear read file flag
+	jp	vic1		; was system load into buffer good
+;
+cpmdsp:	push	af
+	ld	hl,cpmmsg	; set to approaite msg.
+	call	remopt
+	pop	af
+	ret
+;
+vic1:	ld	a,(ngsys)	; get flag from sginit oper
+	cp	1		; was read or load of os into buffer a failure
+	push	bc		;
+	push	hl		;
+	ld	hl,bymg		; bad sys. msg. from flag in sginit
+	jp	z,ertne		; had a bad system
+	pop	hl		; system was a.o.k.
+	pop	bc		; fall thru to find out which sys. we are
+;
+whsys:	ld	a,(acof)
+	and	30h
+	cp	0		; is it a winchester media
+	jp	z,hdsks		; yes go there
+	cp	10h		; is it a drivetec media
+	jp	z,dtsys		; yes go there
+	cp	20h
+	jp	z,sdsys		; its standard system
+	cp	30h
+	jp	z,sdsys		; its a standard system
+	jp	bdvce	
+
+.comment @
+######################################################################
+#                                                                    #
+#        Program will return to doit after loading up with           #
+#        system dependent paramaters. ( hdsks, dtsys, sdsys)         #
+#        Also the flag (brflg) will contain the status of weather    #
+#        or not the standard os system will be used or the special   #
+#        cpm.sys file will be used at this point.                    #
+#                                                                    #
+######################################################################
+@
+
+doit:	ld	a,(brflg)	; retrive flag to see which os to use
+	or	a		; do test
+	jp	z,imprmt	; do not use the cpm.sys file
+				; selection was not to use cpm.sys
+				; if not zero then
+				; fall thru and use the cpm.sys file
+
+page
+.comment @
+############################################################################
+#                                                                          #
+#                     Read CPM.SYS File Routines                           #
+#                                                                          #
+############################################################################
+@
+
+rdfile:	push	bc
+	push	hl
+	call	dma		; set up dma buffer
+	ld	hl,10h		; set up record number for random read
+	ld	(rr1),hl	; set it to begin at 800h bytes into file
+	call	clrflg		; clear the error flag for a good read
+				; set up a ret. routine on a read failure
+	ld	(wfg),a		; in the retry area
+	pop	hl
+	pop	bc
+l56:	call	rdnxrec		; go and read the first record of the file
+	or	a		; test for a good read
+	jp	nz,setrfg	; was not good test retry flag
+	push	bc
+	push	hl
+;
+	ld	hl,cpybuf+128	; set hl to next dma buffer addr.
+	ld	(dmadr),hl	; save off for future
+	ld	bc,(cpybuf+6)	; find out how many records to read in
+	ld	(recno),bc	; record count value for first read
+	ld	a,1		; set up return routine on a read failure
+	ld	(wfg),a		; in the retry area
+	pop	hl
+	pop	bc
+
+rdlop:	call	clrflg		; clear the error retry flag
+	push	bc		; save off reg. values
+	push	hl		;
+	call	inc		; set up random record number to next
+	call	sdma		; set up approiate dma addr. buffer
+	pop	hl		; restore reg. values
+	pop	bc
+l57:	call	rdnxrec		; read next record
+	or	a		; do test for valid read
+	jp	nz,setrfg	; set up retry area
+	push	bc		; save off bc
+	ld	bc,(recno)	; retreive
+	dec	bc		; decrement counter
+	ld	(recno),bc	; save off new value
+	ld	a,b		; make test
+	or	c		; have we finished loop
+	pop	bc		; restore bc value
+	jp	nz,rdlop	; process for all records
+	push	bc		; save off registers
+	push	hl
+	push	de
+	push	ix
+				; now lets write into bytes 127,128 sum total
+	call	cpmsum1		; do sumtotal routine
+	ld	(cpybuf+126),hl	; store sum total value here
+	pop	ix		; restore registers
+	pop	de
+	pop	hl
+	pop	bc
+				; fall thru to input routine
+page
+.comment @
+#########################################################################
+#                                                                       #
+#                  Input Routine for Which Disk to Write to             #
+#                                                                       #
+#########################################################################
+@
+
+imprmt::push	ix
+	ld	a,(drtp)	; retrive what kind of system flag
+	cp	0		; is it a winchester
+	ld	ix,whv3		; prompt for write to either a,c
+	ld	c,wh3cnt	; set c register with number of options
+	jr	z,x14a		; if so skip flopy base system prompt
+	ld	ix,whv2		; its a floppy base display a,b
+	ld	c,wh2cnt	; set c register with number of options
+x14a:	ld	hl,systop
+	ld	de,botmsg
+	call	submenu
+	pop	ix
+	xor	a
+	ret
+
+;
+whv3:	rtne	3,cha		; drive a selection
+	rtne	5,chc		; drive c selection
+wh3cnt	equ	($-whv3)/4	; do math to determine number of options
+;
+whv2:	rtne	3,cha		; drive a selection
+	rtne	5,chb		; drive b selection
+wh2cnt	equ	($-whv2)/4	; do math to determine number of options
+;
+cha:	cp	0		; are we execute or display
+	jp	z,sysabk	; if display go here
+;
+	ld	hl,sysamsg	; set hl to display a drive message
+	call	disopt		; display the option
+	call	uresp		; get users response to selection
+	cp	cr		
+	jp	nz,sysabk	; bail out for a not the choice
+	ld	a,0		; set up auto select drive for a
+	ld	(wd),a		; store off in byte
+	jp	skp		; lets do processing
+;
+sysabk:	push	af
+	ld	hl,sysamsg
+	call	remopt
+	pop	af
+	ret
+;
+chb:	cp	0		; are we execute or display
+	jp	z,sysbbk	; if display go here
+;
+	ld	hl,sysbmsg	; set hl to display a drive message
+	call	disopt		; display the option
+	call	uresp		; get users response to selection
+	cp	cr
+	jp	nz,sysbbk	; bail out for a not the choice
+	ld	a,1		; set up auto select drive for a
+	ld	(wd),a		; store off in byte
+	jp	skp		; lets do processing
+;
+sysbbk:	push	af
+	ld	hl,sysbmsg
+	call	remopt
+	pop	af
+	ret
+;
+chc:	cp	0		; are we execute or display
+	jp	z,syscbk	; if display go here
+;
+	ld	hl,syscmsg	; set hl to display a drive message
+	call	disopt		; display the option
+	call	uresp		; get users response to selection
+	cp	cr
+	jp	nz,syscbk	; bail out for a not the choice
+	ld	a,2		; set up auto select drive for a
+	ld	(wd),a		; store off in byte
+	jp	skp		; lets do processing
+;
+syscbk:	push	af
+	ld	hl,syscmsg
+	call	remopt
+	pop	af
+	ret
+;
+skp:	ld	e,0		; set to major initialization
+	call	setadsk		; do selection of disk to get full conf. value
+	ld	a,(wd)		; retreive selected choice value
+	cp	0		; was it the a drive
+	jp	z,onwa
+	cp	1
+	jp	z,onwb
+	jp	onwc
+;
+onwa:	ld	a,(acof)	; retreive a drive value
+	jp	skp1
+;
+onwb:	ld	a,(bcof)	; retreive b drive value
+	jp	skp1
+;
+onwc:	ld	a,(ccof)	; retreive c drive value
+
+skp1:	and	30h		; strip off media
+	cp	0		; 
+	jr	z,whd		; if 0 its a hard disk
+	cp	10h		;
+	jr	z,wdt		; if 1 its a drivetec
+	jp	wstd		; else its a standard system
+
+page
+.comment @
+########################################################################
+#                                                                      #
+#                   Write Routine to System Tracks                     #
+#                                                                      #
+########################################################################
+@
+
+whd:	ld	a,(wd)		; retrieve input value
+	cp	0		; test for drive a
+	jp	z,wthd		; write the a drive
+	cp	1		; test for b drive
+	jp	z,wthd		; write the b drive
+				; must be c drive fall thru
+	ld	hl,osmsg	; set up os message
+	call	bline		; display it
+	ld	e,0		; do a major disk select
+	call	setc		; do sslect
+	pop	hl
+	pop	bc
+	ld	a,(ccof)	; load with c drive configuration
+	and	0ch		; mask
+	cp	0ch		; test for c drive off line
+	push	bc
+	push	hl
+	ld	hl,bddce	; set up error message
+	jp	z,ertne		; must be offline
+	pop	hl
+	pop	bc
+	cp	04h		; is the c drive a drivetec drive
+	jp	z,bob1
+	jp	bob2
+;
+bob1:	ld	a,(ccof)	; retreive value
+	and	30h		; mask
+	cp	10h		; test for drivetec
+	jp	z,wtdt		; write drivetec on  drive
+	push	bc
+	push	hl
+	ld	hl,wrmdcdt	; wrong media message for drivtec media
+	jp	ertne
+
+;
+bob2:	ld	a,(ccof)
+	and	30h
+	cp	20h
+	jp	z,wtst		; write to standard floppy
+	cp	30h
+	jp	z,wtst
+	push	bc
+	push	hl
+	ld	hl,wrmdcst	; wrong media for standard floppy
+	jp	ertne
+;
+
+wdt:	ld	a,(wd)		; retrieve inputed value
+	cp	0		; test for a drive
+	jp	z,wtdt		; write to drivetec  drive
+	cp	1		; test for b drive
+	jp	z,wtbdr		; which type of drive
+	jp	wtcdr		; test for c driver
+
+;
+wtbdr:	push	bc
+	push	hl
+	ld	e,0		; do major disk select
+	call	setb		; do the select
+	pop	hl
+	pop	bc
+	ld	a,(bcof)	; get b drive configuration value
+	and	0ch		; mask
+	cp	0		; test for hard disk
+	jp	z,wthd		; write to b drive of hard disk
+	cp	04h		; test for drivetec
+	jp	z,bb1		; now test media matchup
+	jp	bb2
+;
+bb1:	ld	a,(bcof)	; retreive value
+	and	30h		; mask
+	cp	10h		; test for drivetec media
+	jp	z,wtdt		; write drivetec 
+	push	bc
+	push	hl
+	ld	hl,wrmdbdt
+	jp	ertne
+;
+bb2:	ld	a,(bcof)	
+	and	30h
+	cp	20h
+	jp	z,wtst		; write to standard floppy
+	cp	30h
+	jp	z,wtst
+	push	bc
+	push	hl
+	ld	hl,wrmdbst
+	jp	ertne
+;
+;
+wstd:	ld	a,(wd)		; retreive inputed value
+	cp	0		; was selection for a drive
+	jp	z,wtst		; write to standard  drive disk
+	cp	1		; was selection the b drive
+	jp	z,wtbdr		; check b drive driver routine
+	jp	wtcdr		; check c drive driver routine
+;
+wtcdr:	push	bc
+	push	hl
+	ld	e,0		; do major disk select
+	call	setc		; do the select
+	pop	hl
+	pop	bc
+	ld	a,(ccof)	; get b drive configuration value
+	and	0ch		; mask
+	cp	0		; test for hard disk
+	jp	z,wthd		; write to c drive of hard disk
+	cp	04h		; test for drivetec
+	jp	z,bb1a		; now test media matchup
+	jp	bb2a
+;
+bb1a:	ld	a,(ccof)	; retreive value
+	and	30h		; mask
+	cp	10h		; test for drivetec media
+	jp	z,wtdt		; write drivetec 
+	push	bc
+	push	hl
+	ld	hl,wmcdt
+	jp	ertne
+;
+bb2a:	ld	a,(ccof)	
+	and	30h
+	cp	20h
+	jp	z,wtst		; write to standard floppy
+	cp	30h
+	jp	z,wtst
+	push	bc
+	push	hl
+	ld	hl,wmcst
+	jp	ertne
+
+
+.comment @
+#########################################################################
+#                                                                       #
+#              Actual Write Routine for Hard Disk Drive                 #
+#                      And Drivetec Routines                            #
+#                                                                       #
+#########################################################################
+@
+wthd:
+wtdt:	push	bc
+	push	hl
+	ld	hl,osmsg	; set up os message
+	call	bline		; display it
+	ld	e,0		; set to partial init
+	call	setadsk		; set up a drive
+;
+	ld	bc,0
+	ld	(track),bc	; set to first track
+	call	sqplay1		; set up trk,sector,dma address
+	ld	a,14		; restore the sec value for hd
+	ld	(sec),a		; do it
+	ld	a,6		; set return value for drivetec only
+	ld	(wfg),a		; set the value up
+	xor	a		; clear good read flag
+	ld	(gbr),a		; store it off 
+	pop	hl
+	pop	bc
+
+mel:	push	bc
+	push	hl
+	call	write		; write sequential 14 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the read any good
+	jp	nz,setrf1	; no do retry and error routine
+	ld	a,(k10flg)	; retreive hard disk value
+	cp	0fdh		; are we in a hard disk environment
+	jp	nz,balot	; out if in floppy enviroment else fall thru
+
+wrt2:	push	bc
+	push	hl
+	ld	bc,01		; set bc value to 1 for track 1
+	ld	(track),bc	; set this value to track one
+	call	sqplay1		; set up trk,sector,dma address
+	ld	a,7		; set up which return value
+	ld	(wfg),a		; to return from on a retry of read
+	xor	a		; clear good read flag
+	ld	(gbr),a		; store it off 
+	pop	hl
+	pop	bc
+
+mel1:	push	bc
+	push	hl
+	call	write		; read sequential 14 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the read any good
+	jp	nz,setrfg1	; no do retry and error routine
+	jp	balot
+
+.comment @
+########################################################################
+#                                                                      #
+#                     Write routine to a Standard Floppy               #
+#                                                                      #
+########################################################################
+@
+
+wtst:	push	bc
+	push	hl
+	ld	hl,osmsg	; set up os message
+	call	bline		; display it
+	ld	e,0		; do partial init.
+	call	setadsk		; init 
+;
+	ld	bc,0		; set to first track
+	ld	(track),bc	; do it
+	call	sqplay1		; set to trk,sector, dma buffer
+	ld	a,10		; set to # of physical sectors to write
+	ld	(sec),a		; set it up  
+	ld	a,8		; set up which return value
+	ld	(wfg),a		; to return from on a retry of read
+	xor	a		; clear good read flag
+	ld	(gbr),a		; store it off 
+	pop	hl
+	pop	bc
+;
+mel3:	push	bc
+	push	hl
+	call	write		; write sequential 10 physical sectors
+	pop	hl
+	pop	bc
+	and	a		; was the write any good
+	jp	nz,setrfg1	; no do retry and error routine
+;
+	ld	a,9		; set up which return value
+	ld	(wfg),a		; to return from on a retry of write
+	xor	a		; clear good write flag
+	ld	(gbr),a		; store it off 
+;
+	push	bc
+	push	hl
+	ld	e,1		; set to part. init.
+	call	setadsk		; set to  drive
+;
+	ld	bc,01		; set to storage addr.
+	ld	(track),bc	; set to track 1
+	call	trk		; init sys. to this
+;
+	call	shrtsec		; set to begin at sector #4
+;
+	call	adjbuf1		; set buffer up to correct displacement
+;
+	ld	a,4		; set to write only 4 physical sectors
+	ld	(sec),a		; store this value off
+	pop	hl
+	pop	bc
+;
+mel4:	push	bc
+	push	hl
+	call	write		; this should write above parameters
+	pop	hl
+	pop	bc
+	and	a		; was write into buf any good
+	jp	nz,setrfg1	; if not go here
+	jp	balot
+page
+.comment &
+##############################################################
+#                Sub-Routines                                #
+##############################################################
+&
+
+hdsks:	ld	a,14		; set to 14 physical sectors
+	ld	(sec),a		; store the value off
+	ld	a,0		; set to winchester value
+	ld	(drtp),a	; save this value
+	jp	doit		; continue 
+;
+dtsys:	ld	a,14		; set to 14 physical sectors
+	ld	(sec),a		; store the value off
+	ld	a,1		; set to drivtec value
+	ld	(drtp),a	; set this value
+	jp	doit		; continue
+;
+sdsys:	ld	a,10		; set to 10 physical sectors
+	ld	(sec),a		; store the value
+	ld	a,2		; set to standard floppy value
+	ld	(drtp),a	; store this value
+	jp	doit		; continue
+;
+bdvce:	push	bc		; save off registers
+	push	hl
+	ld	hl,bddce	; bad device message for a system
+	jp	ertne		; go to error routine
+;
+clrflg:	xor	a		; clear accum
+	ld	(gbr),a		; clear flag byte
+	ret			; return to caller
+;
+inc:	ld	hl,(rr1)	; retreive the current rec. number
+	inc	hl		; inc.
+	ld	(rr1),hl	; save new value
+	ret			; return to caller
+;
+
+sdma:	ld	bc,(dmadr)	; set to dma address
+	ld	d,35		; set up dma function
+	call	dispth		; tell system where buffer is
+	ld	hl,(dmadr)	; retreive old dma value
+	ld	de,128		; increment for new value
+	add	hl,de		; compute new offset 
+	ld	(dmadr),hl	; store for next record
+	ret			; return to caller
+;
+rdnxrec:push	bc		; save off registers
+	push	hl
+	push	de
+	ld	c,021h		; set for random read function
+	ld	de,fcb		; point to fcb
+	call	bdos		; do function
+	pop	de		; restore the registers
+	pop	hl
+	pop	bc
+	ret			; return to the caller
+;
+setrfg:	ld	a,(gbr)		; retreive the flag
+	cp	1		; has a retry been tried
+	push	bc		; save off the registers
+	push	hl
+	ld	hl,bdrdmg	; bad read message of a file
+	jp	z,ertne		; if been tried abort
+	pop	hl		; retore the registers
+	pop	bc
+	ld	a,1		; set the retry flag to bad read
+	ld	(gbr),a		; store it
+	ld	a,(wfg)		; see which routine to return to
+	cp	0
+	jp	z,l56
+	jp	l57
+;
+setrf1:	ld	a,(drtp)	; get drive type value
+	cp	0		; is it a winchester
+	jp	nz,setrfg1	; if not just do regular retry's
+	ld	a,(gbr)		; if so test good read flag
+	cp	1		; if we had a previos failure
+	jp	z,wrt2		; yes try writing the b drive
+	ld	a,1		; no set flag to say we did
+	ld	(gbr),a		; store flag off
+	jp	mel		; try the write again
+;
+setrfg1:ld	a,(gbr)		; retreive the flag
+	cp	1		; has a retry been tried
+	push	bc		; save off the registers
+	push	hl
+	ld	hl,bdwrmg	; bad write message 
+	jp	z,ertne		; if been tried abort
+	pop	hl		; retore the registers
+	pop	bc
+	ld	a,1		; set the retry flag to bad read
+	ld	(gbr),a		; store it
+	ld	a,(wfg)		; see which routine to return to
+	cp	6		
+	jp	z,mel		; this is for drivetec retry's
+	cp	7		
+	jp	z,mel1		; this is for hard disk second attempt
+	cp	8
+	jp	z,mel3		; first standard floppy read
+	jp	mel4		; second standard floppy read
+
+sqplay:	call	trk		; set to 0 track
+	call	setsec		; set to 0 sector
+	call	cpmdma		; set to cpmbuffer
+	ret			; return to caller
+;
+sqplay1:call	trk		; set to 0 track
+	call	setsec		; set to 0 sector
+	call	dma		; set to dma buffer
+	ret			; return to caller
+;
+adjbuf:	ld	bc,40*128	; adjust bc value
+	ld	hl,cpmbuf	; set to base of buffer
+	add	hl,bc		; compute offset into buffer
+	push	hl		; flip flop hl, bc values
+	pop	bc		; do it
+	ld	d,35
+	call	dispth
+	ret
+;
+adjbuf1:ld	bc,40*128	; adjust bc value
+	ld	hl,cpybuf	; set to base of buffer
+	add	hl,bc		; compute offset into buffer
+	push	hl		; flip flop hl, bc values
+	pop	bc		; do it
+	ld	d,35
+	call	dispth
+	ret
+
+
+shrtsec:ld	bc,04		; set to phsical sector #4
+	ld	d,34
+	call	dispth
+	ret
+
+setadsk:ld	a,(wd)		; retreive which disk to write to
+	ld	c,a		; set up register c with correct value
+	ld	b,0		; clear b register
+	ld	d,32		; set to idsk init routine
+	call	dispth
+	ret
+
+imp:	push	de
+	ld	e,-1
+	ld	c,06
+	call	bdos
+	pop	de
+	ret
+
+balot:	ld	hl,botmsg
+	call	bline
+	xor	a
+	ret
+;
+setc:	ld	bc,02		; set to c drive
+	ld	d,32		; set parameter for extended rom call
+	call	dispth		; do rom call
+	ret
+;
+mvit:	push	hl
+	push	bc
+	push	de
+	push	af
+	ld	bc,128*56
+	ld	hl,cpmbuf
+	ld	de,cpybuf
+	ldir
+	pop	af
+	pop	de
+	pop	bc
+	pop	hl
+	ret
+;
+cpmsum1:ld	hl,cpybuf
+	ld	ix,0
+	ld	de,0
+	ld	b,126
+las:	ld	e,(hl)
+	add	ix,de
+	inc	hl
+	djnz	las
+	push	ix
+	pop	hl
+	ret
+;
+lyn1:	call	mvit
+	jp	skp
+	sysmsg
+page
+.comment @
+###################################################################
+#                     Data FCB                                    #
+###################################################################
+@
+
+FCB:	db	1,'CPM     SYS',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	db	0,0,0
+
+rr1:	db	0,0,0
+
+brflg:	db	0
+wfg:	db	0
+dmadr:	dw	00
+gbr:	db	0
+recno:	dw	00
+wd:	db	0
+drtp:	db	0
+sfbt:	db	0
+	end
+

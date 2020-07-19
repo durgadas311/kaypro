@@ -1,0 +1,459 @@
+        title   DISKINIT:  Disk System Initialization and Configuration  
+        .z80    
+        cseg
+        include macro.lib
+;
+        entry   diskinit,csum,xfer,$$end
+;
+        extrn   hstflg,ltoptab,winrest,wbstat   ;select,select,winio,select
+        extrn   lodspr,scr,k10flg               ;hxlate,select,select
+        extrn   seldsk,settrk,setsec,setdma     ;select,sets,sets,sets
+        extrn   read,rdraw,cldmsg,winread       ;lrw,lrw,sgnon,winio
+        extrn   sektrk,seksec,sekhead,pdma      ;select,select,select,select
+        extrn   curunit,fstat                   ;select,flpyio
+;
+        cpyrit
+;
+;       Disk system initialization
+;
+;       Written by:     T. Hayes
+;
+;       This routine will determine the system configuration and set up
+;       the appropriate parameters.
+;
+;       The possible configurations are:
+;
+;               2 Standard floppies
+;               2 Drivetec floppies
+;               1 Winchester (2 logical) and 1 standard floppy
+;               1 Winchester (2 logical) and 1 drivetec floppy
+;
+;
+;       First, both drive select lines on the bitport will be put in a
+;       deselect state.  If the controller returns a ready state, the
+;       floppy portion of the disk sub-system is using standard drives.
+;       If a not ready condition is returned, the system has drivetec
+;       drives.  
+;
+;       Second, an attempt will be made to restore the winchester disk
+;       subsystem (PUNIT = 1).  If this fails, then the system has two 
+;       floppies only.  If it succeeds, the system is either a k10 or
+;       a k12 configuration.  
+;
+;       Once the system configuration is completed, the system configuration
+;       table (ltoptab) will be set up.  For K10/12 configurations it will
+;       default to:
+;               A = Winchester heads 0 and 1
+;               B = Winchester heads 2 and 3
+;               C = Floppy physical unit 1
+;
+;       For floppy based systems the table will be set to:
+;               A = Floppy physical unit 1
+;               B = Floppy physical unit 2
+;               C = Not on line
+;
+;       For a detailed description of the bit definitions in this table,
+;       see the data definitions for ltoptab in the file SELECT.MAC.
+;
+;       In addition to the ltoptab, a mask will be set up in the variable
+;       k10flg.  This is used to determine if the system is a winchester
+;       system or if it is floppy only.  It will have one of the following
+;       two values:
+;
+;               k10flg = 0ffh if floppy only
+;               k10flg = 0fdh if winchester
+;
+;       Finally, if k10flg = 0fdh, the variable wbstat will be initialized 
+;       depending on whether or not the winchester subsystem is
+;       bootable.  To make this determination, a read will be attempted
+;       from cylinder 0, head 0, sector 16 using rdraw.  This is the spares
+;       map.  If a read error occurs, the same operation will be attempted
+;       on cylinder 0, head 1, sector 16.  If both read attempts fail, the
+;       drive will be deemed unformatted and the value 0ffh will be placed
+;       in wbstat, k10flg will be set to 0ffh and a floppy disk configuration
+;       will be assumed. Assuming that one of the read attempts succeeds, the 
+;       head number of the successful read will be placed in wbstat.  The 
+;       contents of the spares buffer will then be checksummed.  If the 
+;       computed checksum does not agree with the one in the sector (last 
+;       2 locations) and the current sector came from head 0, the copy on
+;       head 1 will be read and the process will pick up at the checksum
+;       point.  If there is a read error on head 1, a floppy system will be
+;       assumed.  If the reads are successful and the checksum does not agree,
+;       a single disk floppy system will be assumed with the following
+;       configuration in ltoptab:
+;               A = floppy physical unit 1
+;               B = Not on line
+;               C = Not on line
+;
+;       If a good read and a good checksum are found, a read of logical sector
+;       0 of the head that gave the good spares map will be made.  This is 
+;       the system boot sector. If there is a read error, a single floppy
+;       system as described above will be assumed.
+;
+;       If the read succeeds, the logical sector will be checksummed.  If
+;       the computed checksum does not agree with the one in the sector
+;       (last 2 locations), wbstat will be set to -1 indicating the absence
+;       of a valid operating system on the winchester device and ltoptab
+;       will be configured as follows:
+;               A = Floppy physical unit 1
+;               B = Winchester heads 0 and 1
+;               C = Winchester heads 2 and 3
+;
+;       If the checksum is good, wbstat will indicate the head containing
+;       the valid system and ltoptab will be configured as:
+;               A = Winchester heads 0 and 1
+;               B = Winchester heads 2 and 3
+;               C = Floppy physical unit 1
+;
+;       Additionally, the routine lodspr will be called to set up the system
+;       spares tables. 
+;
+        page
+diskinit:
+        call    cldmsg
+;
+        ld      hl,xrtne                        ;move the data move routine
+        ld      de,xfer                         ;to ram
+        ld      bc,xrtnlen
+        ldir
+;
+        ld      a,0                             ;invalidate the host buffer
+        ld      (hstflg),a
+;
+        ld      a,1                             ;set default drive a to win h0 and h1
+        ld      (ltoptab),a
+;
+        ld      a,81h                           ;set default drive b to win h2 and h3
+        ld      (ltoptab + 1),a
+;
+        ld      a,0fdh                          ;set up k10 flag for winchester operation
+        ld      (k10flg),a
+;
+;       Determine floppy type
+;
+        in      a,(bitport)                     ;get the current bitport values
+        or      03h                             ;deselect both drives
+        out     (bitport),a
+;
+        call    fstat                           ;get device command type 1 status
+;
+        ld      b,09h                           ;default to standard floppies
+;
+        bit     ready,a                         ;check for ready
+        jr      z,diskinit2
+;
+        ld      b,05h                           ;if not ready, it is drivetec
+;
+diskinit2:
+        ld      a,b                             ;for the moment, default to
+        ld      (ltoptab + 2),a                 ;device c
+;
+        ld      b,1                             ;attempt to restore winchester
+        call    winrest                         ;physical unit 1
+;
+        and     0ch                             ;if it is not on line
+        jr      z,diskinit3
+;
+        call    flpysys                         ;configure for floppy only
+        ret
+        page
+diskinit3:
+;
+;       There is a winchester disk on line
+;
+        ld      a,0                             ;set up wbstat
+        ld      (wbstat),a
+;
+        ld      bc,0                            ;first attempt
+        call    raw                             ;to read c0 h0 s16
+        and     a                               ;if there was an error
+        jr      z,diskinit4
+;
+        ld      a,1                             ;set up wbstat
+        ld      (wbstat),a
+;
+        ld      bc,1                            ;then attempt
+        call    raw                             ;to read c0 h1 s16
+        and     a                               ;if there was an error
+        jr      z,diskinit4
+;
+        call    flpysys                         ;it is a floppy only system
+        ret                                     ;return to caller
+;
+diskinit4:
+        ld      hl,scr                          ;now checksum the
+        ld      bc,510                          ;first 510 bytes of the sector
+        call    csum
+;
+        ld      de,(scr + 510)                  ;see if they agree
+        or      a
+        sbc     hl,de
+;
+        jr      z,diskinit7                     ;if they don't agree
+;
+        ld      a,(wbstat)                      ;if it was an error on head 0
+        cp      0
+        jr      nz,diskinit6
+;
+        ld      bc,1                            ;read c0 h1 s16
+        call    raw
+        and     a                               ;if an error occured
+        jr      z,diskinit5
+;
+        call    flpysys                         ;it is a floppy only system
+;
+        ret                                     ;return to caller
+diskinit5:
+        ld      a,1                             ;set wbstat to head 1
+        ld      (wbstat),a
+;
+        ld      hl,scr                          ;now checksum the sector
+        ld      bc,510
+        call    csum
+        ld      de,(scr + 510)                  ;if they don't agree
+        or      a
+        sbc     hl,de
+        jr      z,diskinit8
+;
+        call    flpysys                         ;it is a floppy only system
+        ret                                     ;return to caller
+diskinit6:
+        call    flpysys                         ;it is a floppy only system
+        ret                                     ;return to caller
+diskinit7:
+        ld      a,0                             ;set wbstat to head 0
+        ld      (wbstat),a
+;
+        page
+diskinit8:
+        call    lodspr                          ;we now have a valid spares table
+;
+        call    lsec                            ;read the current logical sector 0
+        and     a                               ;if there is an error
+        jr      z,diskinit12
+;
+        ld      a,(wbstat)                      ;if the error was on head 0
+        cp      0
+        jr      nz,diskinit11
+;
+        ld      a,1                             ;try on head 1
+        ld      (wbstat),a
+;
+        call    lsec                            ;read the current logical sector
+        and     a                               ;if there was an error
+        jr      z,diskinit9
+;
+        call    flpysys                         ;it is a floppy only system
+        ret                                     ;return to caller
+;
+diskinit9:
+        ld      hl,scr                          ;checksum the sector
+        ld      bc,126
+        call    csum
+;
+        ld      de,(scr + 126)                  ;if the checksums agree
+        or      a
+        sbc     hl,de
+        jr      nz,diskinit10
+;
+        ret                                     ;bootable winchester -  return to caller
+;
+diskinit10:
+        call    fsys                            ;else it is will only boot floppy
+        ret                                     ;return to caller
+;
+diskinit11:
+        call    flpysys                         ;it is a floppy only system
+        ret                                     ;return to caller
+;
+diskinit12:
+        ld      hl,scr                          ;checksum the sector
+        ld      bc,126
+        call    csum
+        ld      de,(scr + 126)                  ;if the checksums don't agree
+        or      a
+        sbc     hl,de
+        ret     z                               ;bootable winchester - return to caller
+;
+        ld      a,(wbstat)                      ;if the error was on head 0
+        cp      0
+        jr      nz,diskinit15
+;
+        ld      a,1                             ;try reading head 1
+        ld      (wbstat),a
+;
+        call    lsec
+        and     a                               ;if there is an error
+        jr      z,diskinit13
+;
+        call    flpysys                         ;the system is floppy only
+        ret                                     ;return to caller
+;
+diskinit13:
+        ld      hl,scr                          ;checksum the sector
+        ld      bc,126
+        call    csum
+        ld      de,(scr + 126)                  ;if the checksums don't agree
+        or      a
+        sbc     hl,de
+        ret     z                               ;bootable winchester - return to caller
+;
+        call    fsys                            ;it is not a bootable winchester
+        ret                                     ;return to caller
+;
+diskinit15:
+        call    flpysys                         ;it is a floppy only system
+        ret
+;
+        page
+flpysys:
+;
+;       configure the system for floppy only
+;
+;       A = floppy physical unit 1
+;       B = floppy physical unit 2
+;       C = Not on line
+;
+        ld      a,(ltoptab + 2)                 ;pick up the floppy type
+        ld      b,a
+        ld      (ltoptab),a
+        ld      a,b
+        inc     a                               ;and physical unit 2
+        ld      (ltoptab + 1),a
+;
+        ld      a,-1                            ;drive c is not on line
+        ld      (ltoptab + 2),a
+;
+        ld      (k10flg),a                      ;no winchester on line
+        ld      (wbstat),a                      ;and no bootable winchester
+;
+        ret                                     ;return to caller
+        page
+fsys:
+;
+;       Configure the system for k10/12 with non-bootable winchester
+;
+;       A = floppy physical unit 1
+;       B = winchester heads 0 and 1
+;       C = winchester heads 2 and 3
+;
+        ld      hl,(ltoptab)                    ;save the winchester config
+;
+        ld      a,(ltoptab + 2)                 ;get the floppy configuration
+        ld      (ltoptab),a                     ;make that drive a
+;
+        ld      (ltoptab + 1),hl                ;put the winchesters back as b and c
+;
+        ld      a,-1                            ;mark the winchester non-bootable
+        ld      (wbstat),a
+;
+        ret                                     ;return to caller
+        page
+raw:
+;
+;       Execute a read raw to scr from c0 s16 - track number is passed in
+;       bc.
+;
+        ld      (sekhead),bc
+;
+        ld      a,01h                           ;set the physical unit
+        ld      (curunit),a
+;
+        ld      hl,0                            ;set the cylinder number
+        ld      (sektrk),hl
+;
+        ld      hl,16                           ;read sector 16
+        ld      (seksec),hl
+;
+        ld      hl,scr                          ;use the scratch area
+        ld      (pdma),hl                       ;for dma
+;
+        call    winread                         ;read the physical sector
+;
+        ret                                     ;return to caller
+        page
+lsec:
+;
+;       Read logical sector 0 from cylinder 0 where the head in in wbstat
+;
+        ld      bc,0                            ;select heads 0 and 1
+        ld      e,0                             ;inital select
+        call    seldsk
+;
+        ld      a,(ltoptab)                     ;reset the select bit
+        res     6,a
+        ld      (ltoptab),a
+;
+        ld      bc,(wbstat)                     ;track from wbstat
+        ld      b,0
+        call    settrk
+;
+        ld      bc,0                            ;read logical sector 0
+        call    setsec
+;
+        ld      bc,scr                          ;use the scratch area
+        call    setdma
+;
+        call    read                            ;read the sector
+;
+        ret
+        page
+csum:
+;
+;       Compute checksum
+;
+;       On entry:
+;               HL contains the starting address
+;               bc contains the number of bytes
+;
+;       On exit:
+;               HL contains the checksum
+;
+        ld      ix,0                            ;ix is the accumulator
+        ld      d,0
+csum1:
+        ld      e,(hl)                          ;get the next byte
+        add     ix,de                           ;add it to the sum
+        inc     hl                              ;point to the next byte
+        dec     bc                              ;decrement the counter
+        ld      a,b                             ;check for done
+        or      c
+        jr      nz,csum1                        ;go back if not
+;
+        push    ix                              ;return the sum in hl
+        pop     hl
+;
+        ret                                     ;return to caller
+        page
+xrtne:
+;
+;       This is the ram resident data mover.
+;
+        in      a,(bitport)                     ;get the current bitport values
+        push    af                              ;save that status
+        res     7,a                             ;select ram
+        out     (bitport),a
+        ldir                                    ;execute the block move
+        pop     af                              ;get back the original bitport
+        out     (bitport),a
+        ret                                     ;and return to caller
+xrtnlen equ     $-xrtne
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+bitport equ     14h                             ;system control port
+wdcmd   equ     10h                             ;fdc command port
+wdstat  equ     10h                             ;fdc status port
+;
+ready   equ     07h                             ;fdc ready status bit number
+;
+fi0     equ     0d0h                            ;fdc force interrupt command
+;
+        dseg
+xfer:   ds      xrtnlen
+$$end   equ     $
+        end

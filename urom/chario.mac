@@ -1,0 +1,371 @@
+        title   CHARIO:  Logical Character IO Drivers
+        .z80
+        include macro.lib
+        cseg
+        entry   kin,kout,kstat,kost
+        entry   s1in,s1out,s1ist,s1ost
+        entry   s2in,s2out,s2ist,s2ost
+        entry   s3in,s3out,s3ist,s3ost
+        entry   parout,parst
+;
+        extrn   bufost,bufout,bufist,bufin      ;bufmgr,bufmgr,bufmgr,bufmgr
+        extrn   kbdiss,kbdoss,kbdbuf            ;iss,iss,devinit
+        extrn   s1iss,s1oss,combuf              ;iss,iss,devinit
+        extrn   s2iss,s2oss,ptrbuf              ;iss,iss,devinit
+        extrn   s3iss,s3oss,modbuf              ;iss,iss,devinit
+        extrn   intstat                         ;devinit
+;
+        cpyrit
+;
+;       System character I/O primitives
+;
+;       Written by:     T. Hayes
+;
+;       These routines provide an interface between the buffer management
+;       routines and routines called from either the BIOS or by routines
+;       internal to the ROM for primitive character I/O.
+;
+;
+;       Keyboard in
+;
+kin:
+        ld      hl,srlin                ;point to the input routine
+        jr      kbdvector               ;and vector to it
+;
+kstat:
+;
+;       Keyboard input status
+;
+        ld      hl,sistat               ;point to the status routine
+        jr      kbdvector
+;
+kout:
+;
+;       Keyboard output data
+;
+        ld      hl,srlout
+        jr      kbdvector
+kost:
+;
+;       Keyboard output status
+;
+        ld      hl,sostat
+;
+kbdvector::
+        call    savidx                  ;save the index registers
+        ld      de,kbdiss               ;point to the physical input routine
+        ld      ix,kbdbuf               ;point to the buffer data structure
+        ld      iy,kbdoss               ;and the physical output routine
+        jr      srldisp                 ;dispatch to the requested routine
+        page
+s1in:
+;
+;       Comm port data in
+;
+        ld      hl,srlin                
+        jr      s1vector
+;
+s1ist:
+;
+;       Comm port input status
+;
+        ld      hl,sistat
+        jr      s1vector
+;
+s1out:
+;
+;       Comm port data out
+;               
+        ld      hl,srlout
+        jr      s1vector
+;
+s1ost:
+;
+;       Comm port output status
+;
+        ld      hl,sostat
+;
+s1vector::
+        call    savidx
+        ld      de,s1iss
+        ld      ix,combuf
+        ld      iy,s1oss
+        jr      srldisp
+        page
+s2in:
+;
+;       Printer port data in
+;
+        ld      hl,srlin
+        jr      s2vector
+;
+s2ist:
+;
+;       Printer port input status
+;
+        ld      hl,sistat
+        jr      s2vector
+;
+s2out:
+;
+;       Printer port data out
+;
+        ld      hl,srlout
+        jr      s2vector
+;
+s2ost:
+;
+;       Printer port output status
+;
+        ld      hl,sostat       
+;
+s2vector::
+        call    savidx
+        ld      de,s2iss
+        ld      ix,ptrbuf
+        ld      iy,s2oss
+        jr      srldisp
+        page
+s3in:
+;
+;       Modem data in
+;
+        ld      hl,srlin
+        jr      s3vector
+;
+s3ist:
+        ld      hl,sistat
+        jr      s3vector
+;
+s3out:
+        ld      hl,srlout
+        jr      s3vector
+;
+s3ost:
+        ld      hl,sostat
+;
+s3vector::
+        call    savidx
+        ld      de,s3iss
+        ld      ix,modbuf
+        ld      iy,s3oss
+        page
+srldisp::
+        push    hl
+        ld      hl,srldone
+        ex      (sp),hl
+        jp      (hl)
+srldone::
+        pop     ix
+        pop     iy
+        ret
+;
+savidx::
+        ex      (sp),iy
+        push    ix
+        jp      (iy)
+        page
+sistat::
+;
+;       General SIO Logical Input Status
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               IY points to the device physical out driver
+;               DE points to the device physical in driver
+;
+;       On exit:
+;               a = 0 if data is available
+;               a = -1 if no data available
+;
+        push    de                      ;save the iss address
+        call    chkin                   ;poll the input if needed       
+        ld      e,0                     ;set the buffer offset
+        call    bufist                  ;see if data is available
+        pop     de                      ;restore the iss address
+        ret     nz                      ;return to caller if rda
+;
+        bit     0,(ix + flags)          ;test to see if xon/xoff protocol is enabled
+        jr      z,sistat0               ;return to caller if not
+;
+        bit     2,(ix + flags)          ;test if xoff has been sent to remote
+        ret     z                       ;return to caller if not
+;
+        bit     1,(ix + flags)          ;test if xoff has been received from remote
+        ret     nz                      ;return to caller if so
+        res     2,(ix + flags)          ;reset the xoff to remote flag
+;
+        set     4,(ix + flags)          ;request xon to remote
+;
+sistat0:
+        push    de
+        ld      de,sistat1              ;put a return address on the stack
+        push    de
+        jp      (iy)                    ;poll the physical out routine
+;
+sistat1:
+        pop     de
+        xor     a                       ;and return a no data status
+        ret
+        page
+srlin::
+;
+;       General Serial Data Input
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               IY points to the physical out routine
+;               DE points to the physical in routine
+;
+;       On exit:
+;               A will contain the next character available
+;
+;
+        call    sistat                  ;wait for data available
+        and     a
+        jr      z,srlin
+;
+        ld      e,0                     ;then get the character from the buffer
+        call    bufin
+;
+        ret                             ;and return it to caller
+        page
+sostat::
+;
+;       General Serial Output Status
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               IY points to the physical out routine
+;
+;       On exit:
+;               A = 0 if no space is available in the buffer
+;               A = -1 if space is available
+;
+        ld      e,10                    ;set the buffer offset
+        call    bufost                  ;get the status
+        ret                             ;and return to caller
+;
+;
+srlout::
+;
+;       General Serial Data Out
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               IY points to the physical out routine
+;               C contains the character to output
+;
+;       On exit:
+;               No parameters returned
+;               The character has been put in the output queue
+;
+        call    chkout                  ;poll for out ready if needed
+;
+        call    sostat                  ;wait for space available
+        jr      z,srlout
+;
+        call    bufout                  ;put the character in the buffer
+;
+        jp      (iy)                    ;poll the output routine
+        page
+;
+;       Centronics Parallel IO
+;
+parout:
+        call    parst                   ;wait for ready
+        jr      nz,parout
+;
+        ld      a,c                     ;output the character
+        out     (pdat),a
+;
+        in      a,(bitport)             ;then toggle the strobe
+        res     pstrob,a
+        out     (bitport),a
+;
+        ld      b,62                    ;set up a 200 usec timer
+parout1:
+        djnz    parout1
+;
+        set     pstrob,a
+        out     (bitport),a
+        ret                             ;and return to caller
+parst:
+        in      a,(bitport)             ;get the status word
+        bit     pready,a                ;test the ready bit
+        ld      a,0                     ;default to not ready
+        ret     nz
+        cpl                             ;return -1 if ready
+        ret
+        page
+chkin::
+;
+;       Poll the physical in routine if interrupts are not in use
+;
+;       On entry:
+;               DE points to the physical input routine
+;               INTSTAT contains a 0 if interrupts are being used - otherwise reset
+;
+;       On exit:
+;               If a character was available, it will be in the input buffer
+;
+        ld      a,(intstat)             ;see if interrupts are in use
+        and     a
+        ret     z                       ;return to caller if so
+;
+        push    iy                      ;save the oss address
+        push    de                      ;and the iss address
+        ex      de,hl                   ;and call the iss
+        ld      de,chkin1
+        push    de
+        jp      (hl)
+chkin1:
+        pop     de                      ;restore the iss address
+        pop     iy                      ;and the oss address
+        ret                             ;return to caller
+;
+;
+;
+chkout::
+;
+;       Poll the physical out routine if interrupts are not in use
+;
+;       On entry:
+;               IY points to the physical out routine
+;               INTSTAT contains 0 if interrupts are in use - otherwise reset
+;
+;       On exit:
+;               The output device will be ready to receive the next character
+;
+        ld      a,(intstat)             ;see if interrupts are in use
+        and     a
+        ret     z                       ;return to caller if so
+;
+        push    bc                      ;save the output character
+        push    iy                      ;save the oss address
+chkout1:
+        ld      de,chkout2              ;put a return address on the stack
+        push    de
+        jp      (iy)                    ;call the oss
+chkout2:
+        pop     iy                      ;restore a copy of the oss address
+        push    iy
+        jr      z,chkout1               ;go back if not ready
+;
+        pop     iy                      ;restore the oss address
+        pop     bc                      ;restore the output character
+        ret                             ;and return to caller
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+xon     equ     'Q' and 1fh             ;xon character  
+bitport equ     14h                     ;system control port
+pdat    equ     18h                     ;parallel data port
+pstrob  equ     03h                     ;parallel strobe control bit number
+pready  equ     06h                     ;parallel port ready bit
+        bufequ
+        end

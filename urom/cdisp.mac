@@ -1,0 +1,145 @@
+        title   CDISP:  Character IO Dispatcher
+        include macro.lib
+        .z80
+        cseg
+        entry   const,conin,conout
+        entry   reader,punch
+        entry   list,listst
+;
+        extrn   s1ist,s1ost,s1in,s1out          ;chario,chario,chario,chario
+        extrn   s2ist,s2ost,s2in,s2out          ;chario,chario,chario,chario
+        extrn   s3ist,s3ost,s3in,s3out          ;chario,chario,chario,chario
+        extrn   kbdin,kbdstat,vidout            ;newcio,newcio,video
+        extrn   parout,parst                    ;chario,chario
+        extrn   rnte                            ;newcio
+;
+        cpyrit
+;
+;       Character IO dispatcher
+;
+;       Written by:     T. Hayes
+;
+;       These routines dispatch logical device requests to the appropriate
+;       physical devices based upon the CP/M IOBYTE. The IOBYTE is passed
+;       to these routines in the A register and, in the case of output routines
+;       the character to be output is in the C register.
+; 
+;       The IOBYTE is located in RAM location 0003h and has the following form:
+;
+;               _________________________________
+;               |   |   |   |   |   |   |   |   |
+;               | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+;               |   |   |   |   |   |   |   |   |
+;               ---------------------------------
+;                 LST:  | PUN:  | RDR:  |  CON:
+;
+;       For the pun:, rdr: and con: devices, the following device assignments
+;       are used:
+;
+;               00      serial printer port
+;               01      video
+;               10      serial comm port
+;               11      modem
+;
+;       The lst: device uses the following:
+;
+;               00      serial printer port
+;               01      video
+;               10      centronics parallel port
+;               11      serial comm port
+;
+;
+const:
+        and     iomsk                   ;mask for ls 2 bits
+        jp      z,s2ist                 ;if printer
+;
+        cp      1                       ;if keyboard
+        jp      z,kbdstat
+;
+        cp      2                       ;if comm port
+        jp      z,s1ist
+;
+        jp      s3ist                   ;must be the modem
+;
+;
+conin:
+        and     iomsk                   ;mask for ls 2 bits
+        jp      z,s2in                  ;if printer
+;
+        cp      1                       ;if keyboard
+        jp      z,kbdin
+;
+        cp      2                       ;if comm port
+        jp      z,s1in
+;
+        jp      s3in                    ;must be the modem
+;
+conout:
+        and     iomsk                   ;mask for ls 2 bits
+        jp      z,s2out                 ;if printer
+;
+        cp      1                       ;if video
+        jp      z,vidout
+;
+        cp      2                       ;if comm port
+        jp      z,s1out
+;
+        jp      s3out                   ;must be the modem
+        page
+reader:
+        rra                             ;move the reader bits of the iobyte
+        rra                             ;into the ls 2 bits
+        jp      conin                   ;and dispatch
+;
+punch:
+        rlca                            ;move the punch bits of the iobyte
+        rlca                            ;into the ls 2 bits
+        rlca
+        rlca
+        jp      conout                  ;and dispatch
+        page
+list:
+        rlca                            ;move the list bits of the iobyte
+        rlca                            ;into the ls 2 bits
+        and     iomsk                   ;and mask for the ls 2 bits
+;
+        cp      1                       ;if video
+        jp      z,vidout
+;
+        push    af                      ;else save the iobyte
+        call    rnte                    ;and do foreign language translation
+        pop     af                      ;restore iobyte
+;
+        cp      0                       ;if printer
+        jp      z,s2out
+;
+        cp      2                       ;if centronics port
+        jp      z,parout
+;
+        jp      s1out                   ;must be the comm port
+;
+;
+listst:
+        rlca                            ;move the list bits of the iobyte
+        rlca                            ;into the ls 2 bits
+        and     iomsk                   ;and mask for the ls 2 bits
+;
+        jp      z,s2ost                 ;if printer
+;
+        cp      2                       ;if centronics
+        jp      z,parst
+;
+        cp      3                       ;if comm port
+        jp      z,s1ost
+;
+        ld      a,-1                    ;must be video - always ready
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+iomsk   equ     03h                     ;iobyte mask
+        end

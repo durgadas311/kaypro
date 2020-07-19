@@ -1,0 +1,221 @@
+        title   BUFMGR:  Character IO buffer manager
+        .z80
+        include macro.lib
+        cseg
+        entry   bufin,bufout,bufist,bufost
+;
+        cpyrit
+;
+;       Character buffer manager
+;
+;       Written by:     T. Hayes
+;                       5/17/84
+;
+;       This is a generalized set of buffer management routines for use by
+;       character oriented I/O routines.  The general convention is that
+;       a pointer to a data structure describing the buffer is passed in the
+;       IX register and data is passed to or from the routines in the A
+;       register.  The routines contained in this module are:
+;
+;               BUFIN   Input a character from the buffer
+;               BUFOUT  Output a character to the buffer
+;               BUFIST  Buffer input status of buffer
+;               BUFOST  Buffer output status of buffer
+;
+;       The e register contains a 0 if the access is to be to the input device
+;       buffer or a 10 if it is the output device buffer
+;
+;       The data structure pointed to by IX on entry has the following 
+;       contents:
+;
+;               DISPL   TYPE    NAME    DEF
+;               0       dw      ibstrt  Input buffer starting address
+;               2       dw      ibend   Input buffer ending address
+;               4       db      ibmax   Input buffer maximum byte count
+;               5       db      ibcnt   Input buffer number of active bytes 
+;               6       dw      ibinxt  Next input character location in the input buffer
+;               8       dw      ibonxt  Next output character location in the input buffer
+;               10      dw      obstrt  Output buffer starting address
+;               12      dw      obend   Output buffer ending address
+;               14      db      obmax   Output buffer maximum byte count
+;               15      db      obcnt   Output buffer number of active bytes
+;               16      dw      obinxt  Next input character location in the output buffer
+;               18      dw      obonxt  Next output character location in the output buffer
+;               20      db      bflags  Handshake protocol flags
+;
+;       Equates for the above names are contained in MACRO.LIB as well as
+;       a macro (CHRBUF) for definition of buffer spaces.
+;
+        page
+bufin:
+;
+;       Input from buffer
+;
+;       On entry:
+;               IX points to the buffer data structure
+;
+;       On exit:
+;               A contains the next byte from the buffer. If the buffer is
+;               empty, this routine will wait until data is available.
+;
+        call    bufist                  ;check for data ready
+        jr      z,bufin                 ;wait until it is
+;
+        call    setregs                 ;set up the data pointer and save registers
+;
+        ld      h,(iy + bufinxt + 1)    ;load the character address
+        ld      l,(iy + bufinxt)
+;
+        ld      b,(hl)                  ;then the character
+;
+        inc     hl                      ;point to the next character location
+;
+        ld      (iy + bufinxt + 1),h    ;store the new location value
+        ld      (iy + bufinxt),l
+;
+        call    chkend                  ;check for physical end of buffer
+        jr      nz,bufin1               ;avoid the rest if not
+;
+        ld      (iy + bufinxt + 1),h    ;buffer start was returned
+        ld      (iy + bufinxt),l        ;make it the new location
+;
+bufin1:
+        dec     (iy + bufcnt)           ;decrement the number of character in buffer
+        ld      a,b                     ;then return the character in a
+        ret
+        page
+bufout:
+;
+;       Output a byte to a buffer
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               C contains the character to put into the buffer
+;
+;       On exit:
+;               No parameters passed
+;
+        call    bufost                  ;check for space available
+        jr      z,bufout                ;wait until ready
+;
+        call    setregs                 ;save the user registers and set the pointer
+;
+        ld      h,(iy + bufonxt + 1)    ;get the storage address
+        ld      l,(iy + bufonxt)
+;
+        ld      (hl),c                  ;store the byte
+        inc     hl                      ;and point to the ;next location
+;
+        ld      (iy + bufonxt + 1),h    ;store the new location pointer
+        ld      (iy + bufonxt),l
+;
+        call    chkend                  ;check for end of buffer
+        jr      nz,bufot2               ;avoid the following if not
+;
+        ld      (iy + bufonxt + 1),h    ;buffer start was returned
+        ld      (iy + bufonxt),l        ;make it the new location
+;
+bufot2:
+        inc     (iy + bufcnt)           ;increment the number of characters in buffer
+        ret                             ;then return to caller
+        page
+bufist:
+;
+;       Buffer input status
+;
+;       On entry:
+;               IX points to the buffer data structure
+;
+;       On exit:
+;               A = 00 if no characters are available (zero flag set)
+;               A = ff if data ready (zero flag reset)
+;
+        call    setregs                 ;save the user registers & set pointer
+;
+        ld      a,(iy + bufcnt)         ;get the number of characters in the buffer
+        or      a                       ;set the flag
+        ret     z                       ;return if empty
+;
+        ld      a,-1                    ;else set the return code
+        ret
+        page
+bufost:
+;
+;       Buffer output status
+;
+;       On entry:
+;               IX points to the buffer data structure
+;
+;       On exit:
+;               A = 00 if the buffer if full (zero flag set)
+;               A = ff if there is space in the buffer (zero flag reset)
+;
+;
+        call    setregs                 ;save the user registers and set the pointer
+;
+        ld      a,(iy + bufcnt)         ;get the number of active characters
+        sub     (iy + bufmax)           ;subtract the max buffer count
+        ret     z                       ;return if they are the same
+;
+        ld      a,-1                    ;else set the space available flag
+        ret
+        page
+chkend:
+;
+;       Check for end of the buffer
+;
+;       On entry:
+;               IX points to the buffer data structure
+;               HL contains the location to compare against
+;
+;       On exit:
+;               Zero flag is set if it is the end of the buffer, else reset
+;               HL contains the start of buffer address if buffer end
+;
+        ld      d,(iy + bufend + 1)     ;load the end of buffer address
+        ld      e,(iy + bufend)
+;
+        or      a                       ;subtract from the passed value
+        sbc     hl,de
+        ret     nz                      ;return if they are not the same
+;
+        ld      h,(iy + bufstrt + 1)    ;load the start of buffer address
+        ld      l,(iy + bufstrt)
+;
+        ret                             ;return that to caller
+        page
+setregs:
+;
+;       Set up the iy register with the appropriate pointer
+;       save the bc pair and the iy then put a return address to restore registers
+;
+        pop     hl
+        push    de
+        push    bc
+        push    iy
+        ld      d,0
+        push    ix
+        pop     iy
+        add     iy,de
+        ld      de,rstregs
+        push    de
+        jp      (hl)
+;
+;
+rstregs:
+;
+;       Restore the user registers and return
+;
+        pop     iy
+        pop     bc
+        pop     de
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+        bufequ                          ;buffer equates
+	end

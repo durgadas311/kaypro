@@ -1,0 +1,544 @@
+        title   SELECT:  Select disk and format recognition
+        .z80
+        cseg
+        include macro.lib
+        entry   seldsk
+        entry   select1,inisel,fpysel,chspeed,stdsel,dssel,sssel
+        entry   selerr,settabs,seldone,wintabs,flpytabs,hstbuf,k10flg
+        entry   ltoptab,d1dph,d2dph,d3dph,d1dpb,d2dpb,d3dpb
+        entry   sektab,sektrk,seksec,sekhead,curunit
+        entry   hsttab,hsttrk,hstsec,hsthead,hstunit,hstflg
+        entry   dmaddr,psec,recloc
+        entry   wbstat,scr,xhd,xcyl,bittab,trtab,d1size,d2size,ltrk,lsec
+        entry   d1dph
+;
+        extrn   fpread,restore,selside,motoron          ;flpyio,flpyio,flpyio,flpyio
+        extrn   chkindex,rdam                           ;flpyio,flpyio
+        extrn   cmdwait,psel,fprdy,cmdstat              ;flpyio,flpyio,flpyio,flpyio
+        extrn   ambuf,fstat,timer,disktime              ;flpyio,flpyio,winio,lrw
+;
+        cpyrit
+;
+;
+;       Disk Select
+;
+;       Written by:     T. Hayes
+;
+;       On entry:
+;               C contains the logical unit to select
+;               E bit 0 is reset for an initial drive select or otherwise set
+;               
+;       On exit:
+;               HL will point to the disk parameter header or will
+;               contain 0000h if an error occured during select.
+;
+;       On initial drive select, requested floppy drives will be queried to
+;       determine the format of the diskette in the drive.
+;
+seldsk:
+        di                              ;no interrupts during select
+;
+        ld      a,timeout               ;set the deselect timer
+        ld      (disktime),a
+;       
+        ld      a,c                     ;check for unit out of range
+        cp      maxdrv
+        jp      nc,selerr               ;return a select error if so
+;
+        ld      hl,ltoptab              ;get the device entry from the 
+        ld      b,0                     ;logical to physical table
+        add     hl,bc                   ;hl now points to the physical device entry
+;
+        ld      a,(hl)                  ;get the physical parameters
+        ld      (curunit),a             ;set this as default current unit
+        ld      b,a                     ;and save a working copy
+;
+        and     typmsk                  ;mask for drive type
+        cp      0ch                     ;if it is not on line
+        jp      z,selerr                ;return a select error
+;
+        bit     6,b                     ;see if the device has been selected before
+        jr      z,inisel                ;if not, force inital
+;
+        bit     0,e                     ;check for initial drive select
+        jr      z,inisel                ;if it is, go to that routine
+select1:
+        ld      l,c                     ;get the dpb address from dpbtab
+        ld      h,0
+        add     hl,hl
+        add     hl,hl
+        ld      de,dplocs
+        add     hl,de                   ;hl now points to the dpb address
+;
+        ld      e,(hl)                  ;pick up the address
+        inc     hl
+        ld      d,(hl)
+;
+        ex      de,hl                   ;and return it to caller
+        ei
+        ret
+        page
+inisel:
+        ld      a,b                     ;dummy up for drivetec media
+        and     not media
+        or      dtmedia
+        ld      b,a
+;
+        in      a,(bitport)             ;make sure the motor on is set for low speed
+        res     4,a
+        out     (bitport),a
+;
+        ld      a,b                     ;check to see if the physical unit is a winchester
+        and     typmsk
+        jr      nz,fpysel               ;if it is not, do a floppy select
+;
+        ld      hl,wtab                 ;else, set up the tables for a winchester
+        ld      e,00h                   ;pass the media type
+        jp      settabs
+        page
+fpysel:
+        call    psel                    ;do the physical unit select
+;
+        ld      a,b                     ;get the unit descriptor
+        and     typmsk
+        cp      drvtec                  ;if not a drivetec drive
+        jr      nz,chspeed              ;only look for standard formats
+;
+        call    fstat                   ;get type 1 command status
+        and     dtstat                  ;mask for ready and write protect
+        cp      dtstat                  ;if those bits are set, it may be std media
+        jr      nz,fpysel2              ;else check drivetec formats
+;
+        ld      h,3                     ;wait for ready, diskette may have just been inserted
+        ld      de,0                    ;ca 16 msec - 6 revolutions at 360 RPM
+fpysel1:
+        call    timer
+        jr      nz,fpysel1
+;
+        call    fstat                   ;get type 1 command status
+        bit     ready,a                 ;if not ready
+        jr      nz,chspeed              ;assume standard format - else
+fpysel2:        
+        call    chkindex                ;if no index
+        jr      z,selerr                ;give a select error - no diskette present
+;
+        ld      d,side1                 ;check the side 1 address mark
+        call    rdam
+        jr      nz,chspeed              ;if not found, this must be high speed, single sided
+;
+        ld      a,(ambuf + 1)           ;see if the address mark says side 0
+        cp      0                       ;if it does
+        jr      z,chspeed               ;it is a double sided disk at high speed
+;
+        call    restore                 ;ensure that the controller and drive are in synch
+        jr      nz,selerr
+;
+        ld      hl,dttab                ;else set up tables for drivetec media
+        ld      e,10h                   ;pass the media type
+        jp      settabs
+chspeed:
+        in      a,(bitport)             ;get the current bitport values
+        set     4,a                     ;and go to high speed
+        out     (bitport),a
+;
+        page
+stdsel:
+        call    chkindex                ;see if there is an index
+        jr      z,selerr                ;return a select error if not
+;
+        call    fprdy                   ;wait for drive ready
+        jr      nz,selerr               ;error if it does not go ready
+;
+        call    restore                 ;restore the drive
+        jr      nz,selerr               ;if it fails, return a select error
+;
+        ld      d,side0                 ;read side 0 address mark
+        call    rdam
+        jr      nz,selerr               ;select error on bad read
+;
+        ld      d,side1                 ;then read side 1
+        call    rdam
+        jr      nz,sssel                ;if not good, it must be single sided
+;
+dssel:
+        ld      a,(ambuf + 2)           ;see if it was a single sided drive
+        cp      10                      ;if the sector number is less than 10
+        jr      c,sssel                 ;it is a single sided system
+;
+        ld      hl,dstab                ;set up the tables for dsdd
+        ld      e,30h                   ;pass the media type
+        jr      settabs
+;
+sssel:
+        ld      hl,sstab                ;set up the tables for ssdd
+        ld      e,20h                   ;pass the media type
+        jp      settabs
+        page
+selerr:
+;
+;       Return a drive select error
+;
+;       On exit:
+;               HL = 0000h
+;
+;       This is the standard CP/M convention for drive select errors
+;
+        ld      hl,0
+        ei
+        ret
+        page
+settabs:
+;
+;       Set up the dph, dpb and internal tables for the newly selected
+;       drive.
+;
+;       On entry:
+;               HL points to the ROM copy of the dph
+;               E contains the media type
+;               B contains the configuration byte
+;               C contains the logical unit number
+;
+;       On exit:
+;               HL points to the RAM copy of the dph with the
+;               appropriate CSV and ALV entries
+;
+        push    ix                      ;save sensitive regisgers
+        push    de
+        push    bc
+;
+        ld      a,c                     ;look up the RAM dph and dpb addresses
+        add     a,a
+        add     a,a
+        ld      c,a
+        ld      b,0
+        ld      ix,dplocs
+        add     ix,bc                   ;ix now points to the RAM dph address
+;
+        ld      d,(ix + dphh)           ;first move the dph
+        ld      e,(ix + dphl)
+        push    de                      ;save a copy of the dph address for later
+        ld      bc,16                   ;there are 16 bytes in the dph
+        ldir
+;
+        ld      d,(ix + dpbh)           ;now move the dpb
+        ld      e,(ix + dpbl)
+        push    de                      ;save that address
+        ld      bc,15                   ;the dpb has 15 bytes
+        ldir
+;
+        pop     de                      ;restore the dpb pointer
+        pop     ix                      ;point ix to the RAM dph
+        pop     bc                      ;and get back the configuration byte
+;
+        ld      (ix + dpbah),d          ;put the correct dpb addres in the dph
+        ld      (ix + dpbal),e
+;
+        ld      a,(k10flg)              ;see if this is a k10/12
+        cp      -1                      ;if it is a floppy system
+        jr      z,flpytabs              ;do it differently
+;
+        ld      a,b                     ;check the configuration
+        and     typmsk                  ;if the drive type is winchester
+        jr      z,wintabs               ;do that
+;
+        ld      hl,k10alv3              ;this is a floppy on an k10/12
+        ld      (ix + alvh),h           ;use the third allocation vector table
+        ld      (ix + alvl),l
+;
+        ld      hl,k10csv               ;and there is only one csv table for k10/12
+        ld      (ix + csvh),h           ;put it into the dph
+        ld      (ix + csvl),l
+;
+seldone:
+        ld      l,c                     ;update the logical to physical table
+        ld      h,0                     ;first compute the entry address
+        ld      de,ltoptab
+        add     hl,de
+;
+        pop     de                      ;get the media type off the stack
+        ld      a,b                     ;strip out the old media type
+        and     not media               ;from the configuration byte
+        or      e                       ;and put in the new one
+        set     6,a                     ;mark the device selected
+        ld      (hl),a                  ;and store that in the logical to physical table
+        ld      (curunit),a             ;as well as the current unit
+;
+        push    ix                      ;point hl to the dph
+        pop     hl
+;
+        pop     ix                      ;restore the user ix
+        ei
+        ret                             ;and return to caller
+        page
+wintabs:
+;
+;       Set up the dph and dpb for a winchester drive
+;
+;
+;       defalut to the second drive
+;
+        ld      de,(d2size)             ;get the drive size from the spares block
+        ld      hl,k10alv2              ;and the allocation table vector
+;       set     7,b                     ;use heads 2 and 3
+;
+        ld      a,c                     ;get the logical unit
+;
+        cp      0                       ;if drive a
+        jr      z,wintabs0
+;
+        cp      2                       ;if drive c
+        jr      z,wintabs1
+;
+        ld      a,(ltoptab)             ;get the first entry of the logical to physical
+        and     typmsk                  ;if drive a is  a floppy
+        jr      z,wintabs1              ;this is the first drive
+;
+wintabs0:
+        ld      de,(d1size)             ;get the drive size form the spares block
+        ld      hl,k10alv1              ;the allocation table vector
+;       res     7,b                     ;use heads 0 and 1
+;
+wintabs1:
+        ld      (ix + alvh),h           ;put the allocation vector into the dph
+        ld      (ix + alvl),l
+;
+        ld      h,(ix + dpbah)          ;load the dpb address
+        ld      l,(ix + dpbal)
+;
+        push    de                      ;save the drive size
+;
+        ld      de,5                    ;compute dsm address
+        add     hl,de
+;
+        pop     de                      ;then put the drive size into it
+        ld      (hl),e
+        inc     hl
+        ld      (hl),d
+;
+        jr      seldone                 ;finish up the housekeeping
+        page
+flpytabs:
+;
+;       These are for floppy only systems
+;
+        bit     0,b                     ;check physical unit number
+        jr      nz,flpytb1              ;drive b is at another place
+;
+        ld      hl,fcsv1                ;put the csv into the dph
+        ld      (ix + csvh),h
+        ld      (ix + csvl),l
+;
+        ld      hl,falv1                ;put the alv into the dph
+        ld      (ix + alvh),h
+        ld      (ix + alvl),l
+;
+        jr      seldone                 ;then finish up
+;
+flpytb1:
+        ld      hl,fcsv2                ;put in the csv
+        ld      (ix + csvh),h
+        ld      (ix + csvl),l
+;
+        ld      hl,falv2                ;put in the alv
+        ld      (ix + alvh),h
+        ld      (ix + alvl),l
+;
+        jr      seldone
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+;       Winchester disk dph and dpb models
+wtab:
+        dph     wdpb,0,0
+wdpb:
+        dw      68              ;sectors per track
+        db      5               ;bsh
+        db      31              ;blm
+        db      1               ;exm
+        dw      1125            ;maximum block number
+        dw      1023            ;maximum directory number
+        db      0ffh            ;al0
+        db      00h             ;al1
+        dw      00              ;checksum vector
+        dw      2               ;track offset
+;
+;
+;       Drivetec disk dph and dpb models
+;
+dttab:
+        dph     dtdpb,0,0
+dtdpb:
+        dw      68              ;sectors per track
+        db      4               ;bsh
+        db      15              ;blm
+        db      0               ;exm
+        dw      1350            ;maximum data block
+        dw      1023            ;maximum directory number
+        db      0ffh            ;al0
+        db      0ffh            ;al1
+        dw      256             ;checksum vector size
+        dw      2               ;track offset
+;
+;       Double sided, double density dph and dpb models
+;
+dstab:
+        dph     dsdpb,0,0
+dsdpb:
+        dw      40              ;sectors per track
+        db      4               ;bsh
+        db      15              ;blm
+        db      1               ;exm
+        dw      196             ;maximum data block
+        dw      63              ;maximum directory number
+        db      0c0h            ;al0
+        db      00h             ;al1
+        dw      16              ;checksum vector size
+        dw      1               ;track offset
+;
+;       Single sided, double density dph and dpb models
+;
+sstab:
+        dph     ssdpb,0,0
+ssdpb:
+        dw      40              ;sectors per track
+        db      3               ;bsh
+        db      7               ;blm
+        db      0               ;exm
+        dw      194             ;maximum data block
+        dw      63              ;maximum directory number
+        db      0f0h            ;al0
+        db      00h             ;al1
+        dw      16              ;checksum vector size
+        dw      1               ;track offset
+;
+;
+;       Equates
+;
+wdstat  equ     10h                     ;wd status port
+wdcmd   equ     10h                     ;wd command port
+wddta   equ     13h                     ;wd data port
+bitport equ     14h                     ;system control port
+;
+ready   equ     07h                     ;wd ready status bit number
+media   equ     30h                     ;media mask
+dtmedia equ     10h                     ;drivetec media type
+highspeed equ   0efh                    ;drivetec high speed mask
+typmsk  equ     0ch                     ;drive type mask
+drvtec  equ     04h                     ;drivetec drive type
+uidmsk  equ     03h                     ;physical unit number mask
+dtstat  equ     0c0h                    ;wd drivetec std disk detect status
+side0   equ     04h                     ;side 0 head select bit
+side1   equ     00h                     ;side 1 head select bit
+csvh    equ     13                      ;displacement to csv msb in dph
+csvl    equ     12                      ;displacement to csv lsb in dph
+alvh    equ     15                      ;displacement to alv msb in dph
+alvl    equ     14                      ;displacement to alv lsb in dph
+dphh    equ     01                      ;displacement to dph msb in dplocs
+dphl    equ     00                      ;displacement to dph lsb in dplocs
+dpbh    equ     03                      ;displacement to dpb msb in dplocs
+dpbl    equ     02                      ;displacement to dpb lsb in dplocs
+dpbah   equ     11                      ;displacement to dpb msb in dph
+dpbal   equ     10                      ;displacement to dpb lsb in dph
+maxdrv  equ     3                       ;maximum number of drives
+timeout equ     150                     ;5 second deselect timer value
+;
+dplocs:
+        dw      d1dph,d1dpb
+        dw      d2dph,d2dpb
+        dw      d3dph,d3dpb
+;
+;       RAM resident data
+;
+        dseg
+        page
+;
+;       This is a 3 byte table se up by the cold config routine.
+;       These locations contain the physical device assignments and
+;       configurations.  Each location corresponds to a logical device
+;       assignment of A - C.  If the drive is not on line, its entry
+;       will have a value of -1.  The bit definitions for each byte are:
+;
+;       Bits    Definition
+;       0 - 1   Physical unit number
+;       2 - 3   Drive type
+;               0 - Winchester
+;               1 - Drivetec Floppy
+;               2 - Standard Floppy
+;               3 - Drive not on line
+;       4 - 5   Media type
+;               0 - Winchester
+;               1 - Drivetec high density
+;               2 - Single sided, double density, standard
+;               3 - Double sided, double density, standard
+;         6     First select flag for Winchester drives
+;               0 - Not yet selected
+;               1 - Has been selected
+;         7     Head assignments for Winchester drives
+;               0 - Use heads 0 and 1
+;               1 - Use heads 2 and 3
+;
+ltoptab equ     0fff4h                  ;these go just above the interrupt table
+k10flg  equ     0fff7h                  ;kaypro 10/12 flag location
+;
+;       System scratch area
+;
+scr:    ds      850
+;
+;       Locations within the scratch area
+;
+k10csv  equ     scr                     ;checksum vector table for k10/12
+k10alv1 equ     k10csv + 256            ;drive a allocation vector for k10/12
+k10alv2 equ     k10alv1 + 159           ;drive b allocation vector for k10/12
+k10alv3 equ     k10alv2 + 159           ;drive c allocation vector for k10/12
+;
+fcsv1   equ     scr                     ;checksum vector for drive a of k2,k4,robie
+fcsv2   equ     fcsv1 + 256             ;checksum vector for drive b of k2,k4,robie
+falv1   equ     fcsv2 + 256             ;drive a allocation vector for k2,k4,robie
+falv2   equ     falv1 + 169             ;drive b allocation vector for k2,k4,robie
+;
+d1dph:  ds      16                      ;drive a dph
+d2dph:  ds      16                      ;drive b dph
+d3dph:  ds      16                      ;drive c dph
+;
+d1dpb:  ds      15                      ;drive a dpb
+d2dpb:  ds      15                      ;drive b dpb
+d3dpb:  ds      15                      ;drive c dpb
+;
+dirbuf: ds      128                     ;cp/m directory buffer
+hstbuf: ds      512                     ;disk buffer for blocking/deblocking etc
+;
+;
+hsttab:
+hsttrk: ds      2
+hstsec: ds      2
+hsthead:ds      2
+hstunit:ds      1
+;
+sektab:
+sektrk: ds      2
+seksec: ds      2
+sekhead:ds      2
+curunit:ds      1
+;
+hstflg: ds      1
+;
+dmaddr: ds      2                       ;user dma location request
+psec:   ds      2                       ;untranslated sector request
+recloc: ds      2                       ;address within hstbuf of the requested 128 byte record
+wbstat: ds      1                       ;winchester boot status
+;
+xhd:    ds      1                       ;working area for hxlate
+xcyl:   ds      2
+;
+bittab: ds      158                     ;spares bit map
+trtab:  ds      4 * 24                  ;spares translation table
+d1size: ds      4                       ;winchester drive 1 size
+d2size: ds      4                       ;winchester drive 2 size
+;
+ltrk:   ds      2                       ;logical track number temp storage      
+lsec:   ds      2                       ;logical sector number temp storage
+        end

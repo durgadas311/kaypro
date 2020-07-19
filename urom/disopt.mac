@@ -1,0 +1,217 @@
+TITLE DISOPT
+	.z80
+	cseg
+	entry	disopt,invon,invoff,dstr,remopt,inchar
+;
+;	Display a menu option
+;
+;	On entry:
+;		IX points to the following data structure:
+;
+;			00	X position for prompt
+;			01	Y position for prompt
+;			02	Address of the processing routine for the option
+;
+;		HL points to a string structure where individual lines are
+;		   zero terminated. The first line of the structure is the
+;		   prompt line and subsequent lines are help text.  The
+;		   structure is terminated with a ffh.
+;
+disopt:
+	ld	a,0			;clear the character
+	ld	(inchar),a
+;
+	ld	(stradr),hl		;save the string address
+;
+	ld	a,(ix + y1)		;set up for cursor position
+	ld	(ypos),a
+	ld	a,(ix + x1)
+	ld	(xpos),a
+;
+	call	putcur			;position the cursor for the prompt
+;
+	call	invon			;turn on inverse video
+	ld	hl,(stradr)		;then display the prompt
+	call	dstr
+	ld	(stradr),hl		;save the next string address
+	call	invoff			;turn off inverse
+;
+	ld	a,23 + 32		;set up to clear the help window
+	ld	(xpos),a
+	ld	a,3 + 32
+	ld	(ypos),a
+;
+	ld	a,(lcnt1)		;see if last display was interrupted
+	cp	0
+	jp	z,dopt0			;pass the next if not
+	ld	(lcnt),a		;else make the last the current clear count
+dopt0:
+	ld	a,(lcnt)		;save the number of lines to clear
+	ld	(lcnt1),a
+dopt1:
+	ld	a,(lcnt)		;if the number of lines to be cleared
+	cp	0			;is zero
+	jp	z,dopt2			;then exit this part
+;
+	call	putcur			;else position the cursor
+;
+	ld	hl,spaces		;and display a line of spaces
+	call	dstr
+;
+	ld	a,(lcnt)		;then decrement the number of lines
+	dec	a
+	ld	(lcnt),a
+;
+	ld	a,(ypos)		;and increment the line number
+	inc	a
+	ld	(ypos),a
+;
+	call	chkcon			;check for console input
+;
+	jp	dopt1			;then go back to do it again
+dopt2:
+	ld	a,0			;clear the last message count
+	ld	(lcnt1),a
+;
+	ld	a,23 + 32		;set up to display the help message
+	ld	(xpos),a
+	ld	a,3 + 32
+	ld	(ypos),a
+;
+dopt3:
+	call	putcur			;position cursor at next location
+;
+	ld	hl,(stradr)		;get the string address
+;
+	ld	a,(hl)			;if it is end of string
+	cp	0ffh
+	ret	z			;return to caller
+;
+	call	dstr			;else display the line of text
+	ld	(stradr),hl		;save the new string address
+;
+	ld	a,(lcnt)		;bump the line count
+	inc	a
+	ld	(lcnt),a
+;
+	ld	a,(ypos)		;and point to the next location
+	inc	a
+	ld	(ypos),a
+;
+	call	chkcon			;check for console input
+;
+	jp	dopt3
+dstr:
+	ld	a,(hl)			;check for end ofline
+	and 	a
+	jp	z,dstr1
+;
+	push	hl			;save the address
+	ld	e,a			;and display the character
+	ld	c,6
+	call	5
+	pop	hl			;get the address back
+;
+	inc	hl			;point to the next character
+	jp	dstr			;and process it
+dstr1:
+	inc	hl			;point to the start of the next string
+	ret				;and return to caller
+putcur:
+	ld	e,esc			;output esc = sequence
+	call	cout
+;
+	ld	e,'='
+	call	cout
+;
+	ld	a,(ypos)		;then the y coordinate
+	ld	e,a
+	call	cout
+;
+	ld	a,(xpos)		;then the x coordinate
+	ld	e,a
+	call	cout
+;
+	ret				;return to caller
+cout:
+	ld	c,6
+	call	5
+	ret
+invon:
+	ld	e,esc			;issue esc B 0
+	call	cout
+	ld	e,'B'
+	call	cout
+	ld	e,'0'
+	call	cout
+	ret
+invoff:
+	ld	e,esc			;issue esc C 0
+	call	cout
+	ld	e,'C'
+	call	cout
+	ld	e,'0'
+	call	cout
+	ret
+remopt:
+	ld	a,(ix + x1)
+	ld	(xpos),a
+	ld	a,(ix + y1)
+	ld	(ypos),a
+	push	hl
+	call	putcur
+	pop	hl
+	call	dstr
+	ret
+chkcon:
+	ld	e,-1
+	ld	c,6
+	call	5
+;
+	cp	up
+	jp	z,chkcon3
+;
+	cp	dn
+	jp	z,chkcon3
+;
+	cp	mup
+	jp	z,chkcon1
+;
+	cp	mdn
+	jp	z,chkcon2
+;
+	ret
+chkcon1:
+	ld	a,up
+	jp	chkcon3
+chkcon2:
+	ld	a,dn
+chkcon3:
+	pop	hl			;clear the return address
+	ld	(inchar),a
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+x1	equ	00h			;x coordinate displacement
+y1	equ	01h			;y coordinate displacement
+esc	equ	1bh			;ascii escape
+;
+up	equ	'K' and 1fh		;up arrow
+dn	equ	'J' and 1fh		;down arrow
+mup	equ	'E' and 1fh		;micropro up arrow
+mdn	equ	'X' and 1fh		;micropro down arrow
+;
+;
+stradr:	dw	0			;string address working storage
+ypos:	db	0			;y position 
+xpos:	db	0			;x position
+lcnt:	db	0			;line counter
+lcnt1:	db	0			;last screen line counter
+spaces:	db	'                                                        ',0
+inchar:	db	0
+	end

@@ -1,0 +1,386 @@
+.comment &
+##########################################################################
+##########################################################################
+##                                                                      ##
+##              KAYPR0 UNIVERSAL CONSOLE I/O SYSTEM                     ##
+##                                                                      ##
+##              By Steven R. Fabian                                     ##
+##                                                                      ##
+##              Console driver routines for Kaypro 10,                  ##
+##              Kaypro 4, Kaypro 2, Robie Machines                      ##
+##                                                                      ##
+##              Copyright (C) 1983 By Non-Linear Systems Inc.           ##
+##              No warranty is made, expressed or implied.              ##
+##                                                                      ##
+##########################################################################
+##   Date: 07/26/84                                           [01]      ##
+##########################################################################
+&
+;EQUATES
+
+badchr  equ     0
+bdos    equ     05h
+warm    equ     00h
+sio     equ     04h
+siob0   equ     sio+3
+siob1   equ     sio+1
+SIOC0   EQU     SIO+10
+SIOC1   EQU     SIO+8
+SIOD0   EQU     SIO+11
+PDAT    EQU     18h
+BITPORT EQU     14h
+sctl    equ     098h
+ssctl   equ     099h
+        cseg
+
+PUBLIC  KBDSTAT,KBDIN,RNTE
+
+EXTRN   KSTAT, KIN, KOUT
+
+EXTRN   BULR, BFDATA, FLAG, OFFSET, PNTR, CNT
+
+EXTRN   ALTBL, ESLTBL, FLTBL, SLTBL, FSEVOUT, ASEVOUT, INA
+EXTRN   TRNSWHL, SPCTBL, ESSTBL, FSSTBL
+
+
+.z80
+
+kbdstat:ld      a,(cnt)                 ; load function data stream counter
+        or      a                       ; clean test
+        jp      nz,loadup               ; skip the rest
+        call    kstat                   ; is there a character
+        ret
+
+loadup: ld      a,0ffh
+        ret
+
+kbdin:: call    kbdstat                 ; loop till char avail
+        jr      z,kbdin
+        ld      a,(cnt)                 ; retreive funct. data stream counter
+        or      a                       ; clean test
+        jp      nz,frjp                 ; go do function
+        call    kin
+        call    kbdmap                  ; map out chars of vector pad and #'s
+        jp      c,kbdin                 ; if carry then select or shift select
+        cp      80h                     ; is char value greater than 127
+        jp      nc,chebt                ; if so check eight bit/char flag
+furchk::cp      badchr                  ; check for illegal char in sub-am lan
+        jp      z,sndbp                 ; yes go sound bell
+        ret                             ; good character
+
+sndbp:: ld      c,04h                   ; load with a bell(rom value)
+        call    kout                    ; output the sound
+        jp      kbdin                   ; go get a valid character
+page
+
+kbdmap::ld      hl,mapin                ; input map table
+        ld      bc,mapout-mapin         ; table length
+        cpir                            ; search table
+        jp      nz,reset1               ; not found
+        ld      de,mapin                ; make hl=table index
+        or      a                       ; hl-mapin=index
+        sbc     hl,de
+        ld      de,mapout-1             ; index
+        add     hl,de
+        ld      e,(hl)                  ; retreive pointer value
+        ld      d,0                     ; clear out d reg
+        ld      hl,(bulr)               ; retreive table address from ram
+        add     hl,de                   ; get flip flop character from fliptbl
+        ld      a,(hl)                  ; retreive this character
+        cp      0f0h                    ; test for function key range if carry
+        jp      c,ntfunc                ; value less than 1st funct.key value
+        cp      0fdh+1                  ; is it within funct. key range
+        jp      c,dofunct               ; if so do a function key routine
+ntfunc: cp      sctl                    ; select key value
+        jp      z,selflg                ; go set flag
+        cp      ssctl                   ; shift select key value
+        jp      z,sseflg                ; go set shift select value
+        ld      de,(offset)             ; retreive value in offset byte
+        add     hl,de                   ; get offset new byte
+        ld      a,(hl)                  ; get the character
+reset:: or      a                       ; clear the carry flag
+        ld      bc,0                    ; set counter value to 0
+        ld      (offset),bc             ; reset offset value
+        ld      c,a                     ; save byte
+        ld      a,(flag)                ; retreive value of flag
+        res     1,a                     ; clear select value
+        ld      (flag),a                ; restore cleared values
+        ld      a,c                     ; restore byte
+        ret
+
+reset1: ld      c,a                     ; save off character
+        ld      a,(flag)                ; set hl to flag address
+        bit     1,a                     ; test to see if select flag on
+        ld      a,c                     ; retreive character
+        jp      z,reset                 ; if not on no subsitution
+        ld      a,badchr                ; if on trap character
+        ld      c,a
+        jp      reset                   ; continue processing
+page
+selflg::ld      bc,flag                 ; set bc to flag address
+        ld      a,(bc)                  ; get value of flag
+        bit     1,a                     ; test for previos key select,shiftsel
+        jp      nz,dupkey               ; yes go and process switch language
+        set     1,a                     ; if not set to previous value
+        ld      (bc),a                  ; save off 
+        bit     5,a                     ; test to see witch language
+        jp      z,am                    ; if off load up with american value
+        xor     a                       ; clear carry flag
+        ld      hl,(sltbl)              ; load with table address
+        ld      bc,(fltbl)              ; load with tanle address
+        sbc     hl,bc                   ; compute offset
+        ld      (offset),hl             ; store address offset value
+        scf                             ; set carry flag to repeat kbdin
+        ret
+
+am::    xor     a
+        ld      hl,(esltbl)
+        ld      bc,(altbl)
+        sbc     hl,bc
+        ld      (offset),hl             ; save this value
+        scf
+        ret
+
+sseflg::ld      bc,flag                 ; set bc to flag address
+        ld      a,(bc)                  ; get value of flag
+        bit     1,a                     ; test for previos key select,shiftsel
+        jp      nz,dupkey               ; yes go and process switch language
+        set     1,a                     ; if not set to previous value
+        ld      (bc),a                  ; save off 
+        bit     5,a                     ; test to see which language
+        jp      nz,am1                  ; if on load up with american value
+        xor     a                       ; clear the carry flag
+        ld      hl,(fsstbl)             ; load with table address
+        ld      bc,(fltbl)              ; load with table address
+        sbc     hl,bc                   ; compute offset
+        ld      (offset),hl             ; store address offset value
+        scf                             ; set carry flag to repeat kbdin
+        ret
+
+am1::   xor     a                       ; clear the carry flag
+        ld      hl,(esstbl)             ; load with table address
+        ld      bc,(altbl)              ; load with table address
+        sbc     hl,bc                   ; compute offset
+        ld      (offset),hl             ; save this value
+        scf
+        ret
+
+dupkey::res     1,a                     ; clear select bit value
+        ld      (bc),a                  ; save cleared values
+        bit     5,a                     ; test for foreign language
+        jp      nz,switch               ; go to american language
+        set     5,a                     ; set on to foreign
+        ld      (bc),a                  ; save new value
+        ld      bc,(fltbl)              ; set to fltbl address
+        ld      (bulr),bc               ; store into high ram table address
+        xor     a                       ; clear the carry flag to end repeat
+        ld      bc,0                    ; clear bc
+        ld      (offset),bc             ; clear the offset value
+        scf
+        ret
+
+switch::res     5,a                     ; set off
+        ld      (bc),a                  ; save new value
+        ld      bc,(altbl)              ; set to altbl address
+        ld      (bulr),bc               ; store into high ram table address
+        xor     a                       ; clear the carry flag to end repeat
+        ld      bc,0                    ; clear bc
+        ld      (offset),bc             ; clear the offset value
+        scf
+        ret
+page
+dofunct:and     0fh                     ; strip off high bits
+        sla     a                       ; multply by two 
+        ld      c,a                     ; save 
+        ld      hl,(bfdata)             ; retreive address of table
+        add     hl,bc                   ; make index into table
+        ld      a,(hl)                  ; get count byte
+        cp      0                       ; check to see if funct. being used
+        jp      z,rtnum                 ; if not return numeric value
+        ld      (cnt),a                 ; if so load up data stream counter
+        inc     hl                      ; set to displacement byte
+        ld      a,(hl)                  ; retreive displacement into table
+        ld      e,a                     ; store value for addition
+        ld      d,0                     ; clear out register for addition
+        ld      hl,(bfdata)             ; restore hl value to begin of table
+        add     hl,de                   ; arrive at starting address of funct.
+        ld      (pntr),hl               ; save this value for processing
+
+frjp::  ld      hl,(pntr)               ; get pointer value
+        ld      c,(hl)                  ; load character into c register
+        inc     hl                      ; increment hl address value
+        ld      (pntr),hl               ; save new pointer address
+        ld      a,(cnt)                 ; retreive data stream counter
+        dec     a                       ; decrement counter
+        ld      (cnt),a                 ; restore the counter to new value
+        ld      a,c                     ; restore character 
+        ret
+
+rtnum:: ld      a,c                     ; retreive byte that was mult. by 2
+        sra     a                       ; divide value by 2
+        ld      e,a                     ; move value
+        ld      d,0                     ; clear register
+        ld      hl,numtab               ; set to numtab address
+        add     hl,de                   ; compute offset to table
+        ld      a,(hl)                  ; retreive byte
+        ld      c,a                     ; save this byte for vidout function
+        ret
+
+chebt:: ld      c,a                     ; save the character
+        ld      a,(flag)                ; retreive byte
+        bit     6,a                     ; test to see if eight bit/char allow
+        ld      a,c                     ; restore char. back
+        jp      z,sndbp                 ; sound bell eight bit/char not allow
+        ld      a,(flag)
+        bit     5,a                     ; test for language
+        ld      a,c                     ; restore character if in foreign
+        jp      z,furchk                ; continue processing
+
+espcse: ld      hl,(spctbl)             ; get table address
+        ld      b,0                     ; clear register value
+        ld      c,(hl)                  ; get counter value
+        push    bc                      ; save vlue on stack
+        inc     hl                      ; set to first search byte
+        cpir                            ; do table lookup
+        pop     de                      ; retreive counter value
+        ld      c,a                     ; restore character
+        jp      nz,furchk               ; byte not in table
+        dec     e                       ; adjust value for hl offset
+        add     hl,de                   ; get new bytes address
+        ld      a,(hl)                  ; get the byte
+        ld      c,a                     ; restore character
+        jp      furchk
+
+rnte:   ld      a,(flag)                ; test for for. or euro lang.
+        bit     7,a                     ; are we in usa a 0 says so
+        ld      a,c                     ; restore the character
+        ret     z                       ; no need to do further processing
+        ld      a,(flag)                ; retreive the value
+        bit     6,a                     ; test eight bit flag
+        jr      nz,xxx                  ; if no proceed
+        bit     5,a                     ; not on test foreign language
+        ld      a,c                     ; restore character
+        ret     z                       ; if not on return
+xxx:    ld      a,c                     ; restore the character value
+        cp      20h                     ; test for special char value
+        ret     c                       ; yes we have spec char. ret
+        cp      80h                     ; test for gt 7fh value
+        jr      c,xx2                   ; no lets process
+        cp      0c0h                    ; test for high end
+        ret     c                       ; return if between 80h & bfh
+        ld      a,(flag)                ; poll value again
+        bit     5,a                     ; test language flag
+        jr      z,xx4                   ; not foreign language mode
+        ld      a,c                     ; restore acc. with char value
+        ld      hl,(fsevout)            ; retreive table address
+        ld      b,0                     ; clear b reg
+        ld      c,(hl)                  ; pick up counter byte
+        push    bc                      ; save this value
+        inc     hl                      ; move up to first real byte
+        cpir                            ; compare for table match
+        pop     de                      ; put saved value in de
+        jr      nz,xx4                  ; byte not found in the table
+        dec     e                       ; adjust for math
+        add     hl,de                   ; compute new byte
+        ld      a,(hl)                  ; retreive value
+        ld      c,a                     ; keep them straight
+        ret
+
+xx2:    ld      a,(flag)
+        bit     5,a                     ; are we in foreign
+        ld      a,c                     ; restore this value
+        ret     z                       ; not so
+        ld      hl,(trnswhl)            ; get address of table
+        add     a,l                     ; adjust for palcement
+        ld      l,a                     ; set l to new value
+        ld      a,0                     ; clear for carry check
+        adc     a,h                     ; check for 8 bit addition
+        ld      h,a                     ; restore the value
+        ld      a,(hl)                  ; get new value
+        ld      c,a                     ; keep them straight
+        ret
+xx4:    ld      a,c                     ; restore char value
+        sub     0c0h                    ; subtract this value from accum.
+        ld      hl,(asevout)            ; get table address
+        ld      b,0                     ; clear high order
+        ld      c,a                     ; get index value
+        add     hl,bc                   ; compute index
+        ld      a,(hl)                  ; get new value
+        ld      c,a                     ; keep them straight
+        ret
+        
+page
+
+mapin:: defb    0F1H, 0F2H, 0F3H, 0F4H  ; up, down, left, right arrows
+                                        ; numeric keypad 
+        defb    0B1H, 0C0H, 0C1H, 0C2H  ; 0,1,2,3
+        defb    0D0H, 0D1H, 0D2H, 0E1H  ; 4,5,6,7
+        defb    0E2H, 0E3H, 0E4H, 0D3H  ; 8,9, '-', ','
+        defb    0C3H, 0B2H              ; enter, '.'
+                                        ; keyboard characters unshifted
+        defb    031H, 032H, 033H, 034H  ; 1,2,3,4
+        defb    035H, 036H, 037H, 038H  ; 5,6,7,8
+        defb    039H, 030H, 02DH, 03DH  ; 9,0,-,=
+        defb    060H, 071H, 077H, 079H  ; `,q,w,y
+        defb    05BH, 05DH, 061H, 03BH  ; [,],a,;
+        defb    027H, 05CH, 07AH, 06DH  ; ',\,z,m
+        defb    02CH, 02EH, 02FH, 065h  ; ,,.,/,e
+        defb    069h, 06fh, 075h        ;i,o,u
+                                        ; keyboard characters shifted
+        defb    021H, 040H, 023H, 024H  ; !,@,#,$
+        defb    025H, 05EH, 026H, 02AH  ; %,^,&,*
+        defb    028H, 029H, 05FH, 02BH  ; (,),_,+
+        defb    07EH, 051H, 057H, 059H  ; ~,Q,W,Y
+        defb    07BH, 07DH, 041H, 03AH  ; {,},A,:
+        defb    022H, 07CH, 05AH, 04DH  ; ",|,Z,M
+        defb    03CH, 03EH, 03FH, 045h  ; <,>,?,E
+        defb    049h, 04fh, 055h        ; I,O,U
+        defb    0FFH                    ; end of mapin table
+                                        ;
+                                        ; pointer table values
+                                        ; arrow keys
+mapout::defb    000H, 001H, 002H, 003H  ; up, down, left, right arrow keys
+                                        ; 
+                                        ; pointer table values for the 
+                                        ; numeric keypad 
+        defb    004H, 005H, 006H, 007H  ; 0,1,2,3
+        defb    008H, 009H, 00AH, 00BH  ; 4,5,6,7
+        defb    00CH, 00DH, 00EH, 00FH  ; 8,9,'-',','
+        defb    010H, 011H              ; enter, '.'
+                                        ;
+                                        ; pointer table values for the 
+                                        ; unshifted keyboard characters
+        defb    012H, 013H, 014H, 015H  ; 1,2,3,4
+        defb    016H, 017H, 018H, 019H  ; 5,6,7,8
+        defb    01AH, 01BH, 01CH, 01DH  ; 9,0,-,=
+        defb    01EH, 01FH, 020H, 021H  ; `,q,w,y
+        defb    022H, 023H, 024H, 025H  ; [,],a,;
+        defb    026H, 027H, 028H, 029H  ; ',\,z,m
+        defb    02AH, 02BH, 02CH, 02dh  ; ,,.,/,e
+        defb    02eh, 02fh, 030h        ; i,o,u
+                                        ;
+                                        ; pointer table values for the
+                                        ; shifted keyboard characters
+        defb    031H, 032H, 033H, 034H  ; !,@,#,$
+        defb    035H, 036H, 037H, 038H  ; %,^.&,*
+        defb    039H, 03aH, 03bH, 03cH  ; (,),_,+
+        defb    03dH, 03eH, 03fH, 040H  ; ~,Q,W,Y
+        defb    041H, 042H, 043H, 044H  ; {,},A,:
+        defb    045H, 046H, 047H, 048H  ; ",|,Z,M
+        defb    049H, 04aH, 04bH, 04ch  ; <,>,?,E
+        defb    04dh, 04eh, 04fh        ; I,O,U
+
+.comment &
+##############################################################################
+##                                                                          ##
+##                      Numeric table Data Area                             ##
+##                                                                          ##
+##############################################################################
+&
+
+numtab::defb    030H, 031H, 032H, 033H  ; 0,1,2,3
+        defb    034H, 035H, 036H, 037H  ; 4,5,6,7
+        defb    038H, 039H, 02DH, 02ch  ; 8,9,-,,
+        defb    00dh, 02eh              ; cr,.
+
+        END

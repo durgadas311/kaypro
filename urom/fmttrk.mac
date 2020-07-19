@@ -1,0 +1,216 @@
+
+
+	title	fmttrk:  Format a Single Track
+	.z80
+	cseg
+fil	macro	cnt,val
+	db	00,cnt,val
+	endm
+rep	macro	cnt,loc
+	db	02,cnt
+	dw	loc
+	endm
+adm	macro
+	db	01
+	endm
+	page
+	extrn	cyl,head,fmtbuf,bufptr,makimg,verify,distat
+	extrn	dispth,systyp,nsid
+;
+	entry	fmttrk,wdwait
+;
+;	Format a track
+;
+;	On entry:
+;		cyl contains the cylinder number to format
+;		head contains the head to format
+;		a contains the format type
+;
+fmttrk:
+	ld	e,a		;set up the format table address
+	ld	d,0
+	ld	hl,fmtptr
+	add	hl,de
+	ld	e,(hl)		;now pick up the table address
+	inc	hl
+	ld	d,(hl)
+	ld	(fmtdef),de
+;
+	ld	hl,ilv0		;default to side 0 format interleave
+	ld	a,(head)	;if the head is 1
+	and	a
+	jp	z,fmt1
+	ld	hl,ilv1		;use the head 1 table
+fmt1:
+	ld	a,(cyl)		;pass cylinder
+	ld	d,a
+	ld	a,(head)	;and head to the image routine
+	ld	e,a
+	ld	ix,(fmtdef)	;point to the format definition
+	ld	b,02h		;use 512 byte sectors
+	call	makimg		;create the track image
+;
+	ld	bc,2		;default to drive c on winch
+	ld	a,(systyp)	;if not a 10 or 12
+	cp	10h
+	jp	z,fmt11
+	ld	bc,1		;use drive b
+;
+fmt11:
+	ld	d,20h		;make sure the config byte
+	ld	a,(nsid)	;agrees with the new format
+	cp	0
+	jp	z,fmt12
+	ld	d,30h
+fmt12:
+	ld	hl,0fff4h
+	add	hl,bc
+	ld	a,(hl)
+	and	0cfh
+	or	d
+	ld	(hl),a
+;
+	ld	e,1
+	ld	d,32		;select drive
+	call	dispth
+; 
+	ld	bc,(cyl)	;set track
+	ld	d,33
+	ld	b,0
+	call	dispth
+;
+	ld	d,53		;seek the track
+	call	dispth
+;
+	di			;no interrupts until done	
+	ld	a,(head)	;configure the bit port
+	rla
+	rla
+	xor	04h
+	ld	b,a
+	in	a,(bitport)	;for the format operation
+	res	2,a		;first put in side select
+	or	b
+	set	4,a		;then density and motor on
+	res	5,a
+	out	(bitport),a
+;
+
+	ld	hl,(bufptr)	;compute the number of bytes to write
+	ld	de,fmtbuf
+	or	a
+	sbc	hl,de
+	ex	de,hl		;de will be used as the byte counter
+;
+	ld	hl,(nmiss)	;save the contents at 66h
+	push	hl
+;
+	ld	hl,(nmi)	;put an retn instruction in there
+	ld	(nmiss),hl
+;
+	ld	c,wddta		;load the data port address
+	ld	hl,fmtbuf	;point to the track image
+;
+	ld	a,twrcmd	;issue a track write command
+	out	(wdcmd),a
+	outi			;send the first byte 
+fmt2:
+	halt			;wait for drq
+;
+	outi			;output the next byte
+;
+	in	a,(wdstat)	;check status
+	rra
+	jp	c,fmt2		;go back if not done
+;	
+	rla
+	bit	6,a		; check write protect status
+	jp	nz,fmt3
+; 
+	call	verify		;do a read back verify
+;
+fmt3:	pop	hl		;restore the 66h contents
+	ld	(nmiss),hl
+;
+	ei			;enable maskable interrupts
+;
+	push	af		;save the flag register	
+	call	distat		;display the user message
+	pop	af
+;
+	ret			;and return to caller
+nmi:
+	ret
+wdwait:
+	ld	a,0
+wdw1:
+	dec	a
+	jp	nz,wdw1
+wdw2:
+	in	a,(wdstat)	;get device status
+	and	01h		;if not ready
+	jp	nz,wdw2		;loop back
+	ret			;else return to caller
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+wdcmd	equ	10h		;wd command port
+wdstat	equ	10h		;wd status port
+wddta	equ	13h		;wd data port
+sekcmd	equ	10h		;wd seek command
+twrcmd	equ	0f4h		;wd write track command
+nmiss	equ	66h		;non maskable interrupt command location
+bitport	equ	14h		;system control port
+;
+;
+fmtdef:	dw	0		;pointer to current format definition
+fmtptr:
+	dw	ddform		;double density format
+	dw	badform		;bad format for use in single sided
+;
+ilv0:
+	db	0,8,3,6
+	db	1,9,4,7
+	db	2,5
+ilv1:
+	db	10,18,13,16
+	db	11,19,14,17
+	db	12,15
+;
+ddform:
+	fil	80,4eh
+	fil	12,00h
+	fil	3,0f6h
+	fil	1,0fch
+	fil	16,4eh
+	rep	10,ddsec
+	fil	0,4eh
+	fil	0,4eh
+	db	0ffh
+ddsec:
+	fil	8,0
+	fil	3,0f5h
+	fil	1,0feh
+	adm
+	fil	1,0f7h
+	fil	22,4eh
+	fil	12,00h
+	fil	3,0f5h
+	fil	1,0fbh
+	fil	0,0e5h
+	fil	0,0e5h
+	fil	1,0f7h
+	fil	26,4eh
+	db	0ffh
+badform:
+	rep	23,ffdta
+	fil	194,0ffh
+	db	0ffh
+ffdta:
+	fil	0,0ffh
+	db	0ffh
+	end

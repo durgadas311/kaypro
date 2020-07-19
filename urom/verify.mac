@@ -1,0 +1,94 @@
+TITLE VERIFY
+	.z80
+	cseg
+	extrn	cyl,fmtbuf,head,nsid,verflg
+	entry	verify	
+;
+;	Read after format verify
+;
+;	Assume that the controller and system bitport are properly configured.
+;	
+verify:	ld	a,(verflg)
+	and	a
+	ret	z
+	ld	a,ntries	;set up retry counter
+	ld	(retry),a
+ver:
+	ld	a,(nsid)	;see if this is single sided
+	and	a
+	jp	nz,ver00
+;
+	ld	a,(head)	;if single see if the last op was side 1
+	and	a
+	jp	z,ver00
+;
+	xor	a		;if it was,return good status
+	ret
+ver00:
+	ld	a,(cyl)		;set the track register
+	out	(wdcyl),a
+;
+	ld	a,(head)	;check the head in order to set starting sector
+	and	a
+	ld	a,0		;default to side 0
+	jp	z,ver0
+	ld	a,10		;else go to side 1
+ver0:
+	ld	(nsect),a	;this is the next sector number
+;
+	ld	b,10		;the number of sectors to read
+	ld	hl,fmtbuf	;point to the buffer
+	ld	c,wddta		;data register
+;
+	ld	ix,nsect	;point to the sector number	
+ver10:
+	push	bc
+	ld	a,(nsect)	;get the next sector number
+	out	(wdsec),a
+;
+	ld	a,rdcmd		;output the read command with multiple sector
+	out	(wdcmd),a	;flag enabled
+ver1:
+	halt
+	ini			;read the byte
+	in	a,(wdstat)	;check for eoj
+	rra
+	jp	c,ver1		;go back if not
+;
+	rla			;restore the status
+	and	3ch		;mask for error bits
+;
+	pop	bc		;restore the sector counter
+	jp	nz,error	;and return if error
+;
+	inc	(ix + 0)	;bump the sector number
+	djnz	ver10		;and go back if more
+;
+	xor	a		;set good return status
+	ret			;zero flag set if ok, reset otherwise
+error:
+	ld	hl,retry	;decrement the retry count
+	dec	(hl)
+	jp	nz,ver		;try again if not zero
+	and	a		;else set the flag register
+	ret			;and return to caller
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+wdcmd	equ	10h		;wd command port
+wdstat	equ	10h		;wd status port
+wdcyl	equ	11h		;wd track port
+wdsec	equ	12h		;wd sector port
+wddta	equ	13h		;wd data port
+;
+rdcmd	equ	088h		;wd read command with multiple sector read
+;
+ntries	equ	03h		;number of error retries to perform
+;
+nsect:	db	0		;next sector number temp storage
+retry:	db	0		;retry counter
+	end

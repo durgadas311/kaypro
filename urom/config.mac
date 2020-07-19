@@ -1,0 +1,3915 @@
+.z80
+
+;*************************************************************************
+;*									 *
+;* KAYPRO UNIVERSAL CONFIGURATION PROGRAM  - 10/15/84 - BY BILL MCKINLEY *
+;*									 *
+;*************************************************************************
+
+;	*********************************************************
+;	*	Copyright (C) 1984 by KAYPRO CORPORATION	*
+;	*	No warranty is made, expressed, or implied.	*
+;	*********************************************************
+
+; ***** THIS IS VERSION 6.0 IN Z-80 ASSEMBLY LANGUAGE, IT WORKS ON CP/M 2.2u OR LATER. *****
+
+		entry	config
+
+		ASEG
+
+		org	100H
+
+config:		jp	mainline		;go to main body of program
+
+;	cpm equates
+
+bdos		equ		05H			;bdos address
+conin		equ		01H			;single character
+conio_direct	equ		06H			;direct console I/O
+conout_string	equ		09H			;print ending with '$'
+conin_nor_line	equ		0AH			;normal line input with cr, DE = buffer
+							  ;max:count:data
+
+ccp_max		equ		80			;max keys allowed to substitute for one key
+
+left_arrow_enter equ		15			;displacement from
+							;left arrow to enter 
+							;in default keyboard table
+
+ltoptab		equ		0FFF4H			;start of 3 byte table containing physical
+							  ;device assignments and configurations.
+							  ;each location corresponds to a logical
+							  ;device assignment of A: -> C:.
+							  ;if a drive is not on line its entry will
+							  ;will have a value of -1 (FF).
+
+verno		equ		0FFF8H			;version number address
+
+
+;	Bits	Definition
+;	0 - 1	Physical unit number
+;	2 - 3	Drive type
+;		0 - Winchester
+;		1 - Drivetec Floppy
+;		2 - Standard Floppy
+;		3 - Drive not on line
+;	4 - 5	Media type
+;		0 - Winchester
+;		1 - Drivetec high density
+;		2 - Single sided, double density, standard	;No write if drivetec drive
+;		3 - Double sided, double density, standard	;No write if drivetec drive
+;	6	First select flag for Winchester drives
+;		0 - Not yet selected
+;		1 - Has been selected
+;	7	Head assignments for Winchester drives
+;		0 - Use heads 0 and 1
+;		1 - Use heads 2 and 3
+;	
+
+
+;	RESPONSE;	User's main menu response.   
+lf		equ		0AH			;Line feed 
+esc		equ		1BH			;Escape key 
+cr		equ		0DH			;Return.
+
+
+;	BAUD RATES
+
+baud110		equ		02H
+baud300		equ		05H
+baud1200	equ		07H
+baud2400	equ		0AH
+baud4800	equ		0CH
+baud9600	equ		0EH
+baud19200	equ		0FH
+
+
+;	VIDEO ATTRIBUTES
+
+inverse		equ		'0'			
+reduced		equ		'1'	
+cursor		equ		'4'
+
+
+;	VIDEO CONTROL CHARACTERS
+
+era_rest_screen	equ		17H		;erase to end of screen
+era_rest_line	equ		18H		;erase to end of line
+
+;	 DMA will point to the sector image.
+;	LOCATION ARRAY DMA_1 = SECTOR_IMAGE 
+;	DMA_2 = DMA_1 + 128
+
+dma_1	equ	sector_image		;First sector image start
+dma_2	equ	dma_1 + 128		;Second sector image start
+dma_3	equ	dma_2 + 128		;Third sector image start
+
+;		booleans
+
+true		equ		-1
+false		equ		00
+
+;		Possible light intensities.
+
+high		equ		0FFH		;one byte boolean true
+low		equ		 00H		;high false
+
+
+;Pointers to locations in SECTOR_IMAGE.
+
+seq_offset	equ		3AH		;address of displacement to init.
+						; tables (in first bios sector).
+
+fdata_offset	equ		20H		;displacement from iobyte of
+						;start of keyboard table in
+						;bios sector
+
+
+;locations in the calculated initialization table
+
+iob_vec		equ		00H		;I/O byte is first byte
+wsf		equ		01H		;write safe flag is second byte
+sio_comm_wr1	equ		04H		;offset to sio comm wr1
+sio_sprn_wr1	equ		0CH		;offset to sio serial printer wr1
+sio_mdm_wr1	equ		14H		;offset to sio modem wr1
+cbr		equ		1AH		;comm port baud rate
+pbr		equ		1BH		;serial printer baud rate offset.
+sio_intstat	equ		1FH		;off set for sio control (irpts or status)
+kbdtab_offset	equ		20H		;offset from start of init. table
+						; the start of the keyboard tables.
+arrow_addr	equ		0FFH		;offset to start of vector 
+						;key values
+
+
+;interrupt or status driven sio & flag values
+
+irpt_driven	equ		00H	      ;intstat value for interrupt driven sio ports
+status_driven	equ		0FFH	      ;intstat value for status driven sio ports	
+sio_irpt_driven	equ		36H	      ;wr1 value for interrupt driven sio ports
+sio_status_driven equ		00H	      ;wr1 value for status driven sio ports
+
+
+
+
+;graphics control values
+
+first_vec	equ		53
+last_vec	equ		56
+first_key	equ		57
+last_key	equ		70
+gc_base		equ		57		;vec keys are not edited for
+						;more than one character
+
+
+
+
+;	Keyboard table editor values
+
+table_size	equ		255-30			;max key values in table
+
+table_keys	equ		13			;number of keys affected, 0 -> 13
+
+
+;	Bios constants
+
+init_disk_select equ		01H			;set bit 0 in e-reg to force
+							;read or write
+normal_write	equ		00H			;into c-reg for bios call
+
+
+; 	Bios vector table offsets.
+
+w_boot		equ		01H			;cpm warm boot address
+home_dr_off	equ		15H			;home selected drive
+dsk_off		equ		18H			;select drive
+trk_off		equ		1BH			;select track
+sec_off		equ		1EH			;select sector
+dma_off		equ		21H			;select buffer
+read_off	equ		24H			;read sector
+write_off	equ		27H			;write sector
+
+;		bios vector in a - reg
+;		hl = disk parameter header if drive number is valid
+;		hl = 0 if drive number is invalid
+;		bc,de, regs saved
+
+bios:		push	de
+		push	bc			;save environment
+		ld	hl,(w_boot)		;get bios starting address
+		ld	c,a			;vector into c reg
+		ld	b,00			;nul b reg
+		add	hl,bc			;calculate bios routine address
+		pop	bc
+		push	bc			;restore dma address
+		push	hl			;save bios routine address
+
+		ld	hl,biosret		;get return address
+		ex	(sp),hl			;put return address in stack
+		jp	(hl)			;go to bios routine
+
+biosret:	pop	bc			;restore environment
+		pop	de
+		ret
+
+;	Masks to set and reset the low bit of the
+;	byte that holds the write safe flag.
+
+wsf_on_mask	equ		01H
+wsf_off_mask	equ		0FEH
+
+
+;	keyboard routine for vector keys
+
+key_in:		ld	de,vec_key_edit		;message asking for input
+		call	print_direct
+		ld	a,cursor
+		ld	(att),a
+		call	set_on_att		;turn on cursor
+		call	conin_in		;get character using direct i/o
+		ld	(cc),a			;for display
+		call	print_key_name		;display character
+		ld	a,(gc)			;get character number
+		sub	53			;minus baseline #
+		ld	hl,(fdata_sect_addr)	;get fdata sector address
+		ld	bc,arrow_addr		;displacement from 
+						;iobyte to arrow values
+		add	hl,bc			;start of arrow keyboard values
+		ld	c,a			;arrow number from 1 to 3
+		ld	b,00
+		add	hl,bc
+		ld	a,(cc)			;new character
+		ld	(hl),a			;into vector key area
+		call	vec_disp		;display new key
+		xor	a			;fall through compare table
+		ret
+
+
+vec_disp:	ld	a,cursor		;cursor attribute value
+		ld	(att),a
+		call	set_off_att		;turn off cursor
+		ld	a,inverse		;reversed video attribute value
+		ld	(att),a			;into attribute
+		call	set_off_att		;normal video
+		ld	a,reduced		;reduced intensity
+		ld	(att),a			;into attribute
+		call	set_off_att		;normal intensity
+		ld	de,vec_key_data		;'key currently generated: '
+		call	print_direct
+		ld	a,(gc)			;get character number
+		sub	53			;minus baseline #
+		ld	hl,(fdata_sect_addr)	;get fdata sector address
+		ld	bc,arrow_addr		;displacement from 
+						;iobyte to arrow values
+		add	hl,bc			;start of arrow keyboard values
+		ld	c,a			;arrow number from 1 to 3
+		ld	b,00
+		add	hl,bc
+		ld	a,(hl)			;get vector key value
+		cp	00H			;no key value ?
+		jp	z,vec_ukey		;jif no key value
+		ld	(cc),a			;into character address for
+		call	print_key_name		;translation & display
+		xor	a			;fall through compare table
+		ret
+
+
+vec_ukey:	ld	de,vec_msg_ukey		;'no keys generated '
+		call	print_direct
+		xor	a			;fall through compare table
+		ret
+
+
+vec_key_data:	defb	esc,'=',46,69		;row 14, col 37 
+		defb	era_rest_line
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	era_rest_screen
+
+		defb	esc,'=',49,69		;row 17, col 37
+		defb	'Key currently generated:              '
+
+		defb	esc,'=',49,96,11H	;row 17, col 64 cursor position
+
+
+vec_key_edit:	defb	esc,'=',49,69		;row 17, col 37
+		defb	'Input Desired Key Stroke For This Key     '
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	era_rest_screen
+
+		defb	esc,'=',50,32		;cursor at row 18, col 0
+		defb	'===>'
+		defb	esc,'=',50,37,11H	;cursor at row 18, col 5
+
+vec_msg_ukey:	defb	esc,'=',45,69		;row 13, col 37
+		defb	era_rest_line
+		defb	esc,'=',46,69		;row 14, col 37 
+		defb	era_rest_line
+		defb	esc,'=',49,69		;row 17, col 37
+		defb	'No Key Generated                          ',11H
+
+
+
+conin_in:	ld	a,reduced
+		ld	(att),a
+		call	set_off_att		;turn off reduced intensity
+		ld	a,inverse
+		ld	(att),a
+		call	set_off_att		;turn off inverse video
+char_in:	ld	e,0FFH
+		ld	c,conio_direct
+		call	bdos			;get character
+		cp	00			;character yet ?
+		jr	z,char_in
+		ret				;return with character in acc
+
+;
+;	Console input routine
+;
+;	Written by:	T. Hayes
+;			6/13/84
+;
+;	On entry:
+;		DE points to the following data structure:
+;
+;			Byte	Descr
+;			  0	Maximum number of characters
+;			  1	Actual number entered
+;			 2 - n	Data Buffer
+;
+;	On exit:
+;		Byte 1 will contain the actual number of characters typed in
+;		and the buffer will contain these characters
+;
+;	The following conventions will be observed here:
+;
+;		Input will be accepted until etx (see equates) is received from the 
+;		keyboard.
+;
+;		All control characters will be echoed as ^chr.
+;
+;		The left arrow key will be expected to generate left (see equates).
+;		
+;		If the buffer is full, no characters except etx and left will be accepted
+;		A bell will be sent in response to any other characters in this
+;		condition.
+;
+conin_line:
+	push	de			;set up a pointer to the data structrue
+	pop	ix
+;
+	ld	(ix + count),0		;zero out the count field
+;
+	ex	de,hl			;hl will be used as the character pointer
+	inc	hl			;point to start of buffer
+	inc	hl
+conin1:
+	push	hl			;save the working registers
+	push	ix
+conin2:
+	ld	e,0ffh			;get a console character
+	ld	c,conio_direct		;directly
+	call	bdos
+	cp	0
+	jp	z,conin2
+;
+	pop	ix			;get back the working registers
+	pop	hl
+;
+	cp	etx			;if end of string
+	ret	z			;return to caller
+;
+	cp	left			;if left arrow
+	jp	z,bs
+;
+	ld	b,a			;save the character
+	ld	a,(ix + count)		;and see if the count is equal to the max
+	cp	(ix + 0)
+	jp	z,bell			;ring the bell if so
+	ld	a,b			;else get back the character
+;
+	and	7fh			;make sure that it is an ascii character
+	ld	(hl),a			;and put it into the buffer
+;
+	inc	hl			;point to the next buffer location
+	inc	(ix + 1)		;and bump the count
+;
+	push	hl			;save the working registers
+	push	ix
+;
+	cp	20h			;if it is a control character
+	jp	nc,conin3
+;
+	push	af			;save the character
+	ld	e,'^'			;prefix it with a carrat
+	ld	c,conio_direct
+	call	bdos
+	pop	af			;get the character back
+	or	40h			;and turn it into an upper case character
+;
+conin3:
+	ld	e,a			;then display the character
+	ld	c,conio_direct
+	call	bdos
+;
+	pop	ix			;restore the working registers
+	pop	hl
+	jp	conin1			;get the next character
+;
+bs:
+;
+;	do a destructive backspace and update the necessary accounting
+;
+	ld	a,(ix + count)		;see if the buffer is empty
+	cp	0			;if it is
+	jp	z,bell			;ring the bell
+;
+	ld	de,back2		;default to double backspace
+;
+	dec	hl			;point to last character typed
+	ld	a,(hl)			;if that character is not a control
+	cp	20h			;character
+	jp	c,bs1
+;
+	ld	de,back1		;only do a single backspace
+bs1:
+	push	hl			;save the working registers
+	push	ix
+	ld	c,conout_string		;do the backspace operation
+	call	bdos
+;
+	pop	ix			;restore the working registers
+	pop	hl
+;
+	dec	(ix + count)		;decrement the number of characters
+;
+	jp	conin1			;then get the next character
+;
+bell:
+;
+;	ring the bell
+;
+	push	hl			;save the working registers
+	push	ix
+;
+	ld	e,07h			;ring the bell
+	ld	c,conio_direct
+	call	bdos
+;
+	pop	ix			;restore the working registers
+	pop	hl
+	jp	conin1			;and go back for more
+;
+
+
+
+print:		push	af
+		ld	c,conout_string		;string console I/O
+		call	bdos			;start of msg in de
+
+print_exit:	pop	af
+		ret
+
+
+;		SCREEN GRAPHICS PRINT ROUTINE
+
+;	PRINT DIRECT USES 11H AS A TERMINATION CHARACTER BECAUSE
+;	  '$' IS A SCREEN LOCATION (36d, 24H IS ROW OR COLUMN 4)
+
+print_direct:	push	af
+		ex	de,hl			;start of msg into hl
+print_direct_loop:ld	a,(hl)			;first character
+		cp	11H			;end of msg ?
+		jp	z,print_direct_exit	;jif end
+		push	hl			;save current addr.
+		ld	e,a			;character to be printed
+		ld	c,conio_direct		;console direct I/O
+		call	bdos
+		pop	hl
+		inc	hl			;next character
+		jr	print_direct_loop
+
+print_direct_exit:pop	af
+		  ret
+
+
+;	TEST TO SEE IF THE CORRECT TYPE OF BOARD & BIOS IS INSTALLED, IF CORRECT
+;	USE DRIVE CHARACTERISTICS TO INITIALIZE FIRST SECTOR AND TRACK NUMBERS
+
+version_select:	ld	hl,verno		;get version # address
+		xor	a			;zero acc.
+		ld	b,04			;set b to counter value of 4
+lpe:		add	a,(hl)			;add value into acc
+		inc	hl			;next value
+		djnz	lpe			;loop if counter not zero
+		cp	(hl)			;is 0FFFC byte equal to acc
+		jp	nz,ead			;jif not correct board
+		ld	hl,ltoptab		;else
+		ld	a,(hl)			;get drive A: assignments
+		ld	(drivea),a		;save them
+		inc	hl			;drive B: address
+		ld	a,(hl)			;get drive B: assignments
+		ld	(driveb),a		;save them
+		inc	hl			;drive C: address
+		ld	a,(hl)			;get drive C: assignments
+		ld	(drivec),a		;save them
+
+version_sel_test:
+		ld	a,(drivec)		;get drive C: assignments
+		cp	-1			;C: on line ?
+		jp	z,version_not_10	;jif not ten
+		jp	version_10		;else it is a ten
+
+
+version_not_10:ld	a,(drivea)		;get drive A: assignments
+		bit	2,a			;drivetek drive ?
+		jp	nz,version_robie	;jif yes
+		jp	version_4		;else it is a four
+
+
+version_robie:	ld	a,05
+		ld	(iob_max),a
+		ld	a,45
+		ld	(jp_tbl_sector),a			;first sector = 45
+		ld	a,00
+		ld	(track),a				;track = 0
+		jp	version_select_end
+		
+
+version_10:	ld	a,(drivea)				;get A: parms
+		bit	3,a					;A: standard floppy ?
+		jp	nz,version_4				;jif standard floppy
+		ld	a,05					;else A: is a winchester
+		ld	(iob_max),a				;or a drivetek.
+		ld	a,45
+		ld	(jp_tbl_sector),a			;first sector = 45
+		ld	a,00
+		ld	(track),a				;track = 0
+		jp	version_select_end
+
+
+version_4:	ld	a,05
+		ld	(iob_max),a
+		ld	a,21
+		ld	(jp_tbl_sector),a			;first sector = 21
+		ld	a,01
+		ld	(track),a				;track = 1
+		jp	version_select_end
+
+
+
+ead:		ld	de,msg_ead
+		call	print
+		jp	config_exit
+
+msg_ead:	db	'This program requires ROM Version 2.00 or greater to run ','$'
+
+
+version_select_end:	ret
+
+
+
+
+
+;	Now that the jump table sector image has been read in,
+;	calculate where the init. & keyboard table sectors are
+
+cpm_ver_init:	ld	hl,sector_image+seq_offset
+		xor	a			;clear carry
+		ld	a,(hl)			;get displacement to start of init. 
+		ld	c,a			;save low order byte
+		inc	hl			;high order byte
+		ld	a,(hl)
+
+;each unit in the high order byte = 256 or two 128 byte logical sectors
+
+		rl	a			;get logical sectors
+		ld	b,a			;save logical sectors
+		ld	a,c			;lower order byte
+		ld	e,128			;add this if carry
+		sub	128			;sub size of one logical sector
+		jp	c,total_sectors		;jif done calculating		
+		inc	b			;one more sector
+		sub	128
+		jp	c,total_sectors		;jif not two sectors
+		inc	b
+		ld	e,00			;no carry
+total_sectors:	add	a,e			;adjust acc for extra subtract
+		ld	(init_table_disp),a	;save disp from start of first sector
+		ld	a,(jp_tbl_sector)	;get jump table sector number
+		add	a,b			;calculate first sector number
+		ld	(first_sector),a	;save first sector
+		inc	a
+		ld	(second_sector),a	;save second sector
+		inc	a
+		ld	(third_sector),a	;save third sector
+		ld	hl,sector_image
+		ld	de,iob_vec		;I/O byte vector address
+		xor	a			;clear carry
+		ld	a,(init_table_disp)	;get displacement from start
+						; of first sector
+		add	a,e			;add disp onto I/O vector addr.
+		ld	e,a			;save displacement
+		jr	nc,cpm_iobyte_addr	;jif no carry
+		inc	d			;else increment msb
+cpm_iobyte_addr:add	hl,de			;calculate iob addr in sector_image
+		ld	(iobyte_sect_addr),hl	;save iob address
+		ret
+
+
+set_on_att:	ld	de,msg1
+		call	print_direct
+		ret
+
+msg1:defb	esc,'B'					;turn on attribute
+att:		db	0FFH				;reverse video etc.
+		db	11H
+
+
+set_off_att:	ld	a,(att)				;turn off attribute
+		ld	(att0),a			;reverse video etc.
+		ld	de,msg2
+		call	print_direct
+		ret
+
+msg2:defb	esc,'C'
+att0:		db	0FFH				;0FFH NOT AN ATTRIBUTE
+		db	11H
+
+
+position:	ld	hl,(vert)
+		ld	de,32
+		add	hl,de
+		ld	(vert0),hl
+		ld	hl,(horz)
+		add	hl,de
+		ld	(horz0),hl
+
+		ld	de,msg3
+		call	print_direct
+		ret
+
+msg3:defb	esc,'='
+vert0:		db	0FFH				;0FFH NOT A LOCATION
+horz0:		db	0FFH
+		db	11H
+
+
+clear:		ld	de,msg4
+		call	print_direct
+		ret
+
+msg4:defb	26,11H
+
+
+pause:		ld	de,msg5
+		call	print
+		jp	pause_conin
+
+msg5:defb  0DH,0AH,'		To return to the main menu, press any key',0DH,0AH,'$'
+
+
+pause_continue:	ld	de,msg5_12
+		call	print
+		jr	pause_conin
+
+msg5_12: defb 0DH,0AH,'		To continue, press any key',0DH,0AH,'$'
+
+
+
+pause_conin:	ld	de,msg_pause
+		call	print_direct
+		jr	msg_pause_end
+
+msg_pause:	defb	esc,'=',56,34,11H	;move cursor to line 24, row 2
+
+msg_pause_end:	ld	a,cursor
+		ld	(att),a
+		call	set_off_att		;cursor off
+		ld	e,0FFH			;console flag
+		ld	c,conio_direct		;get a char from console
+		call	bdos
+		cp	00			;character yet ?
+		jr	z,msg_pause_end		;jif no character
+		ret
+
+
+
+select_disk:	ld	a,(ii)		;get disk drive number
+		ld	c,a
+sd0:		ld	a,dsk_off	;drive select offset into acc for bios call
+		call	bios		;select drive
+		ld	a,l
+		cp	h		;disk parameter header returned yet ?
+		jr	z,sd0		;jif no parameter header
+		ret
+	
+
+select_track:	ld	b,00
+		ld	a,(track)	;get track number
+		ld	c,a
+		ld	a,trk_off	;track select offset
+		call	bios		;select track
+		ret
+
+
+select_sector:	ld	b,00
+		ld	a,(sector)	;get sector number
+		ld	c,a
+		ld	a,sec_off	;sector select offset into acc for bios call
+		call	bios		;call bios sector select
+		ret
+
+
+define_dma:	ld	bc,(dma_address) ;get dma buffer address
+		ld	a,dma_off	;dma offset
+		call	bios		;set dma buffer address for following reads and writes
+		ret
+
+
+f_read_sector:	res	0,e		;force read
+read_sector:	ld	a,read_off	;bios read offset vector
+		call	bios		;read record
+		ret	
+
+
+f_write_sector:	ld	a,home_dr_off	;home selected drive
+		call	bios		;go to track zero
+		res	0,e		;force write
+write_sector:	ld	a,write_off	;bios write offset vector
+		ld	bc,normal_write	;type code in c
+		call	bios		;write record or records
+		ret
+
+
+print_menu:	ld	de,msg5_1
+		call	print
+		jp	print_menu1
+
+msg5_1:defb	1AH,0DH,0DH,'			      K A Y P R O  ','$'
+
+
+print_menu1:	
+		ld	a,(drivec)	;get drive C: assignments
+		cp	-1		;on line ?
+		jr	z,not_10	;jif not on line
+		bit	2,a		;drive C: is a drivetec floppy drive ?
+		jr	z,not_12	;jif not a kaypro 12
+		ld	de,msgk12	;12 message
+		jr	print_version
+
+not_12:		ld	de,msgk10	;10 message
+		jr	print_version
+
+not_10:		ld	a,(drivea)	;get drive A: assignments
+		bit	2,a		;drivetec floppy drive ?
+		jr	z,not_robie	;jif not
+					;test if domestic or foreign
+		ld	de,msg_robie	;robie msg
+		jr	print_version	;print it
+
+
+not_robie:	ld	de,msgk4
+print_version:	call	print
+		jp	print_menu2
+
+
+
+msgk10:		defb	'10',0DH,0AH,'$'
+
+
+
+msgk12:		defb	'12',0DH,0AH,'$'
+
+
+
+msg_robie:	defb	'Robie / 4X',0DH,0AH,'$'
+
+
+
+msgk4: 		defb	'4',0DH,0AH,'$'
+
+
+
+
+print_menu2:	ld	de,menu_msg
+		call	print
+print_menu_exit:ret
+
+
+menu_msg:
+
+defb	 0DH,0AH
+defb	'		C O N F I G U R A T I O N   P R O G R A M',0DH,0AH
+
+defb	0DH,0AH
+defb	'			      Version 6.0'
+defb	0DH,0AH,0DH,0AH
+defb	'		COPYRIGHT (C) 1984 BY KAYPRO CORPORATION.'
+
+defb	0DH,0AH,0DH,0AH		
+
+defb	'	        	                              Help    Function',0DH,0AH,0DH,0AH
+
+defb	'		Change IOBYTE .........................i	I ',0DH,0AH
+defb	'		Redefine the vector pad ...............v	V ',0DH,0AH
+defb	'		Redefine the number pad ...............n	N ',0DH,0AH
+defb	'		Set the write safe flag ...............w	W ',0DH,0AH
+defb	'		Change the printer baud rate ..........p	P ',0DH,0AH
+defb	'		Change the serial data baud rate ......d	D ',0DH,0AH
+defb	'		Change serial ports" control state.....s	S ',0DH,0AH
+defb	'		Exit the CONFIG program ...............x	X ',0DH,0AH
+
+defb	0DH,0AH,0DH,0AH
+
+defb	'Please enter your selection ===>','$'
+
+
+
+
+h_iobyte:	ld	de,msg6
+		call	print
+		call	pause			;wait for keyin
+		xor	a			;for call test in mainline
+		ret
+
+
+msg6:defb		1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'To understand this command, consult the KAYPRO CP/M OPERATING',0DH,0AH
+defb	'SYSTEM MANUAL, especially the section on the STAT command and',0DH,0AH
+defb	'logical and physical devices.  The logical CP/M devices are CON:,',0DH,0AH
+defb	'LST:, RDR:, and PUN:. The physical devices are:',0DH,0AH,0DH,0AH
+
+defb	'  CRT: -- Video and keyboard.',0DH,0AH
+defb	'  LPT: -- Centronics port.',0DH,0AH
+defb	'  SPT: -- Serial port. (See KAYPRO USER"S GUIDE for connector wiring)',0DH,0AH
+defb	'  SDT: -- Serial data transfer port.',0DH,0AH
+defb	'  MDM: -- Modem port.',0DH,0AH
+defb	0DH,0AH,0DH,0AH
+
+defb	'Possible logical to physical assignments that are meaningful are:'
+defb	0DH,0AH,0DH,0AH
+
+defb	'	CON: = SPT:, CRT:, SDT: or MDM:',0DH,0AH
+defb	'	RDR: = SPT:, CRT:, SDT: or MDM:',0DH,0AH
+defb	'	PUN: = SPT:, CRT:, SDT:,or MDM:',0DH,0AH
+defb	'	LST: = SPT:, CRT:, SDT:,or LPT:',0DH,0AH,0DH,0AH
+
+
+defb	'BEFORE using this option, try it with the STAT command.',0DH,0AH,'$'
+
+
+
+
+
+h_write_safe:	ld	de,msg7
+		call	print
+		call	pause 			;wait for keyin
+		xor	a			;for mainline call test
+		ret
+
+
+msg7:defb 1AH,0DH,0AH,0DH,0AH,0DH,0AH		;clear screen
+
+
+defb 'Your KAYPRO computer comes with a special "Write Safe" option that corrects',0DH,0AH
+defb 'an incompatibility between CP/M and some application programs. The following',0DH,0AH
+defb 'is rather technically involved, so if you do not understand it, ask your',0DH,0AH
+defb 'dealer.  The incorrect setting of the write flag may cause IRREVOCABLE LOSS',0DH,0AH 
+defb 'of data or programs.  When in doubt, leave it off.',0DH,0AH,0DH,0AH
+
+defb 'The KAYPRO computer uses deblocking.  When a disk operation is',0DH,0AH
+defb 'immediately followed by a warm boot, the deblocking buffer may not be  ',0DH,0AH
+defb 'written to the disk.  However, if the write safe flag is set, the BIOS',0DH,0AH
+defb 'thinks that all disk operations are of the directory type. All directory',0DH,0AH
+defb 'operations force the deblocking buffer to the disk on a write.  There ',0DH,0AH
+defb 'will be a 2- to 4-fold decrease in speed when writing to the disk.',0DH,0AH,0DH,0AH,'$'
+
+
+
+h_vecpad:	ld	de,msg8
+		call	print
+		call	pause			;wait for keyin
+		xor	a			;for call test in mainline
+		ret
+
+
+msg8: defb	1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'The four arrow keys at the upper right of the keyboard are cursor',0DH,0AH
+defb	'keys or vector keys.  In programs such as word processing, they',0DH,0AH
+defb	'are used to move the cursor.  Their functions may be modified to',0DH,0AH
+defb	'be used in other ways by other programs. ',0DH,0AH
+defb	 0DH,0AH
+defb	'When you modify the functions, the changes will become part of',0DH,0AH
+defb	'the CP/M program the next time the computer is reset.',0DH,0AH
+defb	0DH,0AH,0DH,0AH,'$'
+
+
+
+h_numpad:	ld	de,msg9
+		call	print	
+		call	pause			;wait for keyin
+		xor	a			;for call test in mainline
+		ret
+
+
+msg9:	defb	1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'On the right side of the keyboard is the numeric keypad.  When',0DH,0AH
+defb	'pressed, each of these 14 keys produces a string of code.  The N',0DH,0AH
+defb	'option allows you to change the codes produced by these keys.',0DH,0AH
+defb	'For each numerical keypad key, you can enter a string of no more',0DH,0AH
+defb	'than eighty keys.  You can enter from the keyboard but not from',0DH,0AH
+defb	'the numeric keypad or from the keys with arrows on them.',0DH,0AH,0DH,0AH,'$'
+
+
+
+h_printer_baud:	ld	de,msg10
+		call	print	
+		call	pause			;wait for keyin
+		xor	a			;for call test in mainline
+		ret
+
+
+msg10: defb		1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+defb	'Baud rate is the rate of information transfer.  When the KAYPRO',0DH,0AH
+defb	'is connected to a printer, the KAYPRO must be set to send',0DH,0AH
+defb	'information at the rate at which the printer is expecting to',0DH,0AH 
+defb	'receive it.  Information about the baud rate of the printer',0DH,0AH
+defb	'should be available in the printer manual.',0DH,0AH,0DH,0AH
+
+defb	'	The KAYPRO is capable of the following rates:',0DH,0AH,0DH,0AH
+
+defb	'	  110',0DH,0AH
+defb	'	  300',0DH,0AH
+defb	'	 1200 (Default)',0DH,0AH
+defb	'	 2400',0DH,0AH
+defb	'	 4800',0DH,0AH
+defb	'	 9600',0DH,0AH
+defb	'	19200',0DH,0AH,0DH,0AH,'$'
+
+
+
+
+h_data_baud:	ld	de,msg11
+		call	print
+		call	pause			;wait for keyin
+		xor	a			;for mainline call test
+		ret
+
+
+msg11: defb		1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'Baud rate is the rate of information transfer.  When the KAYPRO',0DH,0AH
+defb	'is connected to a telephone line, the KAYPRO must be set to send ',0DH,0AH
+defb	'information at the rate at which the device at the other end of',0DH,0AH
+defb	'the line is expecting to receive it.  Information about the baud',0DH,0AH
+defb	'rate of the device should be available in the manual for the',0DH,0AH
+defb	'device.',0DH,0AH,0DH,0AH
+
+defb	'	The KAYPRO is capable of the following rates:',0DH,0AH,0DH,0AH
+
+defb	'	  110',0DH,0AH
+defb	'	  300',0DH,0AH
+defb	'	 1200',0DH,0AH
+defb	'	 2400',0DH,0AH
+defb	'	 4800',0DH,0AH
+defb	'	 9600 (Default)',0DH,0AH
+defb	'	19200',0DH,0AH,0DH,0AH,'$'
+
+
+
+
+h_sio:		ld	de,msg111
+		call	print
+		call	pause			;wait for keyin
+		xor	a			;for mainline call test
+		ret
+
+
+msg111: defb		1AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'	The serial ports (SIO) can be interrupt or status driven. ',0DH,0AH,0DH,0AH
+
+defb	'	If a application program needs to change the control state',0DH,0AH 
+defb	'	 of the serial ports, then use this function to change the',0DH,0AH
+defb	'	 SIO initialization tables on your system tracks. ',0DH,0AH,'$'
+
+
+
+
+
+
+;	load vector value into gc before calling set light
+
+set_light:	ld	a,(light_high)
+		cp	00				;is light_high set ?
+		jp	nz,set_light_high		;jif inverse video high
+		ld	a,inverse
+		ld	(att),a
+		call	set_off_att			;turn off reverse video
+		ld	a,reduced
+		ld	(att),a
+		call	set_off_att			;turn off reduced intensity
+		jp	graphics_sub
+
+set_light_high:	ld	a,inverse			;inverse video
+		ld	(att),a
+		call	set_on_att			;set on attribute
+		ld	a,reduced			;for reduced inverse video
+		ld	(att),a
+		call	set_on_att			;set on attribute
+
+
+;	GRAPHICS SUBROUTINES
+
+graphics_sub:	ld	a,(gc)			;get graphics code
+		cp	53
+		jp	nz,is_it_54
+		ld	de,msg12
+		call	print_direct
+		ret
+
+msg12:	defb	esc,'=',34,34			;row 2,col 2
+defb 		'  /|\  '
+defb		esc,'=',35,34			;row 3,col 2
+defb		'   |   '
+defb		esc,'=',36,34			;row 4,col 2
+defb		'   |   ',11H
+
+is_it_54: 	cp	54
+		jp	nz,is_it_55
+		ld	de,msg13
+		call	print_direct
+		ret
+
+msg13: defb	esc,'=',34,42			;row 2,col 10
+defb		'   |   '
+defb		esc,'=',35,42			;row 3,col 10
+defb		'   |   '
+defb		esc,'=',36,42			;row 4,col 10
+defb		'  \|/  ',11H
+
+is_it_55:	cp	55
+		jp	nz,is_it_56
+		ld	de,msg14
+		call	print_direct
+		ret
+
+msg14: defb	esc,'=',34,50			;row 2,col 18
+defb		'       '
+defb		esc,'=',35,50			;row 3,col 18
+defb		'  <--  '
+defb		esc,'=',36,50			;row 4,col 18
+defb		'       ',11H
+
+
+is_it_56:	cp	56
+		jp	nz,is_it_57
+		ld	de,msg15
+		call	print_direct
+		ret
+
+msg15: defb	esc,'=',34,58			;row 2,col 26
+defb		'       '
+defb		esc,'=',35,58			;row 3,col 26
+defb		'  -->  '
+defb		esc,'=',36,58			;row 4,col 26
+defb		'       ',11H
+
+
+is_it_57:	cp	57
+		jp	nz,is_it_58
+		ld	de,msg16
+		call	print_direct
+		ret
+
+msg16: defb	esc,'=',46,34			;row 14,col 2 
+defb		'               '
+defb		esc,'=',47,34			;row 15,col 2
+defb		'       0       '
+defb		esc,'=',48,34			;row 16,col 2
+defb		'               ',11H
+
+
+is_it_58:	cp	58
+		jp	nz,is_it_59
+		ld	de,msg17
+		call	print_direct
+		ret
+
+msg17: defb	esc,'=',42,34			;row 10,col 2
+defb		'       '
+defb		esc,'=',43,34			;row 11,col 2
+defb		'   1   '
+defb		esc,'=',44,34			;row 12,col 2
+defb		'       ',11H
+
+
+is_it_59:	cp	59
+		jp	nz,is_it_60
+		ld	de,msg18
+		call	print_direct
+		ret
+
+msg18: defb	esc,'=',42,42			;row 10,col 10
+defb		'       '
+defb		esc,'=',43,42			;row 11,col 10
+defb		'   2   '
+defb		esc,'=',44,42			;row 12,col 10
+defb		'       ',11H
+
+
+is_it_60:	cp	60
+		jp	nz,is_it_61
+		ld	de,msg19
+		call	print_direct
+		ret
+
+msg19: defb	esc,'=',42,50			;row 10,col 18
+defb		'       '
+defb		esc,'=',43,50			;row 11,col 18
+defb		'   3   '
+defb		esc,'=',44,50			;row 12,col 18
+defb		'       ',11H
+
+
+is_it_61:	cp	61
+		jp	nz,is_it_62
+		ld	de,msg20
+		call	print_direct
+		ret
+
+msg20: defb	esc,'=',38,34			;row 06,col 2
+defb		'       '
+defb		esc,'=',39,34			;row 07,col 2
+defb		'   4   '
+defb		esc,'=',40,34			;row 08,col 2
+defb		'       ',11H
+
+
+is_it_62:	cp	62
+		jp	nz,is_it_63
+		ld	de,msg21
+		call	print_direct
+		ret
+
+msg21: defb	esc,'=',38,42			;row 06,col 10
+defb		'       '
+defb		esc,'=',39,42			;row 07,col 10
+defb		'   5   '
+defb		esc,'=',40,42			;row 08,col 10
+defb		'       ',11H
+
+
+is_it_63:	cp	63
+		jp	nz,is_it_64
+		ld	de,msg22
+		call	print_direct
+		ret
+
+msg22: defb	esc,'=',38,50			;row 06,col 18
+defb		'       '
+defb		esc,'=',39,50			;row 07,col 18
+defb		'   6   '
+defb		esc,'=',40,50			;row 08,col 18
+defb		'       ',11H
+
+is_it_64:	cp	64
+		jp	nz,is_it_65
+		ld	de,msg23
+		call	print_direct
+		ret
+
+msg23: defb	esc,'=',34,34			;row 2,col 2
+defb		'       '
+defb		esc,'=',35,34			;row 3,col 2
+defb		'   7   '
+defb		esc,'=',36,34			;row 4,col 2
+defb		'       ',11H
+
+
+is_it_65:	cp	65
+		jp	nz,is_it_66
+		ld	de,msg24
+		call	print_direct
+		ret
+
+msg24: defb	esc,'=',34,42			;row 2,col 10
+defb		'       '
+defb		esc,'=',35,42			;row 3,col 10
+defb		'   8   '
+defb		esc,'=',36,42			;row 4,col 10
+defb		'       ',11H
+
+
+is_it_66:	cp	66
+		jp	nz,is_it_67
+		ld	de,msg25
+		call	print_direct
+		ret
+
+msg25: defb	esc,'=',34,50			;row 2,col 18
+defb		'       '
+defb		esc,'=',35,50			;row 3,col 18
+defb		'   9   '
+defb		esc,'=',36,50			;row 4,col 18
+defb		'       ',11H
+
+
+is_it_67:	cp	67
+		jp	nz,is_it_68
+		ld	de,msg26
+		call	print_direct
+		ret
+
+msg26: defb	esc,'=',34,58			;row 2,col 26
+defb		'       '
+defb		esc,'=',35,58			;row 3,col 26
+defb		'   -   '
+defb		esc,'=',36,58			;row 4,col 26
+defb		'       ',11H
+
+
+is_it_68:	cp	68
+		jp	nz,is_it_69
+		ld	de,msg27
+		call	print_direct
+		ret
+
+msg27: defb	esc,'=',38,58			;row 6,col 26
+defb		'       '
+defb		esc,'=',39,58			;row 7,col 26
+defb		'   ,   '
+defb		esc,'=',40,58			;row 8,col 26
+defb		'       ',11H
+
+
+is_it_69:	cp	69
+		jp	nz,is_it_70
+		ld	de,msg28
+		call	print_direct
+		ret
+
+msg28: defb	esc,'=',42,58			;row 10,col 26
+defb		'       '
+defb		esc,'=',43,58			;row 11,col 26
+defb		'   E   '
+defb		esc,'=',44,58			;row 12,col 26
+defb		'   N   '
+defb		esc,'=',45,58			;row 13,col 26
+defb		'   T   '
+defb		esc,'=',46,58			;row 14,col 26
+defb		'   E   '
+defb		esc,'=',47,58			;row 15,col 26
+defb		'   R   '
+defb		esc,'=',48,58			;row 16,col 26
+defb		'       ',11H
+
+
+is_it_70:	cp	70
+		jp	nz,reset_light
+		ld	de,msg29
+		call	print_direct
+		ret
+
+msg29:	defb	esc,'=',46,50			;row 14,col 18
+defb		'       '
+defb		esc,'=',47,50			;row 15,col 18
+defb		'   .   '
+defb		esc,'=',48,50			;row 16,col 18
+defb		'       ',11H
+
+
+reset_light:	ld	a,inverse
+		ld	(att),a
+		call	set_off_att
+		ld	a,reduced
+		ld	(att),a
+		call	set_off_att
+		ret
+
+
+;			I/O BYTE SELECTION ROUTINE
+
+;	a line feed changes the highlighted menu selection
+;	the entry to be highlighted is selected by a number in 'aa'
+;	the highlighted menu entry's corresponding i/o byte value will 
+;	be selected when a return is hit.
+;	to exit routine key in a 'x' or an 'X'.
+
+
+c_iobyte:	ld	hl,(iobyte_sect_addr)	;get I/O byte address
+		ld	a,(hl)			;get iob value
+		ld	(iob),a			;save iob
+		and	0C0H			;mask off all but bits 6 & 7.
+		ld	(new_lst),a		;save LST: value
+		cp	0C0H			;LST: = SDT: ?
+		jp	nz,lst_not_sdt		;jif not SDT:
+		ld	hl,'DS'
+		ld	(msg36a),hl		;set up LST: msg for SDT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg36a+2),hl
+		jp	pun
+
+lst_not_sdt:	cp	80H			;LST: = LPT: ?
+		jp	nz,lst_not_lpt		;jif not LPT:
+		ld	hl,'PL'
+		ld	(msg36a),hl
+		ld	hl,':T'
+		ld	(msg36a+2),hl		;have msg36 show LST: = LPT:
+		jp	pun
+
+lst_not_lpt:	cp	40H			;LST: = CRT: ?
+		jp	nz,lst_not_crt		;jif not CRT:
+		ld	hl,'RC'	
+		ld	(msg36a),hl		;set up LST: msg for CRT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg36a+2),hl
+		jp	pun
+
+lst_not_crt:	and	3FH			;mask off two upper bits
+		ld	hl,'PS'	
+		ld	(msg36a),hl		;set up LST: msg for SPT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg36a+2),hl
+
+
+pun:		ld	a,(iob)
+		and	30H			;mask off all bits but 4 & 5
+		ld	(new_pun),a		;save punch value
+		jp	z,pun_is_spt		;jif PUN:=SPT:
+		cp	30H			;PUN:=MDM: ?
+		jp	nz,pun_not_mdm		;jif not
+		ld	hl,'DM'
+		ld	(msg342a),hl		;set up PUN: msg for MDM: 
+		ld	hl,':M'			;according to I/O byte	
+		ld	(msg342a+2),hl
+		jp	rdr
+
+pun_not_mdm:	cp	20H			;PUN:=SDT: ?
+		jp	nz,pun_not_sdt		;jif not
+		ld	hl,'DS'
+		ld	(msg342a),hl		;set up PUN: msg for SDT:
+		ld	hl,':T'			;according to I/O byte	
+		ld	(msg342a+2),hl
+		jp	rdr
+
+pun_not_sdt:	cp	10H			;PUN:=CRT: ?
+		jr	nz,pun_is_spt		;jif not
+		ld	hl,'RC'
+		ld	(msg342a),hl		;set up PUN: msg for CRT:
+		ld	hl,':T'			;according to I/O byte	
+		ld	(msg342a+2),hl
+		jp	rdr
+
+pun_is_spt:	ld	hl,'PS'
+		ld	(msg342a),hl		;set up PUN: msg for SPT:
+		ld	hl,':T'			;according to I/O byte	
+		ld	(msg342a+2),hl
+
+rdr:		ld	a,(iob)			;get I/O byte value
+		and	0CH			;mask off all bits but 2 & 3
+		ld	(new_rdr),a		;save reader value
+		jp	z,rdr_is_spt		;jif zero result
+		cp	0CH			;RDR: = MDM: ?
+		jr	nz,rdr_not_mdm		;jif no
+		ld	hl,'DM'
+		ld	(msg341a),hl		;set up RDR: msg for MDM:
+		ld	hl,':M'			;according to I/O byte
+		ld	(msg341a+2),hl
+		jp	con
+
+
+rdr_not_mdm:	cp	08H			;RDR: = SDT: ?
+		jr	nz,rdr_not_sdt		;jif no
+		ld	hl,'DS'
+		ld	(msg341a),hl		;set up RDR: msg for SDT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg341a+2),hl
+		jp	con
+
+rdr_not_sdt:	cp	04H			;RDR: = CRT: ?
+		jr	nz,rdr_is_spt		;jif no
+		ld	hl,'RC'
+		ld	(msg341a),hl		;set up RDR: msg for CRT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg341a+2),hl
+		jp	con
+
+rdr_is_spt:	ld	hl,'PS'
+		ld	(msg341a),hl		;set up RDR: msg for SPT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg341a+2),hl
+
+
+con:		ld	a,(iob)			;get I/O byte value
+		and	03H			;mask off all bits but 0 & 1
+		ld	(new_con),a		;save console value
+		jp	z,con_is_spt		;jif result is zero
+		cp	03H			;CON: = MDM: ?
+		jr	nz,con_not_mdm		;jif no
+		ld	hl,'PS'
+		ld	(msg34a),hl		;set up CON: msg for SPT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg34a+2),hl
+		jp	c_iobyte1
+
+con_not_mdm:	cp	02H			;CON: = SDT: ?
+		jr	nz,con_not_sdt		;jif no
+		ld	hl,'DS'
+		ld	(msg34a),hl		;set up CON: msg for SDT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg34a+2),hl
+		jp	c_iobyte1
+
+con_not_sdt:	cp	01H			;CON: = CRT: ?
+		jr	nz,con_is_spt		;jif no
+		ld	hl,'RC'
+		ld	(msg34a),hl		;set up CON: msg for CRT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg34a+2),hl
+		jp	c_iobyte1
+
+con_is_spt:	ld	hl,'PS'
+		ld	(msg34a),hl		;set up CON: msg for SPT:
+		ld	hl,':T'			;according to I/O byte
+		ld	(msg34a+2),hl
+
+c_iobyte1:	ld	a,10H
+		ld	(aa),a			;set 'aa' counter = 10H
+		ld	de,msg30
+		call	print_direct
+		jp	c_iobyte2
+
+msg30: defb	1AH,11H				;clear screen
+
+
+;		DISPLAY IOBYTE MODIFICATION SIGNON MESSAGE
+
+c_iobyte2:	ld	a,cursor
+		ld	(att),a
+		call	set_off_att		;cursor off
+
+		ld	de,msg31
+		call	print
+		jp	c_iobyte_menu_end
+
+msg31: defb	0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'		I O B Y T E    M O D I F I C A T I O N',0DH,0AH
+defb	'		======================================',0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH
+
+
+
+defb	'    CURRENT SETTINGS 	     POSSIBLE CHANGES		',0DH,0AH 
+defb	'							',0DH,0AH
+defb	'       CON: = CRT:	   CRT: CRT	 DISPLAY	',0DH,0AH
+defb	'       RDR: = SPT:	   LPT: PARALLEL PRINTER	',0DH,0AH
+defb	'       PUN: = SPT:	   SPT: SERIAL	 PRINTER	',0DH,0AH
+defb	'       LST: = LPT:	   SDT: SERIAL	 DATA		',0DH,0AH
+defb	'			   MDM: MODEM	 PORT		',0DH,0AH
+defb	'							',0DH,0AH
+defb	'* To move the cursor to an option, press the LINE FEED key.',0DH,0AH
+defb	0DH,0AH
+defb	'* To select an assignment, press the RETURN key.',0DH,0AH
+defb	0DH,0AH
+defb	'* To return to the main menu, type:  X ',0DH,0AH
+
+defb		0DH,0AH	,'$'
+
+
+;		UPDATE CON:,RDR:,PUN:, & LST:= MESSAGES AND
+;		REVERSE VIDEO ON FIRST CURRENT SETTING
+
+
+c_iobyte_menu_end:
+
+		ld	de,msg34
+		call	print_direct			;update CON: =
+		ld	de,msg341
+		call	print_direct			;update RDR: =
+		ld	de,msg342
+		call	print_direct			;update PUN: =
+		ld	de,msg36
+		call	print_direct			;update LST: =
+		ld	a,inverse
+		ld	(att),a
+		call	set_on_att			;set on inverse video
+		ld	a,reduced
+		ld	(att),a
+		call	set_on_att			;set on reduced intensity
+		ld	de,msg34
+		call	print_direct			;display
+		
+
+
+;	routine to select menu entry and turn off reverse video on it
+
+c_iobyte_conin:	ld	a,inverse
+		ld	(att),a
+		call	set_off_att			;set off inverse video
+		ld	a,reduced
+		ld	(att),a
+		call	set_off_att			;set off reduced intensity
+		call	conin_in			;get byte from console
+		cp	lf				;line feed ?
+		jr	z,c_iobyte_out10		;jif yes to change menu video
+
+;		SET I/O BYTE OR EXIT ?
+
+c_iobyte_cr:	cp	cr				;set I/O byte ?
+		jp	z,c_iobyte_set			;jif set
+		cp	'x'				;exit program ?
+		jp	z,c_iobyte_exit			;exit if 'x'
+		cp	'X'				;exit program ?
+		jp	z,c_iobyte_exit			;exit if 'X'
+		jp	c_iobyte_conin			;if not cr,lf,'x' or 'X'
+
+
+;		VIDEO NORMALIZE AND REVERSE ROUTINE
+
+c_iobyte_out10:	ld	a,(aa)				;get count
+		cp	10H				;just changed from last one ?
+		jp	nz,c_iobyte_out15		;jif no
+		ld	de,msg36			;LST: =
+		call	print_direct
+		jp	c_iobyte_inc
+
+c_iobyte_out15:	cp	15H				;normalize first current setting ?
+		jr	nz,c_iobyte_out20		;jif no
+		ld	de,msg34
+		call	print_direct
+		jp	c_iobyte_out1			;normalize possible change
+
+msg34:	defb	esc,'=',43,39				;row 11, col 7
+	defb	'CON: = '
+msg34a:	defb	'CRT:',11H
+
+
+c_iobyte_out20:	cp	25H				;normalize second current setting
+		jr	nz,c_iobyte_out30
+		ld	de,msg341
+		call	print_direct
+		jp	c_iobyte_out1			;normalize possible change
+
+msg341: defb	esc,'=',44,39				;row 12, col 7
+	defb	'RDR: = '
+msg341a:defb	'SPT:',11H
+
+
+c_iobyte_out30:	cp	35H				;normalize third current setting ?
+		jr	nz,c_iobyte_out40
+		ld	de,msg342
+		call	print_direct
+		jp	c_iobyte_out1			;normalize possible change
+
+msg342:	defb	esc,'=',45,39				;row 13, col 7
+	defb	'PUN: = '
+msg342a:defb	'SPT:',11H
+
+
+c_iobyte_out40:	cp	45				;normalize fourth current setting ?
+		jr	nz,c_iobyte_out1		;jif no
+
+		ld	de,msg36
+		call	print_direct
+		jp	c_iobyte_out1			;normalize possible change
+
+msg36:	defb	esc,'=',46,39				;row 14,col 7
+defb		'LST: = '
+msg36a:	defb	'LPT:',11H
+				
+
+c_iobyte_out1:	ld	a,(aa)				;get count
+		and	0FH				;mask off upper nibble
+		cp	00				;current setting just set ?
+		jp	z,c_iobyte_inc			;jif just set
+		cp	01				;normalize first possible change ?
+		jr	nz,c_iobyte_out2		;jif no
+
+		ld	de,msg35
+		call	print_direct
+		jp	c_iobyte_inc
+
+msg35: defb	esc,'=',43,59				;row 11, col 27
+defb		'CRT: CRT      DISPLAY ',11H
+
+
+c_iobyte_out2:	cp	02				;normalize second possible change ?
+		jr	nz,c_iobyte_out3		;jif no
+		ld	de,msg351
+		call	print_direct
+		jp	c_iobyte_inc
+
+msg351:	defb	esc,'=',44,59				;row 12, col 27
+	defb	'LPT: PARALLEL PRINTER ',11H
+
+
+c_iobyte_out3:	cp	03				;normalize third possible change ?
+		jr	nz,c_iobyte_out4		;jif no
+		ld	de,msg352
+		call	print_direct
+		jp	c_iobyte_inc
+
+msg352:	defb	esc,'=',45,59				;row 13, col 27
+	defb	'SPT: SERIAL   PRINTER ',11H
+
+
+c_iobyte_out4:	cp	04				;normalize 4th possible change ?
+		jr	nz,c_iobyte_out5
+		ld	de,msg37
+		call	print_direct
+		jp	c_iobyte_inc
+
+msg37: defb	esc,'=',46,59				;row 14,col 27
+defb		'SDT: SERIAL   DATA ',11H
+
+
+c_iobyte_out5:	cp	05				;normalize 5th possible change ?
+		jr	nz,c_iobyte_ince		;counter is over limit
+		ld	de,msg38
+		call	print_direct
+		jp	c_iobyte_inc
+
+
+msg38: defb	esc,'=',47,59				;row 15,col 27
+defb		'MDM: MODEM    PORT ',11H
+
+
+
+
+;		REVERSE VIDEO ON THE NEXT MESSAGE
+
+c_iobyte_inc:	ld	a,(aa)				;get menu reverse number
+		inc	a				;next entry
+		ld	c,a
+		and	0FH				;mask off upper nybble
+c_iobyte_ince:	cp	06H				;over limit ?
+		ld	a,c
+		jr	nz,c_iobyte_nomsch		;jif not over limit
+		add	a,10H				;next current setting
+		and	0F0H				;mask off lower nybble
+		cp	50H				;over limit ?
+		jr	nz,c_iobyte_nomsch		;jif not over limit
+		ld	a,10H				;back to first current setting
+c_iobyte_nomsch:ld	(aa),a				;reverse video next msg
+		ld	a,inverse
+		ld	(att),a
+		call	set_on_att			;set on inverse video
+		ld	a,reduced
+		ld	(att),a
+		call	set_on_att			;set on reduced intensity
+
+
+;	if 10H, reverse (CON: =) msg, and normalize (LST: =) msg. 
+;
+c_iobyte_case10:ld	a,(aa)				;menu reverse number
+		cp	10H				;reverse first current setting ?
+		jp	nz,c_iobyte_case20		;jif no
+
+		ld	de,msg34			;CON: =
+		call	print_direct
+		ld	a,inverse
+		ld	(att),a
+		call	set_off_att			;turn off reverse video
+		ld	a,reduced
+		ld	(att),a
+		call	set_off_att			;turn off reduced intensity
+		ld	de,msg36
+		call	print_direct			;normalize (LST: =) msg
+		jp	c_iobyte_conin
+
+c_iobyte_case20:cp	20H				;reverse second current setting ?
+		jp	nz,c_iobyte_case30		;jif no
+		ld	de,msg341			;RDR: =
+		call	print_direct
+		jp	c_iobyte_conin
+
+c_iobyte_case30:cp	30H				;reverse third current setting ?
+		jp	nz,c_iobyte_case40		;jif no
+		ld	de,msg342			;PUN: =
+		call	print_direct
+		jp	c_iobyte_conin
+
+c_iobyte_case40:cp	40H				;reverse fourth current setting ?
+		jp	nz,c_iobyte_case1		;jif no
+		ld	de,msg36			;LST: =
+		call	print_direct
+		jp	c_iobyte_conin
+
+	
+
+c_iobyte_case1:and	0FH				;mask off upper nibble
+		cp	01H				;reverse first possible change ?
+		jp	nz,c_iobyte_case2		;jif no
+		ld	de,msg41
+		call	print_direct
+		jp	c_iobyte_conin
+
+msg41:	defb	esc,'=',43,59				;row 11, col 27
+defb		'CRT: CRT      DISPLAY ',11H
+
+
+c_iobyte_case2:	cp	02				;reverse second possible change ?
+		jp	nz,c_iobyte_case3		;jif no
+		ld	b,a				;save masked counter
+		ld	a,(aa)				;get counter
+		and	0F0H				;mask off lower nybble
+		cp	40H				;LST: ?
+		ld	a,b				;restore masked counter
+		jr	z,c_iobyte_case21		;jif LST:
+		ld	a,(aa)				;else skip LPT:
+		inc	a
+		ld	(aa),a
+		jp	c_iobyte_case3
+
+c_iobyte_case21:ld	de,msg411
+		call	print_direct
+		jp	c_iobyte_conin
+
+msg411:	defb	esc,'=',44,59				;row 12, col 27
+	defb	'LPT: PARALLEL PRINTER ',11H
+
+
+c_iobyte_case3:	cp	03H				;reverse third current setting ?
+		jp	nz,c_iobyte_case4		;jif no
+		ld	de,msg412
+		call	print_direct
+		jp	c_iobyte_conin
+
+msg412:	defb	esc,'=',45,59				;row 13, col 27
+	defb	'SPT: SERIAL   PRINTER',11H
+
+
+c_iobyte_case4:	cp	04				;reverse fourth possible change ?
+		jp	nz,c_iobyte_case5
+		ld	de,msg43
+		call	print_direct
+		jp	c_iobyte_conin
+
+msg43: defb	esc,'=',46,59				;row 14,col 27
+defb		'SDT: SERIAL   DATA ',11H
+
+
+c_iobyte_case5:	cp	05				;reverse 5th menu entry ?
+		jp	nz,c_iobyte_limit
+		ld	b,a				;save masked counter
+		ld	a,(aa)				;get counter
+		and	0F0H				;mask off lower nybble
+		cp	40H				;LST: ?
+		ld	a,b				;restore masked counter	
+		jr	nz,c_iobyte_case51		;jif not LST:
+		jp	c_iobyte_limit
+
+c_iobyte_case51:ld	de,msg44
+		call	print_direct
+		jp	c_iobyte_conin
+
+msg44: defb	esc,'=',47,59				;row 15,col 27
+defb		'MDM: MODEM    PORT ',11H
+
+
+
+
+;	limit choice to 5, or 45
+;	if from current testing start possible changes over again
+;	hit limit
+
+c_iobyte_limit:	ld	a,(aa)				;get count
+		and	0F0H				;mask off units
+		cp	10H				;first current setting ?
+		jr	nz,c_iobyte_set20		;jif no
+		ld	a,20H				;set to second current setting
+		jr	c_iobyte_lexit
+
+c_iobyte_set20:	cp	20H				;second current setting ?
+		jr	nz,c_iobyte_set30		;jif no
+		ld	a,30H				;set to third current setting
+		jr	c_iobyte_lexit
+
+c_iobyte_set30:	cp	30H				;third current setting ?
+		jr	nz,c_iobyte_set40		;jif no
+		ld	a,40H				;set to fourth current setting
+		jr	c_iobyte_lexit
+
+c_iobyte_set40:	ld	a,10H				;set to first current setting
+		ld	(aa),a
+c_iobyte_lexit:	jp	c_iobyte_case10
+
+
+
+
+;			SET I/O BYTE IN BUFFER
+
+;			determine bit assignment
+
+c_iobyte_set:		ld	a,(aa)			;get menu selection counter
+			and	0FH			;get 'possible change' value
+			jp	z,c_iobyte_exit		;jif no change
+			cp	01			;selection 1 ?
+			jp	nz,c_iobyte_set2	;jif not 1
+			ld	a,01			;(CRT:)
+			jp	c_iobyte_setc
+
+c_iobyte_set2:		cp	02			;selection 2 ?
+			jp	nz,c_iobyte_set3	;jif not 2
+			ld	a,80H			;ONLY LST:=LPT:
+			ld	(new_lst),a
+			jp	c_iobyte_setx
+
+c_iobyte_set3:		cp	03			;selection 3 ?
+			jp	nz,c_iobyte_set4	;jif not 3
+			ld	a,00			;SPT:		
+			jp	c_iobyte_setc
+
+c_iobyte_set4:		cp	04			;menu selection 4 ?
+			jp	nz,c_iobyte_set5	;jif not 4
+			ld	a,02			;SDT:
+			jp	c_iobyte_setc
+
+c_iobyte_set5:		cp	05			;menu selection 5 ?
+			jp	nz,c_iobyte_set_error	;jif not 5
+			ld	a,03			;MDM:
+			jp	c_iobyte_setc
+
+
+;		take bit assignment and determine significance
+
+c_iobyte_setc:		ld	c,a			;save bit assignment
+			ld	a,(aa)			;get count
+			and	0F0H			;mask off lower nybble
+			cp	10H			;CON: ?
+			jp	nz,c_iobyte_setr	;jif not CON:
+			ld	a,c			;get bit assignment
+			ld	(new_con),a		;save it
+			jp	c_iobyte_setx		;set iobyte
+
+c_iobyte_setr:		cp	20H			;RDR: ?
+			jp	nz,c_iobyte_setp	;jif not RDR:
+			ld	a,c			;get bit assignment
+			rl	a
+			rl	a			;signify it
+			ld	(new_rdr),a		;save new reader value
+			jp	c_iobyte_setx		;set iobyte
+
+c_iobyte_setp:		cp	30H			;PUN: ?
+			jp	nz,c_iobyte_setl	;jif not PUN:
+			ld	a,c			;get bit assignment
+			rl	a
+			rl	a
+			rl	a			;signify it
+			rl	a
+			ld	(new_pun),a		;save new punch value
+			jp	c_iobyte_setx
+
+c_iobyte_setl:		ld	a,c			;get bit assignment
+			rl	a
+			rl	a
+			rl	a
+			rl	a			;signify it
+			rl	a
+			rl	a
+			ld	(new_lst),a		;save new list value
+
+
+;	iobyte = lst + con + rdr + pun
+
+c_iobyte_setx:		
+			ld	a,(new_lst)		;get LST: value
+			ld	b,a
+			ld	a,(new_rdr)		;get RDR: value
+			or	b			;combine with LST:
+			ld	b,a			;LST: & RDR: into b
+			ld	a,(new_pun)		;get PUN: value
+			or	b			;combine with LST: & RDR:
+			ld	b,a			;LST:,RDR:, & PUN: into b reg
+			ld	a,(new_con)		;get CON: value
+			or	b			;calculate iob
+			ld	hl,(iobyte_sect_addr)	;get iob addr
+			ld	(hl),a			;& store it
+			jp	c_iobyte_exit
+
+c_iobyte_set_error:	ld	de,msg46
+			call	print
+			jp	c_iobyte_conin		;try again
+
+msg46: defb	'ERROR IN IOBYTE SELECTION !! ',0DH,0AH,'$'
+
+
+
+c_iobyte_exit:	ld	a,cursor
+		ld	(att),a
+		call	set_on_att			;set on cursor
+		xor	a				;for call test in mainline
+		ret
+
+
+;		PRINT KEYBOARD INPUT CHARACTER NAME
+
+print_key_name:	ld	a,(cc)				;get character
+		cp	00				;zero ?
+		jp	nz,print_key_ctr		;jif not zero
+		jp	print_key_exit			;else exit
+
+
+;		case of less than one already tested
+
+print_key_ctr:	cp	26			;control character ?
+		jr	nc,print_key_esc	;jif not a control character
+		add	a,64;			;make control character printable
+		ld	(ctr),a			;load control character into print byte
+		ld	de,msg48
+		call	print
+		jp	print_key_exit
+
+msg48: defb	' ^'				;space, hat-(up arrow)
+ctr:		db	00			;control character to be printed
+defb		' $'
+
+print_key_esc:	cp	27			;escape key ?
+		jr	nz,print_key_fs		;jif not escape
+		ld	de,msg49
+		call	print
+		jp	print_key_exit
+
+msg49: defb	'ESC ','$'
+
+print_key_fs:	cp	28			;FS ?
+		jr	nz,print_key_gs		;jif not FS
+		ld	de,msg50
+		call	print
+		jp	print_key_exit
+
+msg50: defb	' FS ','$'
+
+print_key_gs:	cp	29			;GS ?
+		jr	nz,print_key_rs		;jif not GS
+		ld	de,msg51
+		call	print
+		jp	print_key_exit
+
+msg51: defb	' GS ','$'
+
+print_key_rs:	cp	30			;RS ?
+		jr	nz,print_key_us		;jif not RS
+		ld	de,msg52
+		call	print
+		jp	print_key_exit
+
+msg52: defb	' RS ','$'
+
+
+print_key_us:	cp	31			;US ?
+		jr	nz,print_key_sp		;jif not US
+		ld	de,msg53
+		call	print
+		jr	print_key_exit
+
+msg53: defb	' US ','$'
+
+
+print_key_sp:	cp	32			;space ?
+		jr	nz,print_key_char	;jif not space
+		ld	de,msg54
+		call	print
+		jr	print_key_exit
+
+msg54: defb	' SP ','$'
+
+
+print_key_char:	cp	33			;reg character ?
+		jr	c,print_key_exit	;jif not
+		cp	126			;reg character ?
+		jp	nc,print_key_del	;jif not
+		cp	'$'			;$ is print terminator
+		jp	z,printds		;use print direct
+		ld	(char),a		;put character into printout byte
+		ld	de,msg55
+		call	print
+		jr	print_key_exit
+
+msg55: defb	' '
+char:		db	00
+defb		'  ','$'
+
+
+print_key_del:	cp	127			;delete ?
+		jp	nz,print_key_exit	;jif not delete
+		ld	de,msg55_1
+		call	print
+		jr	print_key_exit
+
+
+msg55_1: defb	' DEL ','$'
+
+
+printds:	ld	de,msg56		;print dollar sign
+		call	print_direct
+
+print_key_exit:	ret		
+
+
+msg56: defb	' ','$',11H
+
+c_vecpad:	ld	de,msg61
+		call	print
+		jp	msg61_end
+
+msg61: defb	1AH				;clear screen
+
+
+defb 0DH,0AH					;start on second line
+
+
+defb '  -------------------------------',0DH,0AH
+defb ' |  /|\  |   |   |       |       |   The diagram at the left represents',0DH,0AH
+defb ' |   |   |   |   |  -->  |  <--  |   the vector keypad.  Move the',0DH,0AH
+defb ' |   |   |  \|/  |       |       |   cursor to the key you want to',0DH,0AH
+defb '  -------------------------------    change by using the LINE FEED key.',0DH,0AH,0DH,0AH
+defb '				     When the key that you want to',0DH,0AH
+defb '				     change is highlighted:',0DH,0AH,0DH,0AH
+defb '				     1. Press the ESC key. ',0DH,0AH
+defb '				     2. Enter the keystroke that you', 0DH,0AH
+defb '				        want to be generated when that',0DH,0AH
+defb '				        key is pressed.',0DH,0AH,0DH,0AH
+defb '				    To exit, type:  X',0DH,0AH 
+defb 0DH,0AH,'$'
+
+msg61_end:	ld	a,cursor
+		ld	(att),a
+		call	set_off_att			;cursor off
+		ld	a,first_vec			;initial arrow key
+		ld	(vec),a				;display to be highlighted
+		ld	(gc),a				;for set_light graphics
+		ld	a,high
+		ld	(light_high),a			;set light_high true
+		call	set_light			;setting vec square high
+		call	vec_disp			;display present key values
+
+c_vecpad_conin:	call	conin_in			;get key number
+		ld	(key_number),a			;save key number
+		cp	'x'				;exit ?
+		jp	z,c_vecpad_exit			;jif exit
+		cp	'X'				;exit ?
+		jp	z,c_vecpad_exit			;jif exit
+		cp	esc				;edit ?
+		call	z,key_in			;cif edit
+		cp	lf				;choose a key ?
+		jr	nz,c_vecpad_conin		;jif not choosing a key
+		ld	a,low				;set light_high false
+		ld	(light_high),a			;turn off current
+		call	set_light			;vec key display
+		ld	a,(vec)				;get key value
+		cp	last_vec			;last arrow key ?
+		jr	nz,c_vecpad_next		;jif not last
+		ld	a,first_vec			;else next vec
+		ld	(vec),a				;is first_vec
+		jr	c_vecpad_light
+
+c_vecpad_next:	inc	a				;vec=vec+1
+		ld	(vec),a				;save new vec
+
+c_vecpad_light:	ld	(gc),a				;vec for set_light
+		ld	(ii),a				;vec for print_sequence
+		ld	a,high
+		ld	(light_high),a			;set light_high true
+		call	set_light
+		call	vec_disp			;display present key values
+		jp	c_vecpad_conin			;next entry
+
+
+
+c_vecpad_exit:	ld	a,cursor
+		ld	(att),a
+		call	set_on_att
+		xor	a				;for call test in mainline
+		ret	
+
+
+
+c_numpad:	call	hot_patch			;ENTER = etx, & LEFT ARROW = left
+		ld	de,msg67
+		call	print
+		jp	msg67_end
+
+msg67:defb	26,0DH,0AH			;clear screen, home cursor
+
+
+defb	'  ------------------------------- ',0DH,0AH
+defb	' |       |       |       |       |   The diagram at the left represents the',0DH,0AH
+defb	' |   7   |   8   |   9   |   -   |   numeric keypad.  Move the cursor to the',0DH,0AH
+defb	' |       |       |       |       |   key you want to change by using the',0DH,0AH
+defb	' |-------+-------+-------+-------|   LINE FEED key.',0DH,0AH
+defb	' |       |       |       |       |   When the key that you want to change is',0DH,0AH
+defb	' |   4   |   5   |   6   |   ,   |   highlighted:',0DH,0AH
+defb	' |       |       |       |       |',0DH,0AH
+defb	' |-------+-------+-------+-------|   1. Press the ESC key.',0DH,0AH
+defb	' |       |       |       |       |   2. Enter the string that you want to be',0DH,0AH
+defb	' |   1   |   2   |   3   |   E   |      generated when that key is pressed.',0DH,0AH
+defb	' |       |       |       |   N   |   3. Finish entry by pressing ENTER',0DH,0AH
+defb	' |---------------+-------|   T   |   4. Correct errors with a LEFT ARROW',0DH,0AH
+defb	' |               |       |   E   |   5. To exit, type:  X',0DH,0AH
+defb	' |       0       |   .   |   R   |',0DH,0AH
+defb	' |               |       |       | 	NO MORE THAN EIGHTY VALUES PER KEY !!!',0DH,0AH
+defb	'  ------------------------------- ',0DH,0AH,'$'
+
+msg67_end:	ld	a,cursor
+		ld	(att),a				;cursor is attribute
+		call	set_off_att			;set off cursor
+		ld	a,first_key
+		ld	(key),a				;key = first_key
+		ld	(gc),a				;for set light graphics
+		ld	(ii),a				;for print sequence
+		ld	a,high
+		ld	(light_high),a			;set light_high true
+		call	set_light			;set light high
+		call	table_setup			;display present key values
+
+c_numpad_conin:	call	conin_in			;get key number
+		ld	(key_number),a			;save key number
+		cp	'x'				;exit ?
+		jp	z,c_numpad_exit			;jif exit
+		cp	'X'				;exit ?
+		jp	z,c_numpad_exit			;jif exit
+		cp	esc				;edit ?
+		call	z,table_edit
+		cp	lf				;choose a key ?
+		jp	nz,c_numpad_conin		;jif not choosing a key
+
+
+;		TURN OFF OLD KEY
+
+		ld	a,low				;set light_high false
+		ld	(light_high),a			;light off 
+		ld	a,(key)				;current key
+		ld	(gc),a				;for set light
+		call	set_light			;turn off current key
+		ld	a,(key)
+		cp	last_key			;last key ?
+		jp	nz,c_numpad_next		;jif not last
+		ld	a,first_key			;else next key
+		ld	(key),a				;is first_key
+		jp	c_numpad_light
+
+;		NEXT KEY
+
+c_numpad_next:	inc	a				;key=key+1
+		ld	(key),a				;save new key
+
+;		REVERSE VIDEO ON NEXT KEY AND DISPLAY IT'S VALUES
+
+c_numpad_light:	ld	(gc),a				;key for set_light
+		ld	(ii),a				;key for print_sequence
+		ld	a,high				;truely high
+		ld	(light_high),a			;set light_high true
+		call	set_light			;turn on the new key
+		call	table_setup			;display keys generated
+		jp	c_numpad_conin			;next entry
+
+
+
+;	restore left arrow and ENTER byte count and first data
+
+c_numpad_exit:	ld	hl,(hot_la_addr)		;byte count address
+		ld	a,(hot_la_data)
+		ld	(hl),a				;restore original data
+
+		ld	hl,(hot_ke_addr)		;byte count address
+		ld	a,(hot_ke_bytes)		;old byte count
+		ld	(hl),a				;restore system value
+		inc	hl				;displacement address
+		ld	a,(hl)				;get displacement
+		ld	c,a
+		ld	b,00H
+		ld	hl,(hot_fdata_addr)		;get start of fdata table
+		add	hl,bc				;first ke data addr.
+		ld	a,(hot_ke_data)
+		ld	(hl),a				;restore original data
+	ld	a,cursor
+		ld	(att),a
+		call	set_on_att
+		xor	a				;for call test in mainline
+		ret	
+
+	page
+;	SET UP TABLE PERAMETERS AND DISPLAY PRESENT KEY VALUES
+;		28 bytes in 14 two byte blocks, first byte is the number of bytes in function
+;		  string, the second byte is the displacement from the start of the 
+;		  data table.
+
+;bytes   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
+;      -------------------------------------------------------------------------------------
+;fdata |  |00|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+;      -------------------------------------------------------------------------------------
+;keys  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  10 |  11 |  12 |  13 |  14 |
+
+
+
+;fdata_table	227 bytes	storage area for key data	(255-28) = 227
+
+;  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
+;-------------------------------------------------------------------------------------
+;|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+;-------------------------------------------------------------------------------------
+
+;		goes to bytes	226 227
+;				-------
+;				|  |  |
+;				-------
+
+table_setup:	ld	a,(gc)			;get graphics code with key number
+		sub	gc_base			;subtract baseline number to get key number
+		ld	(key_edit_num),a	;save key number
+		add	a,a			;2*(key number) = fdata displacement
+		ld	hl,fdata_table		;start of pointers and # of bytes
+		ld	c,a			;displacement from start of pointer table
+		ld	b,00H
+		add	hl,bc			;starting address of two byte block
+		ld	(table_key_vec),hl	;save it
+		ld	a,(hl)			;amount of data bytes in fdata_table
+		ld	(fdata_bytes),a		;saved
+		inc	hl			;displacement from start of fdata_table
+		ld	a,(hl)
+		ld	(fdata_disp),a		;save displacement vector
+		ld	hl,fdata_table		;start of data table
+		ld	b,00H
+		ld	c,a			;displacement vector
+		add	hl,bc			;find starting address of data
+						;key values in table
+		ld	(table_addr),hl		;save data starting address
+		ld	a,(fdata_bytes)		;amount of data bytes
+		cp	00H			;undefined key
+		jp	z,table_ukey		;jif undefined key
+		cp	01H			;one byte ?
+		jp	nz,table_multibyte	;jif more than one
+		ld	a,(hl)			;get key data value
+		ld	(key_data),a		;& put it into display area
+		ld	a,0FFH			;only one
+		ld	(key_data+1),a		;data entry for this key
+		jp	table_setup_msg		;display it
+
+table_multibyte:ld	a,(fdata_bytes)		;get number of data bytes
+		ld	b,00H
+		ld	c,a			;into block move counter
+		ld	hl,(table_addr)		;start of key data
+		ld	de,key_data		;send it here
+		ldir				;sending
+		ld	a,0FFH			;put termination character
+						;into next data location.
+		ld	(de),a
+
+table_setup_msg:ld	a,inverse		;reversed video
+		ld	(att),a			;into attribute
+		call	set_off_att		;normal video
+		ld	a,reduced		;reduced intensity
+		ld	(att),a			;into attribute
+		call	set_off_att		;normal intensity
+		ld	de,msg_key_data		;'key(s) currently generated: '
+		call	print_direct
+		ld	hl,key_data-1		;start-1
+table_setup_loop:inc	hl			;data character
+		ld	a,(hl)			;get character to dispaly
+		cp	0FFH			;end of key data
+		jp	z,table_setup_exit	;jif end
+		ld	(cc),a			;into character address for
+		push	hl			;save data char address
+		call	print_key_name		;translation & display
+		pop	hl			;restore data char address
+		jp	table_setup_loop	;get another character
+
+table_ukey:	ld	de,msg_ukey		;'no keys generated '
+		call	print_direct
+
+table_setup_exit:	ret
+
+
+msg_key_data:	defb	esc,'=',49,69		;row 17, col 37
+		defb	era_rest_line		;erase to end of line
+
+
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	era_rest_screen
+
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	'Key(s) currently generated:                '
+
+		defb	esc,'=',50,63,11H	;row 18, col 31 cursor position
+
+
+msg_key_edit:	defb	esc,'=',50,32		;row 18, col 0
+		defb	era_rest_screen
+
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	'Input Desired Key Strokes For This Key     '
+
+		defb	esc,'=',50,73		;cursor at row 18, col 41
+		defb	'===>'
+		defb	esc,'=',50,78,11H	;cursor at row 18, col 46
+				;co-ordinate bytes_free with this value
+
+
+msg_ukey:	defb	esc,'=',49,69		;row 17, col 37
+		defb	era_rest_line		;erase to end of line
+
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	era_rest_screen
+
+		defb	esc,'=',50,32		;row 18, col 0
+		defb	'No Keys Generated   ',11H
+
+
+table_freespace: xor	a
+		ld	d,a			;zero key number counter
+		ld	b,a			;zero total freespace
+		ld	c,table_keys		;0 => 13
+		ld	hl,fdata_table		;start of table of pointers
+		ld	a,(key_edit_num)	;get key number
+		cp	d			;key zero ?
+		jr	z,table_fs_loop		;jif key zero
+		ld	a,(hl)			;number of data bytes for first key
+		ld	b,a			;save them
+table_fs_loop:	dec	c			;decrement key total counter
+		inc	d			;increment key # counter
+		inc	hl			;displacement address
+		inc	hl			;number of data bytes address
+		ld	a,(key_edit_num)	;get key number
+		cp	d			;at key to be edited yet ?
+		jp	z,table_fs_skip		;jif & skip adding edited key
+						;freespace to used total
+		ld	a,(hl)			;get number of data bytes
+		add	a,b			;and add them to total used
+		ld	b,a			;save total used
+table_fs_skip:	ld	a,c			;get counter
+		cp	00H			;done ?
+		jp	nz,table_fs_loop	;jif not done
+		ld	a,table_size		;total resource available
+		sub	b			;resource free - total used
+		ld	(table_bytes_free),a	;save freespace
+		ld	a,ccp_max		;80 byte limit
+		ld	(conin_buffer),a	;as conin limit
+
+	;if freespace is less than 80, limit input to freespace
+
+		ld	a,(table_bytes_free)	;get freespace
+		cp	ccp_max			;under 80 bytes ?
+		jr	nc,table_fs_exit	;jif no
+		ld	(conin_buffer),a	;limit number of input to freespace value
+table_fs_exit:	ret
+
+table_edit:	call	table_freespace		;calculate freespace in fdata_table
+		ld	de,msg_key_edit		;input desired key strokes
+		call	print_direct
+		ld	a,cursor
+		ld	(att),a
+		call	set_on_att		;turn on cursor
+		ld	a,(table_bytes_free)	;unused space
+		ld	(table_bytes_free),a	;save total free bytes
+		cp	00H			;none free ?
+		jp	z,table_edit_zero	;jif none
+		ld	c,'0'			;ascii zero
+next_C:		cp	100			;is it less than 100
+		jp	c,tens_or_less		;jif less than 100
+		sub	100
+		inc	c			;increment hundreds
+		jp	nc,next_C		;jif one more hundred
+tens_or_less:	ld	b,a			;save tens and units
+		ld	a,c			;get ascii hundreds
+		ld	(bytes_free),a		;into msg most sig. byte
+		ld	a,b			;restore tens and units
+		ld	c,'0'			;ascii	zero
+next_ten:	cp	10			;less than 10 ?
+		jp	c,ones_or_less		;jif less than 10
+		sub	10
+		inc	c			;increment tens
+		jp	nc,next_ten		;jif another ten
+ones_or_less:	ld	b,a			;save units
+		ld	a,c			;get ascii tens
+		ld	(bytes_free+1),a	;and store in msg
+		ld	a,b			;units
+		add	a,30H			;ascii units
+		ld	(bytes_free+2),a	;into least sig byte of msg
+		ld	de,msg_bytes_free	;show free space
+		call	print_direct
+		ld	de,conin_buffer		;for conin_line
+		call	conin_line		;get input line
+		ld	a,cursor
+		ld	(att),a
+		call	set_off_att		;turn off cursor
+		ld	a,(conin_buffer+1)	;return count
+		cp	00H			;null entry
+		jp	z,table_edit_exit	;show old value & exit
+		ld	b,a			;into b - reg
+		ld	a,(table_bytes_free)	;total usable bytes
+		cp	b			;table overflow ?
+		jp	c,table_edit_overflow	;jif overflow
+		ld	hl,fdata_bytes		;original key data size addr.
+		ld	a,00
+		ld	(tbl_disp_neg),a	;initialize negative sensor
+		ld	a,b			;conin_line return count
+		sub	(hl)			;calculate table shift of following keys' data
+		ld	(table_displace),a	;save table shift value
+		jr	nc,table_disp_ok	;jif not negative
+		ld	a,0FFH			;make future add a subtract
+		ld	(tbl_disp_neg),a
+table_disp_ok:	ld	hl,(table_addr)		;get edited key's data address
+		ld	b,00H
+		ld	a,(fdata_bytes)		;bytes used previously in this key
+		ld	c,a
+		add	hl,bc			;start of data for next key
+		ld	(key_data_current),hl	;save address
+		ld	c,00H			;initialize counter
+table_edit_loop:ld	a,(hl)			;get data
+		inc	c			;counter + 1
+		inc	hl			;next data
+		cp	0FFH			;end of data table ?
+		jp	nz,table_edit_loop	;jif not end of data table
+		ld	a,(hl)			;get data
+		inc	hl			;next data address
+		inc	c			;counter + 1
+		cp	0FFH			;2 (0FFH)'s = end of data
+		jp	nz,table_edit_loop	;jif not end of data
+		ld	b,00			;set b-reg to zero
+		dec	hl			;adj hl to last 0FFH addr.
+		ld	(key_data_end),hl	;data end address
+		ld	a,(tbl_disp_neg)	;if displacement is neg
+		ld	d,a			;d equals 0FFH, pos d=0
+		ld	a,(table_displace)	;get table shift value
+		ld	e,a
+		add	hl,de			;rest of key data new starting address
+		ld	e,l
+		ld	d,h			;into de
+		ld	hl,(key_data_end)	;rest of key data old starting address
+		ld	a,(tbl_disp_neg)	;neg displacement flag
+		cp	00H			;neg displacement ?
+		jp	z,table_edit_adjd	;jif & use lddr instruction
+
+	;set up for minus adjustment of table data
+
+		ld	hl,(key_data_current)	;get end address of current key
+		ld	d,0FFH			;minus number
+		ld	a,(table_displace)	;get minus displacement
+		ld	e,a
+		add	hl,de			;find lower address to move
+		ld	d,h			;the rest of key data back to
+		ld	e,l
+		ld	hl,(key_data_current)	;move data from here
+		ldir				;adjust back down to new block
+		jp	table_edit_adjn		;skip positive adjustment
+
+	;positive adjustment of table data
+
+table_edit_adjd:lddr				;transfer the data up to new block
+
+	;adjust key's count and following keys' displacement
+
+table_edit_adjn:ld	hl,conin_buffer+1	;new edited key data count address
+		ld	a,(hl)			;get count
+		ld	c,a			;set transfer count
+		ld	b,00			;set b-reg to zero
+		inc	hl			;starting address of data to transfer
+		ld	de,(table_addr)		;place to send it
+		ldir				;sending
+
+;	adjust edited key's byte count and succeeding keys' displacement count
+;	in two byte pointer block
+
+		ld	hl,(table_key_vec)	;edited keys byte count address
+		ld	a,(conin_buffer+1)	;new byte count
+		ld	(hl),a			;key's new byte count
+		inc	hl			;no need to adjust active key's displacement
+		ld	a,(gc)			;graphics code tells which
+		sub	gc_base			;key it is
+		cp	table_keys		;last key ?
+		jp	z,table_edit_exit	;jif no displacement adjusting needed
+		ld	d,a			;save key number
+		ld	a,(table_displace)	;get displacement adjustment needed
+		cp	00			;no adjustment needed ?
+		jp	z,table_edit_exit	;jif ok as is
+		ld	b,a			;into b
+table_edit_adj:	inc	hl			;byte count
+		inc	hl			;displacement
+		ld	a,(hl)			;get displacement
+		add	a,b			;adjust it
+		ld	(hl),a			;and save it
+		inc	d			;key number + 1
+		ld	a,d
+		cp	table_keys		;did last key ?
+		jp	nz,table_edit_adj	;jif not last key
+		jp	table_edit_exit		;else finished
+
+table_edit_zero:ld	de,msg_zero_bytes	;no space left
+		call	print_direct
+		jp	table_edit_exit
+
+table_edit_overflow:
+		ld	de,msg_tbl_overflow	;entered too much - table overflow
+		call	print_direct
+
+table_edit_exit:call	table_setup		;display new keys
+		ld	a,0FFH			;non line feed character 
+		ret
+
+;	CO-ORDINATE CURSOR POSITIONS WITH 'msg_key_edit'
+
+msg_tbl_overflow: defb	esc,'=',49,69		;row 17, col 37
+
+		defb	'You Entered Too Much: TABLE OVERFLOW '
+
+		defb	esc,'=',50,78,11H	;cursor at row 18, col 46
+
+msg_zero_bytes:	defb	esc,'=',49,69		;row 17, col 37
+
+		defb	'SORRY TABLE FULL		      '
+
+		defb	esc,'=',50,78,11H	;cursor at row 18, col 46
+
+
+
+msg_bytes_free:	defb	esc,'=',49,69		;row 17, col 37
+
+		defb	'Free Space = '
+
+bytes_free:	defb	00,00,00,'		'
+
+		defb	esc,'=',50,78,11H	;cursor at row 18, col 46
+
+
+
+
+c_write_safe:	ld	de,msg73
+		call	print
+		jp	msg73_end
+
+msg73: defb	26
+defb		0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH
+;
+;
+;
+defb	'	    Enter a "1" to set the write safe flag on, any',0DH,0AH,0DH,0AH
+;
+defb	'	other character to set it off.'
+;
+defb	0DH,0AH,0DH,0AH,0DH,0AH,0DH,0AH,'$'
+
+msg73_end:
+
+
+c_wrtsafe_conin:ld	e,0FFH
+		ld	c,conio_direct				;get flag
+		call	bdos				;from console
+		cp	00				;get a character yet ?
+		jr	z,c_wrtsafe_conin		;jif no
+		ld	(flag),a			;save flag
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,wsf				;write safe flag offset
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate wsf address
+		ld	(sector_image_ptr),hl		;save wsf address
+		ld	a,(flag)			;get input flag
+		cp	'1'				;set write safe flag on ?
+		jp	nz,c_wrtsafe_off		;jif not on
+		ld	a,(hl)				;get wsf
+		or	wsf_on_mask			;turn on write safe
+		ld	(hl),a				;store new wsf
+		ld	de,msg74
+		call	print
+		jr	c_wrtsafe_exit			;exit
+
+msg74: defb	'        Write safe flag is now ON.',0DH,0AH,'$'
+
+
+c_wrtsafe_off:	ld	a,(hl)				;get wsf byte
+		and	wsf_off_mask			;turn off write safe
+		ld	(hl),a				;store new wsf
+		ld	de,msg75
+		call	print
+c_wrtsafe_exit:	call	pause
+		xor	a				;for call test in mainline
+		ret
+
+
+msg75: defb	'        Write safe flag is now OFF.',0DH,0AH,'$'
+		
+
+
+c_printer_baud:	ld	a,cursor
+		ld	(att),a
+		call	set_on_att			;turn on cursor
+		ld	de,msg76
+		call	print
+		jp	c_printer_baud_loop		
+
+msg76: defb	26					;clear screen
+defb		0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'	Possible baud rates:  110, 300, 1200, 2400, 4800, 9600, 19200.',0DH,0AH
+defb	0DH,0AH
+defb	'	Enter the rate that you want for the printer, followed by a RETURN.',0DH,0AH
+defb	'	Use a BACK SPACE to correct errors.',0DH,0AH,0DH,0AH
+defb	'	Enter a "0" and a RETURN to return to the main menu.',0DH,0AH,'$'
+
+c_printer_baud_loop:ld	de,msg77
+		call	print_direct
+		jr	msg77_end
+
+msg77:	defb	esc,'=',44,32				;row 12,col 0, erase old printout
+defb		era_rest_line
+defb		esc,'=',45,32				;row 13,col 0, erase old display line
+defb		era_rest_line
+defb		esc,'=',46,32				;row 14,col 0, erase old display line
+defb		era_rest_line		
+defb		esc,'=',44,32,'?',20H,11h		;row 12,col 0, new input
+
+msg77_end:	ld	hl,number_buffer
+		ld	(num_buf),hl			;initialize number buffer address
+		ld	a,'0'				;and initialize number 
+		ld	(hl),a				;buffer contents to '0'
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		ld	a,ccp_max			;limit input to 80
+		ld	(conin_buffer),a		;in line input
+		ld	de,conin_buffer
+		ld	c,conin_nor_line		;normal cpm line input
+		call	bdos
+		ld	hl,conin_buffer+1		;get return count
+		ld	a,(hl)
+		ld	c,a				;return count into c reg
+		xor	a
+		ld	e,a				;reset number counter
+		ld	d,a
+c_printer_loop:	inc	hl				;byte of data area
+		ld	a,(hl)
+		cp	'0'				;'0' or more ?
+		jp	c,c_printer_loop		;jif non numeric entry
+		ld	b,a				;save data
+		ld	a,'9'
+		cp	b				;<= '9' ?
+		jp	c,c_printer_loop		;jif non numeric entry
+		inc	e				;number counter + 1
+		ld	a,e
+		cp	06				;over max ?
+		jp	z,c_printer_error		;jif over maximum of 5
+		ld	a,b				;restore data
+		push	hl				;save data address
+		ld	hl,(num_buf)			;current address of number buffer
+		ld	(hl),a				;store number for display
+		inc	hl				;next storage address
+		ld	(num_buf),hl			;into address counter
+		pop	hl				;restore data address
+		dec	c
+		jr	z,c_printer_check		;jif done
+		jp	c_printer_loop
+
+c_printer_check:ld	a,e
+		cp	01				;only one number ?
+		jp	nz,c_printer_ck2		;jif not one
+		ld	a,(number_buffer)		;get first number
+		cp	'0'				;exit ?
+		jp	z,c_printer_exit		;jif exit
+		jp	c_printer_error			;else invalid number
+
+;	IF TWO NUMBERS IT IS A INVALID BAUD RATE
+
+c_printer_ck2:	cp	02				;two numbers ? (invalid)
+		jp	z,c_printer_error
+
+;	110 or 300 baud
+
+		cp	03				;three numbers ?
+		jp	nz,c_printer_ck4		;jif not three
+		ld	hl,number_buffer+2		;else move numbers to proper location
+		ld	a,(hl)				;last number entered
+		inc	hl				;number buffer +3
+		inc	hl				;number buffer +4
+		ld	(hl),a				;into ones location
+		dec	hl				;+3
+		dec	hl				;+2
+		dec	hl				;+1
+		ld	a,(hl)				;get second number
+		inc	hl				;+2
+		inc	hl				;+3
+		ld	(hl),a				;into tens location
+		dec	hl				;+2
+		dec	hl				;+1
+		dec	hl				;number buffer start
+		ld	a,(hl)				;get third number
+		inc	hl				;+1
+		inc	hl				;+2
+		ld	(hl),a				;into hundreds location
+		dec	hl				;+1
+		ld	a,' '				;space
+		ld	(hl),a				;filler
+		dec	hl				;start
+		ld	(hl),a				;filler
+		call	c_printer_xbcd			;return in regs bc
+
+		ld	hl,110H				;test for 110 baud
+		cp	l				;last two #s equal ?
+		jp	nz,c_printer_300		;jif not equal
+		ld	a,b				;first number
+		cp	h				;first #s equal ?
+		jp	nz,c_printer_300		;jif not equal
+		ld	a,baud110			;110 baud
+		jp	c_printer_ibaud			;set new baud rate
+
+c_printer_300:	ld	hl,300H				;test for 300 baud
+		ld	a,c				;last two numbers
+		cp	l				;equal ?
+		jp	nz,c_printer_error		;jif not equal
+		ld	a,b				;first numbers
+		cp	h				;equal ?
+		jp	nz,c_printer_error		;jif not equal
+		ld	a,baud300			;300 baud
+		jp	c_printer_ibaud			;set new baud rate
+
+
+c_printer_ck4:	cp	04				;four numbers ?
+		jp	nz,c_printer_ck5		;jif not four
+		ld	hl,number_buffer+3		;first number entered
+		ld	a,(hl)
+		inc	hl				;+4
+		ld	(hl),a				;into ones location
+		dec	hl				;+3
+		dec	hl				;+2
+		ld	a,(hl)				;second number entered
+		inc	hl				;+3
+		ld	(hl),a				;into tens location
+		dec	hl				;+2
+		dec	hl				;+1
+		ld	a,(hl)				;third numberf entered
+		inc	hl				;+2
+		ld	(hl),a				;into hundreds location
+		dec	hl				;+1
+		dec	hl				;start
+		ld	a,(hl)				;fourth number entered
+		inc	hl				;+1
+		ld	(hl),a				;into thousands location
+		dec	hl				;start
+		ld	a,' '				;space
+		ld	(hl),a				;filler
+		call	c_printer_xbcd			;convert to bcd in bc reg
+c_printer_1200:	ld	hl,1200H			;to check if equal to bc
+		ld	a,c
+		cp	l				;last two numbers equal ?
+		jr	nz,c_printer_2400		;jif not equal
+		ld	a,b
+		cp	h				;most sig nos equal ?
+		jr	nz,c_printer_2400		;jif not equal
+		ld	a,baud1200			;else it is 1200 baud
+		jp	c_printer_ibaud			;so set it
+
+c_printer_2400:	ld	hl,2400H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_printer_4800		;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_printer_4800		;jif not equal
+		ld	a,baud2400			;else it is 2400 baud
+		jp	c_printer_ibaud			;& set it at that
+
+c_printer_4800:	ld	hl,4800H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_printer_9600		;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_printer_9600		;jif not equal
+		ld	a,baud4800			;else it is 4800 baud
+		jp	c_printer_ibaud			;& set it at that
+
+c_printer_9600:	ld	hl,9600H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_printer_ck5		;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_printer_ck5		;jif not equal
+		ld	a,baud9600			;else it is 9600 baud
+		jp	c_printer_ibaud			;& set it at that
+
+
+c_printer_ck5:	cp	05				;five numbers ?
+		jp	nz,c_printer_error		;jif not five
+		ld	hl,number_buffer
+		ld	a,(hl)
+		cp	'1'				;19200 maybe ?
+		jp	nz,c_printer_error		;no chance
+		call	c_printer_xbcd			;returns number in bc
+		ld	hl,9200H
+		ld	a,b
+		cp	h				;first numbers equal ?
+		jp	nz,c_printer_error		;jif not equal
+		ld	a,c
+		cp	l				;second numbers equal ?
+		jp	nz,c_printer_error
+		ld	a,baud19200			;19200 baud
+		jp	c_printer_ibaud			;set it
+
+;	convert last four numbers in number buffer to bcd in reg  pair bc
+;	bcd = binary coded decimal
+
+c_printer_xbcd:	xor	a
+		ld	b,a
+		ld	hl,number_buffer
+		ld	a,e				;get number count
+		cp	03				;three numbers ?
+		jr	z,c_printer_xbcd3		;jif three numbers
+		inc	hl
+
+c_printer_xbcd4:ld	a,(hl)				;get number
+		sub	'0'				;convert to bcd
+		rla
+		rla		
+		rla					;move to most sig position
+		rla
+		ld	b,a				;move result to b reg
+		
+c_printer_xbcd3:ld	hl,number_buffer+2		;third number
+		ld	a,(hl)				;get number
+		sub	'0'				;convert to bcd
+		or	b
+		ld	b,a				;save high order bcd byte
+		inc	hl				;number
+		ld	a,(hl)
+		sub	'0'				;convert to bcd
+		rla
+		rla
+		rla					;low order byte's
+		rla					;most sig bcd digit
+		ld	c,a
+		inc	hl				;last number
+		ld	a,(hl)
+		sub	'0'				;convert to bcd
+		or	c
+		ld	c,a				;second & third #s bcd
+		ret
+
+c_printer_ibaud:ld	d,a				;save baud rate
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,pbr				;'baud rate byte' offset
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate baud rate address
+		ld	a,d				;get baud rate
+		ld	(hl),a				;and set it
+		jp	c_printer_baud_rate
+
+
+c_printer_error:ld	de,msg79
+		call	print
+		call	pause_continue
+		jp	c_printer_baud_loop	;try again
+
+msg79: defb		' INVALID BAUD RATE','$'
+
+
+
+c_printer_baud_rate:	ld	de,msg80
+			call	print
+			call	pause
+
+c_printer_exit:		xor	a			;for call test in mainline
+			ret
+
+msg80: defb		'  Baud rate changed to '
+
+number_buffer:		db	00
+			db	00
+			db	00
+			db	00
+			db	00
+			db	'$'
+			db	'$'
+
+
+
+c_data_baud:	ld	a,cursor
+		ld	(att),a
+		call	set_on_att			;turn on cursor
+		ld	de,msg81
+		call	print
+		jp	c_data_baud_loop
+
+msg81: defb	26					;clear screen
+defb		0DH,0AH,0DH,0AH,0DH,0AH
+
+
+defb	'	Possible baud rates:  110, 300, 1200, 2400, 4800, 9600, 19200.',0DH,0AH
+defb	0DH,0AH
+defb	'	Enter the rate that you want for the modem, followed by a RETURN.',0DH,0AH
+defb	'	Use a BACK SPACE to correct errors.',0DH,0AH,0DH,0AH
+
+defb	'	(Enter a "0" and a RETURN to return to the main menu.)',0DH,0AH,'$'
+
+c_data_baud_loop:ld	de,msg82
+		call	print_direct
+		jp	msg82_end
+
+msg82: defb	esc,'=',44,32			;row 12, col 0, erase old display line
+defb		era_rest_line
+defb		esc,'=',45,32			;row 13, col 0, erase old display line
+defb		era_rest_line
+defb		esc,'=',46,32			;row 14, col 0, erase old display line
+defb		era_rest_line
+defb		esc,'=',44,32,'?',20H,11H	;row 12,col 0, new input
+
+msg82_end:	ld	hl,baud_number_buffer
+		ld	(num_buf),hl			;initialize addr counter
+		ld	a,'0'				;and initialize number 
+		ld	(hl),a				;buffer contents to '0'
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		inc	hl
+		ld	(hl),a
+		ld	a,ccp_max			;limit input to 80
+		ld	(conin_buffer),a		;in line input
+		ld	de,conin_buffer
+		ld	c,conin_nor_line		;normal cpm line input
+		call	bdos
+		ld	hl,conin_buffer+1		;get return count
+		ld	a,(hl)
+		ld	c,a				;return count into c reg
+		xor	a
+		ld	e,a				;reset number counter
+		ld	d,a
+c_data_loop:	inc	hl				;byte of data area
+		ld	a,(hl)
+		cp	'0'				;'0' or more ?
+		jp	c,c_data_loop			;jif non numeric entry
+		ld	b,a				;save data
+		ld	a,'9'
+		cp	b				;<= '9' ?
+		jp	c,c_data_loop			;jif non numeric entry
+		inc	e				;number counter + 1
+		ld	a,e
+		cp	06				;over max ?
+		jp	z,c_data_error			;jif over maximum of 5
+		ld	a,b				;restore data
+		push	hl				;save data address
+		ld	hl,(num_buf)			;current addr of number buffer
+		ld	(hl),a				;store number for display
+		inc	hl
+		ld	(num_buf),hl			;save current number buffer address
+		pop	hl				;restore data address
+		dec	c
+		jr	z,c_data_check
+		jp	c_data_loop
+
+c_data_check:	ld	a,e
+		cp	01				;one entry ?
+		jp	nz,c_data_ck2			;jif more than one
+		ld	a,(baud_number_buffer)		;get number
+		cp	'0'				;exit ?
+		jp	z,c_data_exit			;jif exit
+		jp	c_data_error			;else invalid number
+
+
+c_data_ck2:	cp	02				;two entrys ?
+		jp	z,c_data_error			;two entrys not valid
+
+
+;	110 or 300 baud
+
+		cp	03				;three numbers ?
+		jp	nz,c_data_ck4			;jif not three
+		ld	hl,baud_number_buffer+2		;else move numbers to proper location
+		ld	a,(hl)				;last number entered
+		inc	hl				;number buffer +3
+		inc	hl				;number buffer +4
+		ld	(hl),a				;into ones location
+		dec	hl				;+3
+		dec	hl				;+2
+		dec	hl				;+1
+		ld	a,(hl)				;get second number
+		inc	hl				;+2
+		inc	hl				;+3
+		ld	(hl),a				;into tens location
+		dec	hl				;+2
+		dec	hl				;+1
+		dec	hl				;number buffer start
+		ld	a,(hl)				;get third number
+		inc	hl				;+1
+		inc	hl				;+2
+		ld	(hl),a				;into hundreds location
+		dec	hl				;+1
+		ld	a,' '				;space
+		ld	(hl),a				;filler
+		dec	hl				;start
+		ld	(hl),a				;filler
+		call	c_data_xbcd			;return in regs bc
+
+		ld	hl,110H				;test for 110 baud
+		cp	l				;last two #s equal ?
+		jp	nz,c_data_300			;jif not equal
+		ld	a,b				;first number
+		cp	h				;first #s equal ?
+		jp	nz,c_data_300			;jif not equal
+		ld	a,baud110			;110 baud
+		jp	c_data_ibaud			;set new baud rate
+
+c_data_300:	ld	hl,300H				;test for 300 baud
+		ld	a,c				;last two numbers
+		cp	l				;equal ?
+		jp	nz,c_data_error			;jif not equal
+		ld	a,b				;first numbers
+		cp	h				;equal ?
+		jp	nz,c_data_error			;jif not equal
+		ld	a,baud300			;300 baud
+		jp	c_data_ibaud			;set new baud rate
+
+
+c_data_ck4:	cp	04				;four numbers ?
+		jp	nz,c_data_ck5			;jif not four
+		ld	hl,baud_number_buffer+3		;first number entered
+		ld	a,(hl)
+		inc	hl				;+4
+		ld	(hl),a				;into ones location
+		dec	hl				;+3
+		dec	hl				;+2
+		ld	a,(hl)				;second number entered
+		inc	hl				;+3
+		ld	(hl),a				;into tens location
+		dec	hl				;+2
+		dec	hl				;+1
+		ld	a,(hl)				;third number entered
+		inc	hl				;+2
+		ld	(hl),a				;into hundreds location
+		dec	hl				;+1
+		dec	hl				;start
+		ld	a,(hl)				;fourth number entered
+		inc	hl				;+1
+		ld	(hl),a				;into thousands location
+		dec	hl				;start
+		ld	a,' '				;space
+		ld	(hl),a				;filler
+		call	c_data_xbcd			;convert to bcd in bc reg
+c_data_1200:	ld	hl,1200H			;to check if equal to bc
+		ld	a,c
+		cp	l				;last two numbers equal ?
+		jr	nz,c_data_2400			;jif not equal
+		ld	a,b
+		cp	h				;most sig nos equal ?
+		jr	nz,c_data_2400			;jif not equal
+		ld	a,baud1200			;else it is 1200 baud
+		jp	c_data_ibaud			;so set it
+
+c_data_2400:	ld	hl,2400H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_data_4800			;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_data_4800			;jif not equal
+		ld	a,baud2400			;else it is 2400 baud
+		jp	c_data_ibaud			;& set it at that
+
+c_data_4800:	ld	hl,4800H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_data_9600			;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_data_9600			;jif not equal
+		ld	a,baud4800			;else it is 4800 baud
+		jp	c_data_ibaud			;& set it at that
+
+c_data_9600:	ld	hl,9600H
+		ld	a,c
+		cp	l				;lowest two numbers equal ?
+		jr	nz,c_data_ck5			;jif not equal
+		ld	a,b
+		cp	h				;most sig numbers equal ?
+		jr	nz,c_data_ck5			;jif not equal
+		ld	a,baud9600			;else it is 4800 baud
+		jp	c_data_ibaud			;& set it at that
+
+c_data_ck5:	cp	05				;five numbers ?
+		jp	nz,c_data_error			;jif not five
+		ld	hl,baud_number_buffer
+		ld	a,(hl)
+		cp	'1'				;19200 maybe ?
+		jp	nz,c_data_error			;no chance
+		call	c_data_xbcd			;returns number in bc
+		ld	hl,9200H
+		ld	a,b
+		cp	h				;first numbers equal ?
+		jp	nz,c_data_error			;jif not equal
+		ld	a,c
+		cp	l				;second numbers equal ?
+		jp	nz,c_data_error
+		ld	a,baud19200			;19200 baud
+		jp	c_data_ibaud			;set it
+
+;	convert last four numbers in number buffer to bcd in reg  pair bc
+;	bcd = binary coded decimal
+
+c_data_xbcd:	xor	a
+		ld	b,a
+		ld	hl,baud_number_buffer
+		ld	a,e				;get number count
+		cp	03				;three numbers ?
+		jp	z,c_data_xbcd3			;jif three numbers
+		inc	hl
+
+c_data_xbcd4:	ld	a,(hl)				;get first number
+		sub	'0'				;convert to bcd
+		rla
+		rla		
+		rla					;move to most sig position
+		rla
+		ld	b,a				;move result to b reg
+
+c_data_xbcd3:	ld	hl,baud_number_buffer+2		;third number
+		ld	a,(hl)				;get number
+		sub	'0'				;convert to bcd
+		or	b
+		ld	b,a				;save most sig. bcd byte
+		inc	hl				;number
+		ld	a,(hl)
+		sub	'0'				;convert to bcd
+		rla
+		rla
+		rla
+		rla					;most sig bcd digit
+		ld	c,a
+		inc	hl				;last number
+		ld	a,(hl)
+		sub	'0'				;convert to bcd
+		or	c
+		ld	c,a				;second & third #s bcd
+		ret
+
+c_data_ibaud:	ld	d,a				;save baud rate
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,cbr				;'baud rate byte' offset
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate baud rate address
+		ld	a,d				;get baud rate
+		ld	(hl),a				;and set it
+		jp	c_data_baud_rate
+
+
+c_data_error:	ld	de,msg84
+		call	print
+		call	pause_continue
+		jp	c_data_baud_loop	;try again
+
+msg84: defb		' INVALID BAUD RATE','$'
+
+
+c_data_baud_rate:ld	de,msg85
+			call	print
+			call	pause
+
+c_data_exit:		xor	a			;for call test in mainline
+			ret
+
+
+msg85: defb		'  Baud rate changed to '
+
+baud_number_buffer:	db	00
+			db	00
+			db	00
+			db	00
+			db	00
+			db	'$'
+
+
+
+
+
+c_sio:		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_intstat			;sio irpt status offset
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,(hl)				;get irpt status address
+		cp	00				;interrupt driven ?
+		jp	nz,msg_status			;jif not irpt driven
+
+		ld	de,msg7311			;display irpt driven
+		call	print
+		jp	c_sio_fs			;finish first screen
+
+msg_status:	ld	de,msg7312			;display status driven
+		call	print
+
+c_sio_fs:	ld	de,msg731
+		call	print
+		jp	c_sio_conin
+
+msg7311:defb	26
+	defb	0DH,0AH,0DH,0AH,0DH,0AH	
+defb	'	Serial ports are INTERRUPT driven.','$'
+
+msg7312:defb	26
+	defb	0DH,0AH,0DH,0AH,0DH,0AH	
+defb	'	Serial ports are STATUS driven.','$'
+
+
+msg731: defb		0DH,0AH,0DH,0AH
+;
+;
+;
+defb	'	To change serial ports to a status-driven system,     enter:  S',0DH,0AH,0DH,0AH
+defb	'	To change serial ports to an interrupt-driven system, enter:  I',0DH,0AH,0DH,0AH
+;
+defb	'	To leave it as it is, enter any other character.'
+;
+defb	0DH,0AH,0DH,0AH,'$'
+
+
+
+c_sio_conin:	ld	e,0FFH
+		ld	c,conio_direct			;get flag
+		call	bdos				;from console
+		cp	00				;get a character yet ?
+		jr	z,c_sio_conin			;jif no
+		ld	(flag),a			;save flag
+		cp	'S'				;set irpt status flag off ?
+		jp	z,c_sio_status_on		;jif off
+		cp	's'				;set irpt status flag off ?
+		jp	z,c_sio_status_on		;jif off
+		cp	'I'				;set irpt status flag on ?
+		jp	z,c_sio_irpt_on			;jif on
+		cp	'i'				;set irpt status flag on
+		jp	z,c_sio_irpt_on
+		jp	c_sio_exit			;jif any other keyin
+ 
+c_sio_status_on:ld	a,status_driven			;set up for status driven sio
+		ld	hl,(sector_image_ptr)		;get 'intstat' addr
+		ld	(hl),a				;into 'intstat' flag
+
+;	To make sio status driven; zero all write register one locations
+
+;		serial comm port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_comm_wr1			;offset to sio comm wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_status_driven		;new wr1 value
+		ld	(hl),a				;for serial comm port
+
+;		serial printer port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_sprn_wr1			;offset to sio serial printer wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_status_driven		;new wr1 value
+		ld	(hl),a				;for serial printer port
+
+;		modem port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_mdm_wr1			;offset to sio modem wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_status_driven		;new wr1 value
+		ld	(hl),a				;for modem port
+
+		ld	de,msg741
+		call	print
+		jp	c_sio_exit			;exit
+
+msg741: defb	'        Serial ports are now STATUS driven',0DH,0AH,'$'
+
+
+c_sio_irpt_on:	ld	a,(flag)
+		cp	'I'				;interrupts on ?
+		jr	z,c_sio_irpt_on1		;jif on
+		cp	'i'				;interrupts on ?
+		jp	nz,c_sio_exit			;jif no change
+c_sio_irpt_on1:	ld	a,irpt_driven			;interrupt driven sio
+		ld	hl,(sector_image_ptr)		;'intstat' addr
+		ld	(hl),a				;into 'intstat' flag
+
+
+
+;	To make sio interrupt driven; put 36H in all write register one locations
+
+;		serial comm port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_comm_wr1			;offset to sio comm wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_irpt_driven		;new wr1 value
+		ld	(hl),a				;for serial comm port
+
+;		serial printer port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_sprn_wr1			;offset to sio serial printer wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_irpt_driven		;new wr1 value
+		ld	(hl),a				;for serial printer port
+
+;		modem port
+
+		ld	hl,(iobyte_sect_addr)		;get iobyte address
+		ld	c,sio_mdm_wr1			;offset to sio modem wr1
+		xor	a
+		ld	b,a
+		add	hl,bc				;calculate irpt status address
+		ld	(sector_image_ptr),hl		;save irpt status address
+		ld	a,sio_irpt_driven		;new wr1 value
+		ld	(hl),a				;for modem port
+
+		ld	de,msg742
+		call	print
+		jp	c_sio_exit			;exit
+
+msg742: defb	'        Serial ports are now INTERRUPT driven',0DH,0AH,'$'
+
+
+c_sio_exit:	call	pause				;wait for keyin
+		xor	a				;for call test in mainline
+		ret
+
+
+
+
+
+xplain:		ld	de,msg86
+		call	print
+		call	pause
+		xor	a				;for call test in mainline
+		ret
+
+
+msg86: defb	26					;clear screen
+defb		0DH,0AH,0DH,0AH
+
+
+defb	'When you have entered all changes you want to make, type:  X',0DH,0AH
+defb	'To abandon the CONFIG program, enter:  X',0DH,0AH
+defb	0DH,0AH
+defb	'You will be asked if you wish to implement the changes.',0DH,0AH
+defb	'To implement the changes and terminate the program, type:  y',0DH,0AH
+defb	'If you do not want to make any changes, but want to terminate the',0AH,0DH
+defb	'program, type:  n',0AH,0DH,0AH,0DH,0AH,0DH,'$'
+
+	page
+
+
+key_check:	ld	a,true
+		ld	(key_udef_flag),a	;key undefined flag true
+		ld	hl,(iobyte_sect_addr)	;iobyte address
+		ld	c,fdata_offset		;bios kbd table offset from iobyte
+		xor	a
+		ld	b,a			;zero b
+		add	hl,bc			;start of fdata in bios
+		ld	(fdata_sect_addr),hl	;save fdata sector address
+		ld	c,14			;check all 14 'number of bytes'
+key_check_loop:	ld	a,(hl)			;get # of key definition bytes
+		cp	00			;key defined ?
+		jp	nz,key_defined		;jif yes
+		inc	hl			;key definition displacement
+		inc	hl			;# of bytes
+		dec	c			;finished ?
+		jr	nz,key_check_loop	;jif not finished
+		jr	key_check_exit		;use default table
+		;load default table with system keys
+
+key_defined:	ld	a,false
+		ld	(key_udef_flag),a	;set key undefined flag false
+		ld	bc,0FFH			;amount to be moved
+		ld	hl,(fdata_sect_addr)	;from sector table
+		ld	de,fdata_table		;to local default table
+		ldir
+
+key_check_exit:	ret
+
+
+;	GET START OF JUMP TABLE IN LOW MEMORY AND CALCULATE KEYBOARD TABLE ADDRESS
+
+hot_patch:	ld	hl,(01)			;get jump table + 3
+		dec	hl
+		dec	hl
+		dec	hl			;start of jump table
+		ld	e,l			;save start of
+		ld	d,h			;jump table address
+		ld	c,seq_offset
+		xor	a
+		ld	b,a
+		add	hl,bc			;(defiob - bios) displacement
+		ld	a,(hl)
+		ld	c,a			;lsb of displacement
+		inc	hl
+		ld	a,(hl)
+		ld	b,a			;msb of displacement
+
+;	ZERO ARROW KEY POSITIONS IN JUMP TABLE
+
+		xor	a
+		dec	hl			;init table displacement
+		dec	hl			;jump
+		dec	hl			;to extended
+		dec	hl			;rom calls
+		dec	hl			;right arrow
+		ld	(hl),a			;zero
+		dec	hl			;left arrow
+		ld	(hl),a			;zero
+		dec	hl			;up arrow
+		ld	(hl),a			;zero
+
+;	GET HIGH MEMORY IOBYTE ADDRESS
+
+		ld	l,e			;restore start of
+		ld	h,d			;jump table address
+		add	hl,bc			;high memory iobyte address
+		ld	(hot_iobyte_addr),hl	;save address
+		ld	bc,fdata_offset		;displacement iobyte=>kbd table
+		add	hl,bc			;editable keyboard table address
+		ld	(hot_fdata_addr),hl	;save address
+
+;		if system fdata has key values, patch left arrow and ENTER
+;		   else load config's fdata_table and patch it
+
+		ld	a,(key_udef_flag)	
+		cp	0FFH			;fdata has key values ?
+		jp	nz,hot_patch_on		;jif yes
+		ld	bc,0FFH			;else load config's
+		ld	hl,fdata_table		;table into
+		ld	de,(hot_fdata_addr)	;working system table
+		ldir
+
+;		patch left arrow value in operating system memory
+
+hot_patch_on:	ld	hl,(hot_fdata_addr)	;start of hot fdata
+		ld	bc,arrow_addr+2		;displacement to left <-
+		add	hl,bc			;address of left arrow # of bytes	
+		ld	(hot_la_addr),hl	;save address
+		ld	a,(hl)			;get # of bytes
+		ld	(hot_la_data),a		;save it
+		ld	a,left			;patch for conin_line
+		ld	(hl),a			;left arrow value
+
+;		patch ENTER in fdata table in operating system memory
+
+		ld	hl,(hot_fdata_addr)	;get start of hot fdata
+		ld	bc,keypad_enter-fdata_table ;displacement to ENTER vectors
+		add	hl,bc			;keypad_enter # of bytes addr.
+		ld	(hot_ke_addr),hl	;save address
+		ld	a,(hl)			;get # of bytes in ENTER data
+		ld	(hot_ke_bytes),a	;save # of bytes
+		ld	a,01			;patch
+		ld	(hl),a			;to one byte
+		inc	hl			;ENTER displacement into table
+		ld	a,(hl)			;get disp.
+		ld	c,a
+		ld	b,00H
+		ld	hl,(hot_fdata_addr)	;start or system fdata
+		add	hl,bc			;first ENTER data byte address
+		ld	a,(hl)			;get first data byte
+		ld	(hot_ke_data),a		;and save it
+		ld	a,etx			;conin_line ENTER value
+		ld	(hl),a			;patched into system fdata
+		ret
+
+	page
+
+;	  *****************  Mainline starts here.  **********************
+
+mainline:	call	version_select			;start subroutine calls
+		ld	a,00				;disk 0
+		ld	(ii),a				;into disk drive number
+		call	select_disk 			;select drive A:
+		call	select_track
+		ld	a,(jp_tbl_sector)		;get jump table sector
+		ld	(sector),a
+		call	select_sector			;and select it
+		ld	hl,dma_1			;first 128 bytes of
+		ld	(dma_address),hl		;sector image
+		call	define_dma			;set up as disk I/O buffer
+		call	f_read_sector			;read jump table sector
+		call	cpm_ver_init			;and use table displacement value
+							; to find first sector
+		ld	a,(first_sector)
+		ld	(sector),a	
+		call	select_sector			;select first sector
+
+		ld	hl,dma_1
+		ld	(dma_address),hl		;start of sector image
+		call	define_dma
+
+		call	read_sector			;read 128 bytes into sector image
+
+		ld	a,(second_sector)
+		ld	(sector),a
+		call	select_sector			;select second sector
+
+		ld	hl,dma_2
+		ld	(dma_address),hl		;sector image + 128
+		call	define_dma
+
+		call	read_sector			;read 128 bytes into (sector image + 128)
+
+		ld	a,(third_sector)		;get third sector
+		ld	(sector),a
+		call	select_sector			;select third sector
+
+		ld	hl,dma_3			;get third 128 bytes
+		ld	(dma_address),hl		;of sector image
+		call	define_dma			;and use for disk I/O
+		call	read_sector			;read into dma_3
+		call	key_check			;check bios for valid
+							;key table
+
+main_menu_conin:call	print_menu			;print menu
+		ld	a,(cursor)
+		ld	(att),a
+		call	set_on_att			;turn on cursor
+main_menu_conin1:ld	c,conin
+;		ld	e,0FFH
+;		ld	c,conio_direct			;get one character
+		call	bdos				;from console
+;		cp	00H				;get a character yet ?
+;		jr	z,main_menu_conin1		;jif no
+		cp	lf				;left over line feed ?
+		jr	z,main_menu_conin1		;jif line feed
+		ld	(response),a
+		cp	'X'				;exit main menu
+		jp	z,main_menu_exit		;jif exit
+		cp	'x'				;need xplain ?
+		call	z,xplain
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'i'				;want to goto h_iobyte ?
+		call	z,h_iobyte			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'I'				;want to change iobyte ?
+		call	z,c_iobyte			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'v'				;help on vector pad ?
+		call	z,h_vecpad			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'V'				;change vector pad ?
+		call	z,c_vecpad			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'n'				;help on number pad ?
+		call	z,h_numpad			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'N'				;change number pad ?
+		call	z,c_numpad			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'w'				;help on write safe ?
+		call	z,h_write_safe			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'W'				;change write safe ?
+		call	z,c_write_safe			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'p'				;help on printer baud ?
+		call	z,h_printer_baud		;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'P'				;change printer baud ?
+		call	z,c_printer_baud		;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'd'				;help on data baud ?
+		call	z,h_data_baud			;cif zero
+		or	a				;test for call made
+		jp	z,main_menu_conin		;jif call made
+		cp	'D'				;change data baud rate ?
+		call	z,c_data_baud			;cif zero
+		or	a				;call made ?
+		jp	z,main_menu_conin		;jif call made
+		cp	's'				;help on sio control ?
+		call	z,h_sio				;cif help on sio control
+		or	a				;call made ?
+		jp	z,main_menu_conin		;jif call made
+		cp	'S'				;change sio control ?
+		call	z,c_sio				;cif change sio control
+		jp	main_menu_conin			;ignore all other characters
+
+
+main_menu_exit:	nop
+
+
+want_changes:	ld	de,msg87
+		call	print
+		jr	msg87_end
+
+msg87:	defb	0DH,0AH,'Place the disk you want changed into your A: drive.',0DH,0AH
+	defb	0DH,0AH,'Do you really want the requested changes ?',0DH,0AH,'$'
+
+
+;		check console for 'y' , 'Y' or anything else
+
+msg87_end:	ld	c,conin				;get a character
+		call	bdos
+		cp	0DH				;carrage return ?
+		jp	z,no_change			;jif carrage return
+		cp	'N'				;no change ?
+		jp	z,no_change			;jif 'N'
+		cp	'n'				;no change ?
+		jp	z,no_change			;jif 'n'
+		cp	'Y'				;change ?
+		jp	z,change			;jif 'Y'
+		cp	'y'				;change ?
+		jp	z,change			;jif 'y'
+		jp	no_change			;for all other characters
+
+change:		ld	bc,0FFH				;amount to move
+		ld	hl,fdata_table			;move changed table
+		ld	de,(fdata_sect_addr)		;to bios sector
+		ldir
+		ld	a,(first_sector)		;first sector of drive
+		ld	(sector),a
+		call	select_sector
+
+		ld	hl,dma_1			;first sector of sector image
+		ld	(dma_address),hl
+		call	define_dma
+
+		call	f_write_sector			;write first sector to disk
+
+		ld	a,(second_sector)		;second sector of drive
+		ld	(sector),a
+		call	select_sector
+
+		ld	hl,dma_2			;second sector of sector image
+		ld	(dma_address),hl		;for define_dma
+		call	define_dma
+
+		call	write_sector
+
+		ld	a,(third_sector)
+		ld	(sector),a
+		call	select_sector			;select third sector
+
+		ld	hl,dma_3
+		ld	(dma_address),hl
+		call	define_dma			;select dma_3 for I/O buffer
+
+		call	write_sector
+
+;	An arbitrary read to ensure that the write is completed.
+
+		ld	a,06				;track 6
+		ld	(track),a
+		call	select_track
+
+test_read:	call	read_sector
+		or	a				;read successful (write completed)
+		jp	nz,test_read			;jif read not seccessful
+
+
+		ld	de,msg88
+		call	print
+		jr	config_exit
+
+msg88:	defb	0DH,0AH
+	defb	'Changes now recorded.  To make them effective, press the',0DH,0AH
+	defb	'red reset button on the back of the computer.',0DH,0AH,'$'
+
+
+no_change:	ld	de,msg89
+		call	print
+
+config_exit:	ld	a,cursor
+		ld	(att),a
+		call	set_on_att			;turn on cursor
+		ld	a,00
+		call	bdos				;warm boot 
+		jp	00				;for sure
+
+
+msg89:	defb	0DH,0AH,'No changes made.','$'
+
+;	
+;		Data Definitions for conin_line
+;
+count	equ	1			;count field displacement
+etx	equ	9AH			;etx character
+left	equ	9BH			;left arrow character
+back2:
+	db	08,20h,08
+back1:
+	db	08,20h,08
+	db	'$'
+
+
+;	variables
+
+iob:		db		00		;I/O byte
+iob_max:	db		00		;maximum allowable io byte value
+new_con:	db		00		;new console assignment
+new_rdr:	db		00		;new reader assignment
+new_pun:	db		00		;new punch assignment
+new_lst:	db		00		;new list assignment
+jp_tbl_sector:	db		00		;jump table sector (byte 36H = table displacement)
+first_sector:	db		00		;calculated from displacement to
+second_sector:	db		00		;initialization tables 
+third_sector:	db		00		;sector 1 = iob & sio; rest of sector 1
+						;and sectors 2 & 3 contain keyboard tables
+sector:		db		00		;used in set_sector
+track:		db		00
+init_table_disp:db		00		;initialization table displacement
+						; from start of first sector
+n_seq:		db		00		;(sndtab) start of keypad table in cbios
+v_seq:		db		00
+vert:		ds		02
+horz:		ds		02
+aa:		db		00		;menu selection counter
+cc:		db		00		;input character
+gc:		db		00		;graphics code
+ii:		db		00		;disk drive number
+kk:		db		00		;counter
+ll:		db		00
+rr:		db		00
+xx:		db		00		;single character bdos call buffer
+dma:		db		00		;dma offset pointer
+dma_address:	db		00		;dma address
+		db		00
+flag:		db		00
+iobyte_sect_addr:db		00		;io byte sector address
+		db		00
+fdata_sect_addr:db		00		;keyboard table address
+		db		00
+hot_iobyte_addr:db		00		;high memory iobyte address
+		db		00
+hot_fdata_addr:	db		00		;start of system fdata table
+		db		00
+hot_la_addr:	db		00		;system left arrow address
+		db		00
+hot_la_data:	db		00		;left arrow data
+hot_ke_addr:	db		00		;system keypad enter address
+		db		00
+hot_ke_bytes:	db		00		;number of keypad enter bytes
+hot_ke_data:	db		00		;first byte of keypad enter data
+key_udef_flag:	db		00		;true if system fdata area unutilized
+key:		db		00		;number pad value
+key_number:	db		00		;number pad key number
+light_high:	db		00		;inverse video on high (T/F)
+num_buf:	db		00		;address tracker for
+		db		00		;number buffers in baud pgms
+response:	db		00		;keyboard response in main pgm
+vec:		db		00		;arrow key character value
+
+sector_image_ptr: db		00		;sector image pointer
+		  db		00
+
+drivea:		db		00		;drive A: assignments
+driveb:		db		00		;drive B: assignments
+drivec:		db		00		;drive C: assignments
+
+sector_image:	ds		384		;three sector buffer
+
+
+
+;			FUNCTION DATA TABLE
+
+;		( FDATA + DISPLACEMENT = BEGINNING )
+
+;2 byte blocks,  bytes numbered from 1 to 28 ;odd numbers are number of bytes in function string
+;even numbers are the displacement of where the string begins in table from the start of fdata_table.
+
+key_edit_num:	  db		00H		;'key to be edited' number
+fdata_bytes:	  db		00H		;storage for amount of bytes in a key
+fdata_disp:	  db		00H		;storage for displacement for one key
+table_addr:	  defb		00H,00H		;start of key's data in fdata_table
+table_bytes_free: db		00H		;usable bytes left in table
+table_displace:	  db		00H		;amount to change displacement for this edit
+table_key_vec:	  defb		00H,00H		;key pointer address
+key_data_current: defb		00H,00H		;end of current key data
+key_data_end:	  defb		00H,00H		;move remaining data starting here
+						;to make room for new edited key data
+tbl_disp_neg:	  db		00H		;negative displacement sensor
+
+fdata_table:
+
+keypad_0:	db		01H		;initial number of bytes
+		db		1CH		;initial displacement
+
+keypad_1:	db		01H		;initial number of bytes
+		db		1DH		;initial displacement
+
+						
+keypad_2:	db		01H		;initial number of bytes
+		db		1EH		;initial displacement
+
+
+keypad_3:	db		01H		;initial number of bytes
+		db		1FH		;initial displacement
+
+
+keypad_4:	db		01H		;initial number of bytes
+		db		20H		;initial displacement
+
+
+keypad_5:	db		01H		;initial number of bytes
+		db		21H		;initial displacement
+
+
+keypad_6:	db		01H		;initial number of bytes
+		db		22H		;initial displacement
+
+
+keypad_7:	db		01H		;initial number of bytes
+		db		23H		;initial displacement
+
+
+keypad_8:	db		01H		;initial number of bytes
+		db		24H		;initial displacement
+
+
+keypad_9:	db		01H		;initial number of bytes
+		db		25H		;initial displacement
+
+
+keypad_hyph:	db		01H		;initial number of bytes
+		db		26H		;initial displacement
+
+
+keypad_comma:	db		01H		;initial number of bytes
+		db		27H		;initial displacement
+
+
+keypad_enter:	db		01H		;initial number of bytes
+		db		28H		;initial displacement
+
+
+keypad_period:	db		01H		;initial number of bytes
+		db		29H		;initial displacement
+
+
+
+;	initial table values
+
+		db		30H		;0 key on keypad
+		db		31H		;1 key
+		db		32H		;2 key
+		db		33H		;3 key
+		db		34H		;4 key
+		db		35H		;5 key
+		db		36H		;6 key
+		db		37H		;7 key
+		db		38H		;8 key
+		db		39H		;9 key
+		db		'-'		;hyphen key
+		db		','		;comma key
+		db		0DH		;enter key
+		db		'.'		;period key
+
+		db		0FFH		;end marker
+		db		0FFH		;end of table entrys
+		ds		table_size	;rest of available table
+fdata_table_end:dw		0FFFFH		;end of table
+
+key_data:	ds		ccp_max		;display area for key data
+
+
+conin_buffer:	db		ccp_max		;max bytes allowed input (data)-ccp limit
+						;max bytes changed by table_freespace
+
+		ds		ccp_max+1	;storage for returned count & data
+						;max:count: 80 bytes data:
+end_of_program:	db		00
+
+	end	config

@@ -1,0 +1,163 @@
+TITLE MAKIMG
+	.z80
+	cseg
+	entry	makimg,bufptr
+	extrn	fmtbuf
+;
+;	Create a track image for use in formatting
+;
+;	On entry:
+;		IX points to the primary format table
+;		D contains the cylinder number
+;		E contains the head number
+;		HL points to the sector interleave table
+;		B contains the sector size
+;
+;	On exit:
+;		fmtbuf will contain the track image
+;
+;	The format table will be interpreted by these routines and
+;	expects the following command format:
+;
+;		Command 	Description
+;		  00		Fill with data.  Two 8 bit parameters follow
+;				this command.  The first is number of bytes
+;				and the second is the data byte.
+;
+;		  01		Address mark.  Make the next entry into the
+;				buffer a sector address header.
+;
+;		  02		Repeat code.  One 8 bit an one 16 bit parameter
+;				follow this code.  The 8 bit code is the number
+;				of times to repeat.  The 16 bit code is the
+;				address of a code block to repeat.  The secondary
+;				code block is assumed to terminate with an ffh.
+;
+;		  FF		End of block.  This will cause the termination
+;				of operations.
+;
+;
+makimg:
+	ld	a,d		;store the cylinder number
+	ld	(cyl),a
+;
+	ld	a,e		;head number
+	ld	(head),a
+;
+	ld	a,b		;sector size
+	ld	(slen),a
+;
+	ld	(ilv),hl	;address of the interleave table
+;
+	ld	hl,fmtbuf	;initialize the buffer pointer
+	ld	(bufptr),hl
+;
+	page
+mi1:
+;
+;	This is the top of the main control loop.  The first section 
+;	of code here is the operation interpreter
+;
+	ld	a,(ix + 0)	;get the next op code
+;
+	cp	0ffh		;if end of block
+	ret	z		;return to caller
+;
+	cp	0		;if fill data
+	jp	z,fill
+;
+	cp	02		;if repeat block
+	jp	z,rptblk
+;
+	jp	am		;default to address mark
+	page
+fill:
+;
+;	fill a block of addresses with a data value
+;
+	inc	ix		;load the byte count
+	ld	b,(ix + 0)
+;
+	inc	ix		;then the data
+	ld	a,(ix + 0)
+	inc	ix
+;
+	ld	hl,(bufptr)	;point to the data buffer
+fill1:
+	ld	(hl),a		;put the data into RAM
+;
+	inc	hl		;point to the next location
+	djnz	fill1		;then go back if more
+;
+	ld	(bufptr),hl	;save the buffer pointer
+	jp	mi1		;and look at the next op code
+	page
+am:
+;
+;	Construct a sector address mark
+;
+	inc	ix		;point to the next op code
+;
+	ld	hl,(bufptr)	;get the buffer pointer
+;
+	ld	a,(cyl)		;put in the cylinder number
+	ld	(hl),a
+	inc	hl
+;
+	ld	a,0		;the head number always 0
+	ld	(hl),a
+	inc	hl
+;
+	ld	de,(ilv)	;get the interleave table address
+	ld	a,(de)		;the next sector number
+	ld	(hl),a		;put it into the buffer
+	inc	hl		;point to the next buffer loc
+	inc	de		;and the next sector number
+	ld	(ilv),de	;then save the interleave pointer
+;
+	ld	a,(slen)	;put in the sector length
+	ld	(hl),a
+	inc	hl
+;
+	ld	(bufptr),hl	;save the buffer address
+	jp	mi1		;and look at the next op code
+	page
+rptblk:
+;
+;	Repeat a block of instructions n times
+;
+	inc	ix		;get the repeat count
+	ld	b,(ix + 0)
+;
+	inc	ix		;load the table address
+	ld	l,(ix + 0)
+	inc	ix
+	ld	h,(ix + 0)
+	inc	ix
+;
+	push	ix		;save the instruction pointer
+	ld	(sectb),hl	;save the start of the repeat block
+;
+rpt1:
+	push	bc		;save the counter
+	ld	ix,(sectb)	;point to the repeat block
+	call	mi1		;do the operations
+	pop	bc		;get back the counter
+	djnz	rpt1		;and go back if more
+;
+	pop	ix		;get back the instruction counter
+	jp	mi1		;and get the next op code
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+cyl:	db	0
+head:	db	0
+slen:	db	0
+ilv:	dw	0
+bufptr:	dw	0
+sectb:	dw	0
+	end

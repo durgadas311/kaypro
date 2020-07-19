@@ -1,0 +1,196 @@
+title Line Drawing routines for the KAYPRO 10.   (C) 1983 By NLS
+.comment %
+########################################################
+##                                                    ##
+##      KAYPRO 10 System                              ##
+##                                                    ##
+##      By G. Ohnysty                                 ##
+##                                                    ##
+##      Line Drawing routines for the KAYPRO 10       ##
+##                                                    ##
+##      Copyright (C) 1983 By Non-Linear Systems, Inc ##
+##      No warranty is made, expressed or implied.    ##
+##                                                    ##
+########################################################
+##      Date: 04/14/83                    [01]        ##
+########################################################
+
+        Changes:
+         Corrected minor error in algorythm (V.1.4)
+         Modified to run as ind. module (V.1.5)
+
+%
+
+extrn   row, row2, col, col2, difx, dify
+extrn   xoff, yoff, onoff
+extrn $pixde
+public  $linon, $linoff
+
+offset  equ     20h     ; ascii space, or ' '
+
+;
+; this program takes two points and draws a line between them,
+; data recieved in a V1+offset,H1+offset,V2+offset,H2+offset
+; by the video driver and passed to this one in the variables
+; row, col, row2 and col2 respectively.
+;
+; entry parameters:     none.
+;
+; exit parameters:      Assume all registers affected.
+;
+
+.Z80
+
+ABSDIF: ld      a,e
+        sub     offset
+        ld      e,a
+        ld      a,d
+        sub     offset
+        ld      d,a
+        sub     e               ; a=d-e
+        ret     z
+        jr      nc,ABSDF2       ; no carry, d>=e, a=abs(d-e), return
+        neg                     ; else invert, (a=(0-a)+1 (two's complement))
+ABSDF2: inc     a               ; a=ABS(d-e)+1,
+        ret                     ; return
+
+; divide the smaller of de by the larger, return the results in hl
+
+div:    ld      hl,0000
+        ld      a,d
+        or      a
+        ret     z               ; if either number is zero, so is the offset
+        ld      a,e
+        or      a
+        ret     z               ; if zero, so is offset
+        inc     hl              ; hl;=1 so we get a carry out
+        cp      d
+        jr      c,diva
+        ld      a,d
+        ld      d,e             ; put larger in d
+diva:   ld      e,0             ; carry count
+div2:   ld      b,h
+        ld      c,l
+        add     a,a
+        jr      nc,div2a
+        inc     e
+div2a:  add     hl,bc
+        jr      c,divex
+        sub     d
+        jr      nc,div3
+        push    af
+        ld      a,e
+        or      a
+        jr      z,div2b
+        pop     af
+        ld      e,0
+        jr      div3    ; pretend carry never happened
+div2b:  pop     af
+        add     a,d
+        jr      div2
+div3:   inc     hl
+        jr      div2
+divex:  sub     d
+        jr      nc,divx2
+        ld      a,e
+        or      a       ; check for carry ability from e
+        ret     z       ; no carry, don't add last 1,
+divx2:  inc     hl      ; carry allowed or not needed, add the last 1.
+        ret
+
+PLAPIX: push    hl
+        push    de
+        push    bc
+        call    $PIXDE
+        pop     bc
+        pop     de
+        pop     hl
+        ret
+
+$LINON: ld      a,0
+        ld      (ONOFF),a       ; set line on
+        jr      LINE
+
+$LINOFF:ld      a,0ffh
+        ld      (ONOFF),a       ; set line off
+        jr      LINE
+
+LINE:   ld      de,(ROW)        ; d:=row2, e:=row
+        call    ABSDIF          ; absolute difference between de returned in a
+        ld      (ROW),de
+        ld      (DIFX),a        ; save dif. between x1,x2
+        ld      de,(COL)
+        call    ABSDIF
+        ld      (COL),de
+        ld      (DIFY),a
+        ld      d,a
+        ld      a,(DIFX)
+        ld      e,a
+        call    div             ; 16-bit ratio returned in hl
+        ld      a,(ROW)
+        ld      d,a
+        ld      a,(ROW2)
+        cp      d
+        ld      a,0ffh
+        jr      c,LINE2
+        ld      a,01
+LINE2:  ld      (XOFF),a
+        ld      a,(COL)
+        ld      e,a
+        ld      a,(COL2)
+        cp      e
+        ld      a,0ffh
+        jr      c,LINE3
+        ld      a,01
+LINE3:  ld      (YOFF),a
+        ld      a,(DIFX)
+        ld      c,a
+        ld      a,(DIFY)
+        cp      c               ; carry = x axis, no carry = y axis
+        ld      b,h             ; put ratio in bc
+        ld      c,l
+        ld      hl,0            ; no bumps allowed on 2nd pixel
+        jr      c,xaxis
+        jr      z,diag          ; diagonals are a special case
+yaxis:  call    PLAPIX
+        ld      a,(COL2)
+        cp      e
+        ret     z
+        ld      a,(YOFF)
+        add     a,e
+        ld      e,a
+        add     hl,bc
+        jr      nc,yaxis
+        ld      a,(XOFF)
+        add     a,d
+        ld      d,a
+        jr      yaxis
+xaxis:  call    PLAPIX
+        ld      a,(ROW2)
+        cp      d
+        ret     z
+        ld      a,(XOFF)
+        add     a,d
+        ld      d,a
+        add     hl,bc
+        jr      nc,xaxis
+        ld      a,(YOFF)
+        add     a,e
+        ld      e,a
+        jr      xaxis
+
+diag:   call    PLAPIX
+        ld      a,(ROW2)        ; it could be COL2, is doesn't matter...
+        cp      d
+        ret     z
+        ld      a,(XOFF)
+        add     a,d
+        ld      d,a
+        ld      a,(YOFF)
+        add     a,e
+        ld      e,a
+        jr      diag
+
+        defw    0000h   ; L80 ate one, all right...
+
+	end

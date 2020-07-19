@@ -1,0 +1,95 @@
+TITLE SUBMENU
+	.z80
+	cseg
+	entry	submenu,cmenu,cnops,cbline,ctline
+	extrn	blops,tline,bline,menuops,mendvr
+submenu:
+;
+;	Enter and execute a submenu
+;
+;	On entry:
+;		IX points to the new menu table
+;		C contains the number of menu options
+;		DE contains the address of the bottom of menu string
+;		HL contains the address of the top of menu string
+;		cmenu, cnops, ctline and cbline contain the current menu
+;		   parameters
+;
+;	On exit:
+;		The passed menu will have been executed 
+;		A will contain the returned character from the sub-menu
+;
+	ld	iy,(cmenu)		;save the current menu settings on the stack
+	push	iy
+	ld	iy,(cnops)
+	push	iy
+	ld	iy,(cbline)
+	push	iy
+	ld	iy,(ctline)
+	push	iy
+;
+	ld	(cmenu),ix		;put in the passed parameters
+	ld	(cnops),bc
+	ld	(cbline),de
+	ld	(ctline),hl
+;
+	call	submenu1		;display the new menu
+;
+	ld	ix,(cmenu)		;set up to execute the new menu
+	ld	bc,(cnops)
+	call	mendvr			;and go to it
+;
+	pop	hl			;get the old menu parameter off the stack
+	pop	de
+	pop	bc
+	pop	ix
+;
+	push	af			;save the return status from the called menu
+;
+	ld	(cmenu),ix		;restore the old menu as current
+	ld	(cnops),bc
+	ld	(ctline),hl
+	ld	(cbline),de
+;
+	call	submenu1		;re-display the old menu
+;
+	ld	ix,(cmenu)		;restore the entry registers
+	ld	bc,(cnops)
+	ld	hl,(ctline)
+	ld	de,(cbline)
+;
+	pop	af			;restore the return status
+;
+	ret				;return to caller
+;
+;
+submenu1:
+;
+;	Clear the menu and display the new options
+;
+	call	blops			;clear the windows
+;
+	ld	hl,(ctline)		;display the top line
+	call	tline
+;
+	ld	hl,(cbline)		;display the bottom line
+	call	bline
+;
+	ld	ix,(cmenu)		;display the menu options
+	ld	bc,(cnops)
+	call	menuops
+;
+	ret				;and return to caller
+;
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+cmenu:	dw	0
+cnops:	dw	0
+cbline:	dw	0
+ctline:	dw	0
+	end

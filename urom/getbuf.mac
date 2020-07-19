@@ -1,0 +1,202 @@
+        title   GETBUF:  Load host buffer with requested sector
+        include macro.lib
+        .z80
+        cseg
+        entry   getbuf,dsetup,dtsetup,dset2
+;
+        extrn   hxlate,curunit,sektrk,sekhead           ;hxlate,select,select,select
+        extrn   hsttab,sektab,seksec                    ;select,select,select
+        extrn   hstflg,hstunit,winwrit,flpywrit         ;select,select,winio,flpyio
+        extrn   winread,flpyread,ltrk,lsec              ;winio,flpyio,select,select
+;
+        cpyrit
+;
+;       Load the host buffer with the requested sector
+;
+;       Written by:     T. Hayes
+;
+;
+;       Compare the host buffer with the requested buffer and
+;       if they are not the same, write the dirty buffer if needed
+;       and read the requested one.
+;
+;       On exit:
+;               hstbuf contains the requested sector and hsttab
+;               contains its descriptor
+;
+;       First, set up the requested cylinder and head
+;
+getbuf:
+        ld      hl,(sektrk)             ;save a copy of the track
+        ld      (ltrk),hl               ;to restore the original value
+;
+        ld      hl,(seksec)             ;and do the sector also
+        ld      (lsec),hl
+;
+        push    ix                      ;save the user ix
+        ld      ix,sektab               ;point to the current parameters
+        call    dsetup                  ;get the physical track and head
+        pop     ix                      ;restore the user ix
+;
+        ld      (sektrk),hl             ;save the physical track
+        ld      (sekhead),a
+;
+        ld      a,(hstflg)
+;
+        bit     valflg,a                ;if the buffer is not valid
+        jp      z,getbuf51              ;no write required
+;
+        ld      hl,hsttab               ;now compare to see if the host and 
+        ld      de,sektab               ;requested buffers are the same
+        ld      b,tablen                ;there are 6 bytes to the tables
+getbuf3:
+        ld      a,(de)                  ;get a byte from request
+        cp      (hl)                    ;if not the same as host
+        jp      nz,getbuf4
+;
+        inc     hl                      ;point to the next set of bytes
+        inc     de
+;
+        djnz    getbuf3                 ;go back if more
+;
+        xor     a                       ;set a good error return
+        jr      getbuf6
+getbuf4:
+        ld      a,(hstflg)              ;get the host buffer flags
+;
+        bit     dtyflg,a                ;or if not dirty
+        jp      z,getbuf51              ;no write required
+;
+        ld      hl,getbuf5              ;put a return address on the stack
+        push    hl
+;
+        ld      a,(hstunit)             ;check for host buffer unit type
+        and     drtype
+;
+        jp      z,winwrit               ;if it is a winchester
+        jp      flpywrit                ;or a floppy
+getbuf5:
+        and     a                       ;set the flags
+        jr      nz,getbuf6              ;return if there was a write error
+getbuf51:
+;
+        ld      hl,getbuf6              ;put a return address on the stack
+        push    hl
+;
+        ld      a,(curunit)             ;check for requested unit type
+        and     drtype
+;
+        jp      z,winread               ;if it is a winchester
+        jp      flpyread                ;or a floppy
+getbuf6:
+        ld      hl,(ltrk)               ;restore the sektrk value
+        ld      (sektrk),hl
+;
+        ld      hl,(lsec)               ;and seksec
+        ld      (seksec),hl
+        ret                             ;return the result status in a
+        page
+dsetup:
+;
+;       On entry:
+;               IX points to either hsttab or sektab
+;
+;       On exit:
+;               HL will contain the cylinder number
+;               A will contain the head number
+;               For double sided, double density disks, the sector will
+;                 have an offset of 10 if side 1 is selected
+;
+        ld      a,(ix + unit)           ;get the unit descriptor
+        ld      b,a
+;
+        and     drtype                  ;if the drive is a winchester
+        jr      nz,dset1
+;
+        ld      a,b                     ;move the head select bit into
+        rlca                            ;the lsb position
+        and     01h                     ;and mask it
+;
+        ld      h,(ix + trk + 1)        ;put the requested track into hl
+        ld      l,(ix + trk)
+;
+        call    hxlate                  ;and do the track translation
+;
+        ret                             ;then return to caller
+dset1:
+        call    dtsetup                 ;get the translated sector number if drivetec
+;
+        ld      h,(ix + trk + 1)        ;get the track number
+        ld      l,(ix + trk)
+;
+        cp      ssdisk                  ;if the disk is single sided
+        ld      a,0
+        ret     z                       ;return to caller with head 0
+;
+        xor     a                       ;else reset the carry
+;
+        rr      h                       ;shift the track 1 right
+        rr      l
+;
+        rla                             ;put the overflow into a
+;
+dset2:
+        and     a                       ;if the head is zero
+        ret     z                       ;return to caller
+;
+        push    af                      ;else add an offset
+        ld      a,b                     ;if it is not drivetec media
+        and     media
+        cp      dtmedia
+        jr      z,dsetup3
+;
+        ld      a,(ix + sec)            ;get the sector number
+        add     a,10                    ;add 10 to it
+        ld      (ix + sec),a            ;and store it back
+dsetup3:
+        pop     af                      ;get the head number back
+        ret                             ;and return to caller
+dtsetup:
+        ld      a,b                     ;check for drivetec media
+        and     media
+        cp      dtmedia
+        ret     nz                      ;return to caller if not
+;
+        ld      l,(ix + sec)            ;do the sector translation for interleave
+        ld      h,0
+        ld      de,dttrans
+        add     hl,de
+        ld      e,(hl)
+        ld      (ix + sec),e
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+media   equ     30h                     ;media bits mask
+drtype  equ     0ch                     ;drive type mask
+ssdisk  equ     20h                     ;single sided diskette designation
+tablen  equ     07h                     ;length of hsttab and sektab
+valflg  equ     00h                     ;bit number of buffer valid in hstflg
+dtyflg  equ     01h                     ;bit number of buffer dirty in hstflg
+dtmedia equ     10h                     ;drivetec media indicator
+;
+trk     equ     00h                     ;displacement to track
+sec     equ     02h                     ;displacement to sector
+head    equ     04h                     ;displacement to head
+unit    equ     06h                     ;displacement to unit   
+;
+dttrans:
+;       db      1,4,7,10,13,16
+;       db      2,5,8,11,14,17
+;       db      3,6,9,12,15
+;
+        db      1,6,11,16,4,9,14
+
+        db      2,7,12,17,5,10,15
+
+        db      3,8,13
+        end

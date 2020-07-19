@@ -1,0 +1,133 @@
+TITLE DECIN
+	.z80
+	cseg
+	extrn	cvd,mult16,div16,dstr
+	entry	decin
+;
+;	Decimal number entry routine
+;
+;	On entry:
+;		HL contains the maximum value to be accepted
+;		D contains the x coordinate
+;		E contains the y coordinate
+;			(Both coordinates are assumed to have a 20h offset)
+;		
+decin:
+	ld	(maxval),hl		;save the maximum
+	ld	(coords),de		;and the coordinates
+;
+	ld	hl,0			;initialize the accumulator
+	ld	(acc),hl
+;
+decin1:
+	ld	hl,(acc)		;convert the current acc to ascii
+	ld	de,numfld
+	ld	a,20h			;use zero suppress
+	call	cvd
+;
+	ld	hl,pos			;then display the value at xy
+	call	dstr
+;
+decin2:
+	ld	e,-1			;input a console character
+	ld	c,6
+	call	5
+	cp	0
+	jp	z,decin2
+;
+	cp	cr			;if carriage return
+	jp	z,exit
+;
+	cp	esc			;if escape
+	jp	z,exit
+;
+	cp	bs			;if backspace
+	jp	z,back
+;
+	cp	'0'			;if less than zero
+	jp	c,decin3
+;
+	cp	'9' + 1			;if greater than nine
+	jp	nc,decin3
+;
+	jp	decin4			;go add it to acc
+decin3:
+	ld	e,7			;ring the bell
+	ld	c,6
+	call	5
+	jp	decin2			;then go get the next character
+;
+decin4:
+	push	af			;save the incoming character
+;
+	ld	hl,(acc)		;do a decimal shift left
+	ld	de,10
+	call	mult16
+;
+	pop	af			;get back the character
+	and	0fh			;and strip the high nibble
+;
+	ld	e,a			;then add it to the acc.
+	ld	d,0
+	add	hl,de
+;
+	ex	de,hl			;check for range
+	ld	hl,(maxval)
+	or	a
+	sbc	hl,de
+;
+	jp	c,decin3		;don't do it if greater than max
+;
+	ld	(acc),de		;else make this the new value
+;
+	jp	decin1			;display and input the next
+back:
+	ld	hl,(acc)		;shift the acc 1 right decimal
+	ld	de,10
+	call	div16
+	ld	(acc),hl
+	jp	decin1			;then get the next character
+exit:
+	ld	hl,(acc)		;return the contents of the acc in HL
+	ret				;a contains cr or esc
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+cr	equ	0dh			;carriage return
+esc	equ	1bh			;escape
+bs	equ	08h			;back space
+;
+maxval:
+	dw	0			;storage for maximum value
+acc:
+	dw	0			;16 bit accumulator
+;
+pos:
+	db	esc,'='
+coords:
+	dw	0
+numfld:
+	db	'     ',0
+	end
+T A ZERO
+	RET	NZ			;RETURN TO CALLER
+;
+	LD	(HL),C			;ELSE BLANK IT
+	INC	HL			;POINT TO THE NEXT CHARACTER
+	DJNZ	CVD2			;AND GO BACK IF MORE
+;
+	RET
+	PAGE
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+BLCHAR:
+	DB	0
+	END

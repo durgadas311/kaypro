@@ -1,0 +1,363 @@
+        title   LRW:  Logical Disk I/O Routines
+        .z80
+        include macro.lib       
+        cseg
+        entry   read,write,rdraw,wrraw,diskoff,diskon,disktime,flush,fseek
+;
+        extrn   curunit,pdma,hstbuf,getbuf      ;select,select,select,getbuf
+        extrn   recloc                          ;select
+        extrn   dmaddr,xfer,hstflg,psec         ;select,diskinit,select,select
+        extrn   seksec                          ;select
+        extrn   winoff,flpoff,ltoptab,hstunit   ;winio,flpyio,select,select
+        extrn   flpywrite,winwrite              ;flpyio,winio
+        extrn   pdma,sektab,hsttab,flpyread     ;select,select,select,flpyio
+        extrn   winread,dsetup,dtsetup          ;winio,getbuf,getbuf
+        extrn   dset2,fpseek,motoron,sektrk     ;getbuf,flpyio,flpyio,select
+;
+        cpyrit
+;
+;       Logical disk I/O routines
+;
+;       Written by:     T. Hayes
+;
+;       These routines are responsible for moving data from the user
+;       dma location to the host buffer and back.
+;
+        page
+fseek:
+;
+;       Seek the currently selected track on the currently selected drive
+;       This is for floppy disk drives only
+;
+        di
+        ld      bc,(curunit -1)                 ;get the configuration byte
+        call    motoron                         ;select the drive - motor on
+        ld      a,b                             ;put the physical device number in e
+        and     03h
+        ld      e,a
+        ld      a,(sektrk)                      ;put the requested track in d
+        ld      d,a
+        call    fpseek                          ;execute the seek track
+        jr      ldone                           ;set the disk timeout and return
+read:
+;
+;       Logical disk read
+;
+        di
+;
+        ld      hl,hstbuf                       ;use hstbuf for dma
+        ld      (pdma),hl
+;
+        call    getbuf                          ;get the user buffer
+;
+        and     a                               ;if there was an error
+        jr      nz,ldone                        ;return to caller
+;
+        ld      hl,(recloc)                     ;else transfer the record
+        ld      de,(dmaddr)
+        ld      bc,128                          ;to the user dma
+;
+        call    xfer
+;
+        xor     a                               ;set good return status
+        jr      ldone
+        page
+write:
+;
+;       Logical disk write
+;
+;       On entry:
+;               c = 1 for a directory write
+;               c 1= 1 for any other type
+;
+        di
+;
+        push    bc                              ;save the directory flag
+;
+        ld      hl,hstbuf                       ;use hstbuf for dma
+        ld      (pdma),hl
+;
+        call    getbuf                          ;get the user buffer
+;
+        pop     bc                              ;restore the directory flag
+;
+        and     a                               ;if there was an error
+        jr      nz,ldone                        ;return to caller
+;
+        push    bc                              ;save the directory flag
+;
+        ld      hl,(dmaddr)                     ;else transfer the record
+        ld      de,(recloc)
+        ld      bc,128                          ;from the user dma
+;
+        call    xfer
+;
+        ld      a,(hstflg)                      ;mark the buffer dirty
+        set     1,a
+        ld      (hstflg),a
+;
+        pop     bc                              ;restore the directory flag
+;
+        ld      a,c                             ;get the cp/m write flag
+;
+        cp      1                               ;if directory write
+        jr      nz,write1                       ;flush the buffer
+;
+        call    flush   
+        jr      ldone
+write1:
+;
+        xor     a
+        jr      ldone
+        page
+ldone:
+;
+;       enable interrupts and return to caller
+;
+        push    af                              ;save the status flags
+        ld      a,timeout                       ;set the deselect timer
+        ld      (disktime),a
+        pop     af                              ;restore the status
+;
+        ei                                      ;re-enable interrupts
+        ret                                     ;and return to caller
+rdraw:
+;
+;       Raw read.
+;
+;       On entry:
+;               BC contains the number of physical sectors to read
+;               
+;       On exit:
+;               a = 0 if ok
+;               a = 1 if error occured
+;
+        push    ix                      ;save the user ix
+        ld      ix,sektab               ;point to the user parameter tables
+;
+        call    rsetup                  ;do the setup for a raw disk access
+;
+rdraw1:
+        push    bc                      ;save the number of sectors to read
+;
+        ld      de,rdraw2               ;put a return address on the stack
+        push    de
+;
+        ld      a,(ix + unit)           ;get the physical unit type
+        and     0ch
+;
+        jp      z,winread               ;dispatch to winchester
+        jp      flpyread                ;or floppy
+rdraw2:
+        pop     bc                      ;get back the sector counter
+        and     a                       ;set flags
+        jr      nz,rdraw3               ;if there was an error
+;
+        call    rawnext                 ;else set up for the next sector
+        djnz    rdraw1                  ;and go back if not end of count
+        xor     a                       ;ensure good return status
+rdraw3:
+        pop     ix                      ;restore the user ix
+        jr      ldone                   ;and return to caller
+        page
+;
+;       Raw write.
+;
+;       On entry:
+;               BC contains the number of physical sectors to write
+;               
+;       On exit:
+;               a = 0 if ok
+;               a = 1 if error occured
+;
+wrraw:
+        ld      hl,sektab                       ;move the requested parameters to hsttab
+        ld      de,hsttab
+        push    bc
+        ld      bc,7
+        ldir
+        pop     bc
+;
+        push    ix                              ;save the user ix
+        ld      ix,hsttab                       ;and point to the host table
+;
+        call    rsetup                          ;set up for the operation
+wrraw1:
+        push    bc                              ;save the sector count
+;
+        ld      de,wrraw2                       ;put a return address on the stack
+        push    de
+;
+        ld      a,(ix + unit)                   ;get the unit descriptor
+        and     0ch                             ;mask for drive type
+;
+        jp      z,winwrite                      ;if winchester
+        jp      flpywrite                       ;or floppy
+wrraw2:
+        pop     bc                              ;get back the sector count
+        and     a                               ;set flags
+        jr      nz,wrraw3                       ;bail on error
+;
+        call    rawnext                         ;set up for the next operation
+;
+        djnz    wrraw1                          ;go back if more to do
+        xor     a                               ;ensure good status on return
+wrraw3:
+        pop     ix                              ;restore the user ix
+        jr      ldone                           ;and return to caller
+        page
+rsetup:
+;
+;       Set up the parameters for a physical disk operation
+;
+;       On entry:
+;               IX points to either sektab or hsttab
+;
+        di                                      ;no interrupts during disk io
+;
+        ld      b,c                             ;set up the sector counter
+;
+        ld      a,0                             ;then invalidate the buffer
+        ld      (hstflg),a
+;
+        push    bc                              ;save the sector counter
+        call    flush                           ;and safe the buffer
+        call    dsetup                          ;set up the table entries
+        pop     bc
+;
+        ld      (ix + trk + 1),h                ;save the returned track
+        ld      (ix + trk),l
+        ld      (ix + head),a                   ;and head       
+;
+;
+;               fall through to raw set
+;
+rawset:
+        ld      hl,(dmaddr)                     ;include the dma address
+        ld      (pdma),hl
+;
+        ld      a,(psec)                        ;set up the requested logical sector
+        ld      (ix + sec),a
+;
+        push    bc                              ;save the counter
+        ld      b,(ix + unit)                   ;pass the unit descriptor
+        call    dtsetup                         ;do drivetec conversion if needed
+;
+        ld      a,b                             ;check for double sided double density
+        and     media
+        cp      dsdd
+        ld      a,(ix + head)                   ;pass the head
+        call    z,dset2                         ;translate the sector if needed
+        pop     bc                              ;restore the counter
+;
+        ret                                     ;and return to caller
+;
+rawnext:
+;
+;       Set up for the next sector to read or write
+;
+        ld      hl,(dmaddr)                     ;increment the dma by 512
+        ld      de,512
+        add     hl,de
+        ld      (dmaddr),hl
+;
+        ld      hl,psec                         ;sector number
+        inc     (hl)                            ;increment by one
+;
+        jr      rawset                          ;then complete the setup        
+        page
+diskoff:
+;
+;       Deselect disk drives
+;
+;       This routine is normally performed on the interrupt level.  When
+;       called, a poll will be made of the devices in ltoptab.  If a 
+;       particular logical device is on line, its controller will be 
+;       polled to see if it is busy.  If it is not busy, it will be de-selected.
+;       In the case of the winchester disk controller, this involves seeking
+;       cylinder 305 and selecting physical unit 0.  For floppy disks, a
+;       simple deselect of the physical device will do.
+;
+        call    flush                           ;first flush the host buffer
+;
+        ld      a,0                             ;reset the disk timeout counter
+        ld      (disktime),a                    ;in case it is a user call
+;
+        ld      hl,ltoptab                      ;point to the logical to physical table
+        ld      b,3                             ;this is the number of logical
+                                                ;devices supported
+diskoff1:
+        push    hl                              ;save the address and counter
+        push    bc
+;
+        ld      a,(hl)                          ;get the first configuration byte
+        ld      b,a                             ;save it for reference by the called routine
+;
+        ld      hl,diskoff2                     ;put a return address on the stack
+        push    hl
+;
+        and     typmsk                          ;check for drive not on line
+        cp      offline
+        ret     z                               ;return acts as a jump to diskoff2
+;
+        cp      wintyp                          ;if it is a winchester
+        jp      z,winoff
+        jp      flpoff                          ;or floppy
+diskoff2:
+        pop     bc                              ;get back the counter
+        pop     hl                              ;and the address pointer
+;
+        inc     hl                              ;point to the next table location
+        djnz    diskoff1                        ;and go back if more
+;
+diskon:
+        ret
+        page
+flush:
+;
+;       flush the host buffer to disk
+;
+        ld      a,(hstflg)                      ;see if the buffer is dirty
+        bit     1,a
+        ld      a,0                             ;set flag in case of return
+        ld      (hstflg),a                      ;invalidate the buffer
+        ret     z                               ;return to caller if write not needed
+;
+        ld      hl,hstbuf                       ;point to the host buffer
+        ld      (pdma),hl
+;
+        ld      hl,flush1                       ;put a return address on the stack
+        push    hl
+;
+        ld      a,(hstunit)                     ;now dispatch to the correct routine
+        and     typmsk                          ;mask for the type of drive
+;
+        jp      z,winwrite                      ;if a winchester
+        jp      flpywrite                       ;or a floppy
+;
+flush1:
+        ret                                     ;then return to caller
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+;
+typmsk  equ     0ch                             ;drive type mask
+offline equ     0ch                             ;drive off line type
+wintyp  equ     00h                             ;winchester drive type
+timeout equ     150                             ;five second timer count
+;
+trk     equ     0                               ;displacement to track in tables
+sec     equ     2                               ;sector number
+head    equ     4                               ;head number
+unit    equ     6                               ;unit number
+dsdd    equ     30h
+media   equ     30h
+;
+        dseg
+disktime:
+        ds      1                               ;disk timout counter
+        end

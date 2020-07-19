@@ -1,0 +1,139 @@
+TITLE SQ
+	.z80
+	cseg
+hline	macro	x1,y1,x2
+	db	00,x1+32,y1+32,x2+32
+	endm
+vline	macro	x1,y1,y2
+	db	01,x1+32,y1+32,y2+32
+	endm
+char	macro	x1,y1,chr
+	db	02,x1+32,y1+32,chr
+line	macro	str
+	db	str,0
+	endm
+	endm
+	extrn	draw,dstr,mmenu,numops,menuops
+	entry	sq,dbox,botmsg,bline,tline,rmenu,blops,clrlin,topmsg
+;
+;	Draw the lines for the main menu boxes
+;
+sq:
+	call	dbox		;display the lines
+;
+	ld	hl,topmsg	;display the top banner
+	call	tline
+;
+	ld	hl,botmsg	;display cursor instructions
+	call	bline
+	ret			;and return to caller
+dbox:
+;
+;	Draw the empty box
+;
+	ld	e,1ah		;first clear the screen
+	ld	c,6
+	call	5
+;
+	ld	ix,boxes	;point to the boxes
+	call	draw		;do the drawing
+;
+	ret
+bline:
+;
+;	Display the text pointed to by HL in the bottom window
+;
+	push	hl
+	ld	hl,bpos		;position cursor
+	call	dstr
+	ld	hl,clrlin	;clear the line
+	call	dstr
+	ld	hl,bpos
+	call	dstr
+	pop	hl		;display the text	
+	call	dstr
+	ret
+tline:
+	push	hl
+	ld	hl,tpos		;position cursor
+	call	dstr
+	ld	hl,clrlin	;clear the line
+	call	dstr
+	ld	hl,tpos
+	call	dstr
+	pop	hl		;display the text
+	call	dstr
+	ret
+rmenu:
+	call	blops		;clear the option window
+	call	bline		;clear the bottom line
+	call	tline		;clear the top line
+;
+	ld	hl,botmsg	;display the bottom line prompt
+	call	bline
+	ld	hl,topmsg	;display the screen header
+	call	tline
+;
+	push	ix
+	ld	ix,mmenu	;display the main menu options
+	ld	a,(numops)
+	ld	c,a
+	call	menuops
+	pop	ix
+;
+	ret			;return to caller
+blops:
+	ld	a,3+32		;set up the y coordnate, x is fixed
+	ld	(ycord),a
+	ld	b,16		;number of lines to blank
+blops1:
+	push	bc
+	ld	hl,blnkop	;display a blank option line
+	call	dstr
+	pop	bc
+	ld	a,(ycord)	;increment the line number
+	inc	a
+	ld	(ycord),a
+	djnz	blops1		;and go back if more
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+esc	equ	1bh
+;
+boxes:
+	hline	0,0,79
+	hline	0,2,79
+	hline	0,19,79
+	hline	0,21,79
+	vline	0,0,21
+	vline	21,2,19
+	vline	79,2,21
+	char	0,0,0d0h
+	char	79,0,0f0h
+	char	21,2,0f0h
+	char	21,19,0b5h
+	char	79,21,0b5h
+	char	0,21,95h
+	char	79,2,0f5h
+	char	79,19,0f5h
+	char	79,1,0d5h
+	db	0ffh
+topmsg:
+	line	'Version 1.05                 Kaypro Disk Utility'
+botmsg:
+	db	'UP and DOWN arrow position cursor, RETURN to select option, ESC to exit',0
+clrlin:
+	line	'                                                                             '
+blnkop:
+	db	esc,'='
+ycord:	db	0,1+32,'                    ',0
+bpos:
+	db	esc,'=',20 + 32,2 + 32,0
+tpos:
+	db	esc,'=',1 + 32,2 + 32,0
+	end

@@ -1,0 +1,132 @@
+TITLE MENDVR
+	.z80
+	cseg
+	entry	mendvr
+	extrn	dispth
+;
+;	Menu driver
+;
+;	On entry:
+;
+;		IX points to the first entry of a table whose elements
+;		are in the following format:
+;
+;			00	x position of prompt
+;			01	y position of prompt
+;			02 - 03	Address of the option routine
+;
+;		C contains the number of entries in the table
+;
+;	A user response of up arrow will cause the use of the previous
+;	entry.  If the current entry is the first in the table, control
+;	will wrap to the last entry.  Conversely, if the user response
+;	is a down arrow, the next entry in the table will be used.  If
+;	the current entry is the last, control will be passed to the 
+;	first entry in the table.  
+;
+;	If an ESC is returned, this routine will exit to its caller.
+;	Any other character will be a nop and the current command will
+;	be re-selected.
+;
+mendvr:
+	ld	b,0			;this is the current routine number
+mendvr1:
+	ld	l,(ix + adrlsb)		;get the routine address
+	ld	h,(ix + adrmsb)
+;
+	push	ix			;save the current parameters
+	push	bc
+;
+	ld	de,mendvr2		;put the return address on the stack
+	push	de
+	ld	a,1			;execute the function
+	jp	(hl)
+
+mendvr2:push	af			; save off af
+	ld	d,52			; set up xrom call for disk deselect
+	call	dispth			; do xrom call
+	pop	af			; retreive af value
+	pop	bc			; get back the menu parameters
+	pop	ix
+;
+	cp	esc			;if escape was returned
+	ret	z			;return to caller
+;
+	cp	down			;if down arrow
+	jp	z,mendvr3
+;
+	cp	up			;if up arrow
+	jp	z,mendvr4
+;
+	jp	mendvr1			;invalid entry, stay on this option
+	page
+mendvr3:
+;
+;	Down arrow, move to the next routine in sequence
+;
+	ld	de,4			;add the entry length to the pointer
+	add	ix,de
+;
+	inc	b			;bump the routine counter
+;
+	ld	a,b			;check for max number
+	cp	c			
+	jp	c,mendvr1		;go on if less than the max
+;
+	ld	a,b			;point ix back to the original
+	add	a,a			;multiply the current rtne number by 4
+	add	a,a
+;
+	ld	e,a			;and make a 16 bit number of it
+	ld	d,0
+;
+	push	ix			;put the pointer in hl for the math op
+	pop	hl
+;
+	or	a			;clear the carry
+	sbc	hl,de			;and set the pointer back
+;
+	push	hl			;putit back into the pointer
+	pop	ix
+;
+	ld	b,0			;reset the routine number
+	jp	mendvr1			;now do that routine
+	page
+mendvr4:
+;
+;	Process an up arrow response
+;
+	ld	a,b			;check for the first routine
+	cp	0
+	jp	z,mendvr41		;if so go move to last routine
+;
+	ld	de,-4			;else move the pointer back
+	add	ix,de
+;
+	dec	b			;and decrement the routine number
+	jp	mendvr1			;then execute that routine
+mendvr41:
+	ld	a,c			;multiply the max routine by 4
+	dec	a
+	ld	b,a
+	add	a,a
+	add	a,a
+;
+	ld	e,a			;make a 16 bit value of it
+	ld	d,0
+	add	ix,de			;and point to the last routine
+;
+	jp	mendvr1			;execute that routine
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+adrlsb	equ	2			;lsb of address displacement
+adrmsb	equ	3			;msb of address displacement
+esc	equ	1bh			;ascii escape
+down	equ	'J' and 1fh		;down arrow key
+up	equ	'K' and 1fh		;up arrow key
+	end

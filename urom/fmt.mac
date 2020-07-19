@@ -1,0 +1,375 @@
+TITLE FMT
+	.z80
+	cseg
+esc	equ	1bh
+cr	equ	0dh
+k10	equ	10h
+true	equ	-1
+false	equ	not true
+copymod	equ	false
+blkmod	equ	false
+formod	equ	true
+sysmod	equ	false
+imgmod	equ	false
+
+	include dutil.lib
+	.list
+	.lall
+	entry	fmt,distat
+	extrn	disopt,remopt,uresp,dbox,menuops,dmenu,systyp,unit,botmsg,mendvr
+	extrn	nsid,format,cvd,cyl,head,decin,fmttrk,selflpy,bline,tline,rmenu
+	extrn	blops,clrlin
+;
+;	Diskette format routine
+;
+;	On entry:
+;		IX points to the dispatcher table entry
+;		a contains 0 if this is display menu item only
+;		a contains 1 if full function call
+;
+;	
+fmt:
+	cp	0			;if menu item only
+	jp	z,dismenu
+;
+	ld	hl,fmttxt		;display menu with help
+	call	disopt
+fmt1:
+	call	uresp			;get user input
+	cp	0dh			;if cr
+	jp	z,form1			;do the format processing
+dismenu:
+	push	af
+	ld	hl,fmttxt		;remove reverse video
+	call	remopt
+	pop	af
+	ret
+	page
+form1:
+	push	ix			;save the current menu parameters
+;
+	ld	hl,botmsg		;display bottom of screen
+	call	bline
+;
+	ld	hl,fmthdr		;display the format header
+	call	tline
+;
+	call	blops			;blank the current options on menu
+;
+	ld	ix,fmenu		;display the format options
+	ld	c,fmencnt
+	push	ix
+	push	bc
+	call	menuops
+	pop	bc
+	pop	ix
+;
+form2:
+	call	mendvr			;execute the menu
+;
+	cp	esc
+	jp	nz,form2		;stay in the format menu
+;
+	pop	ix			;restore the main menu
+	call	rmenu
+;
+	xor	a			;set the return code to stay on this option
+	ret				;and return to caller
+	page
+fdbl:
+;
+;	Format a diskette with two sides
+;
+	cp	0			;if display menu only
+	jp	z,fdbldis
+;
+	ld	hl,fdblop
+	call	disopt			;display the user option
+	call	uresp			;get the user input
+;
+	cp	cr			;if not carriage return
+	jp	nz,fdbldis
+;
+	ld	a,(systyp)		;check to see if this is a k10
+	cp	k10
+	ld	e,'B'
+	ld	a,2
+	jp	nz,fdbl0
+	ld	e,'C'			;if it is use drive c
+	ld	a,1			;physical unit 1
+fdbl0:
+	ld	(unit),a		;set up the physical unit
+	ld	a,e			;and display the drive for the user
+	ld	(drno),a
+;
+	ld	hl,fmtmsg		;display the format message
+	call	bline
+;
+
+;
+fdbl1:
+	call	uresp			;get the user response
+;
+	cp	esc			;if abort
+	jp	nz,fdbl2
+;
+fdbl11:
+	ld	hl,botmsg		;restore the bottom of screen prompt
+	call	bline
+	ld	a,0
+	jp	fdbldis			;and return to caller
+;
+fdbl2:
+	cp	cr			;only accept carriage return
+	jp	nz,fdbl1
+;
+	ld	a,1			;signal for double sided
+	ld	(nsid),a
+;
+	push	ix			;save the table pointer
+	call	format			;and format the drive
+	pop	ix
+;
+	jp	fdbl11			;return to caller when complete
+fdbldis:
+	push	af			;preserve the input character
+	ld	hl,fdblop
+	call	remopt			;remove the inverse video
+	pop	af
+	ret				;and return to caller
+fsgl:
+;
+;	Format a diskette with one sied 
+;
+	cp	0			;if display menu only
+	jp	z,fsgldis
+;
+	ld	hl,fsglop
+	call	disopt			;display the user option
+	call	uresp			;get the user input
+;
+	cp	cr			;if not carriage return
+	jp	nz,fsgldis
+;
+	ld	a,(systyp)		;check to see if this is a k10
+	cp	k10
+	ld	e,'B'
+	ld	a,2
+	jp	nz,fsgl0
+	ld	e,'C'			;if it is use drive c
+	ld	a,3			;physical unit 1 leave winchester selected
+fsgl0:
+	ld	(unit),a		;set up the physical unit
+	ld	a,e			;and display the drive for the user
+	ld	(drno),a
+;
+	ld	hl,fmtmsg		;display the format message
+	call	bline
+;
+fsgl1:
+	call	uresp			;get the user response
+;
+	cp	esc			;if abort
+	jp	nz,fsgl2
+;
+fsgl11:
+	ld	hl,botmsg		;restore the bottom of screen prompt
+	call	bline
+	ld	a,0
+	jp	fsgldis			;and return to caller
+;
+fsgl2:
+	cp	cr			;only accept carriage return
+	jp	nz,fsgl1
+;
+	ld	a,0			;signal for single sided
+	ld	(nsid),a
+;
+	push	ix			;save the table pointer
+	call	format			;and format the drive
+	pop	ix
+;
+	jp	fsgl11			;return to caller when complete
+fsgldis:
+	push	af			;preserve the input character
+	ld	hl,fsglop
+	call	remopt			;remove the inverse video
+	pop	af
+	ret				;and return to caller
+	page
+ftrk:
+;
+;	Format a single track
+;
+	cp	0			;if display option only
+	jp	z,ftrkdis
+;
+	ld	hl,ftrkop		;else display the menu option
+	call	disopt
+	call	uresp			;get the user response
+;
+	cp	cr			;if not select
+	jp	nz,ftrkdis		;get out
+;
+	ld	hl,ssdsmsg		;ask for single or double sided
+	call	bline
+ftrk1:
+	ld	e,-1			;get console input
+	ld	c,6
+	call	5
+	cp	0
+	jp	z,ftrk1
+;
+	and	5fh			;translate to upper case
+;
+	ld	hl,39			;default to single sided
+	ld	b,0
+;
+	cp	'S'			;if not single
+	jp	z,ftrk2
+;
+	ld	hl,79			;set up for double
+	ld	b,1
+;
+	cp	'D'			;if not double
+	jp	z,ftrk2
+;
+	cp	esc			;check for abort
+	jp	z,ftrkabt
+;
+	jp	ftrk1			;else invalid input
+ftrk2:
+	ld	(maxtrk),hl		;save the maximum track for this format
+	ld	a,b
+	ld	(nsid),a		;and set up for the number of sides
+;
+	ld	hl,trkmsg		;and ask for the track number
+	call	bline
+;
+	ld	de,xyloc		;then input the decimal value
+	ld	hl,(maxtrk)		;with an upper limit
+	push	ix
+	call	decin
+	pop	ix
+;
+	cp	esc			;if the user aborted
+	jp	z,ftrkabt		;get out
+;
+	ld	a,(nsid)		;break this down into cyl and head
+	and	a
+	jp	z,ftrk3 
+;
+	xor	a			;clear a and carry
+	rr	h			;rotate hl 1 right
+	rr	l
+	rla				;carry is the head number
+ftrk3:
+	ld	(head),a		;set up variables for fmttrk
+	ld	a,l
+	ld	(cyl),a
+;
+;
+	ld	a,(systyp)		;check to see if this is a k10
+	cp	k10
+	ld	e,'B'
+	ld	a,2
+	jp	nz,ftrk4
+	ld	e,'C'			;if it is use drive c
+	ld	a,3			;physical unit 1 leave winchester selected
+ftrk4:
+	ld	(unit),a		;store the unit number
+	ld	a,e
+	ld	(drno),a
+;
+	ld	hl,fmtmsg		;ask for a disk in drive
+	call	bline
+;
+ftrk5:
+	call	uresp			;get the user response
+;
+	cp	esc			;if abort
+	jp	z,ftrkabt
+;
+	cp	cr			;if select
+	jp	nz,ftrk5
+;
+	call	selflpy			;select the disk drive
+;
+	ld	a,0			;then format the track
+	push	ix
+	call	fmttrk
+	pop	ix
+;
+	ld	b,3			;hold the completion message
+	ld	hl,0
+ftrk6:
+	dec	hl
+	ld	a,h
+	or	l
+	jp	nz,ftrk6
+	djnz	ftrk6
+;
+ftrkabt:
+	ld	hl,botmsg		;put the bottom line back
+	call	bline
+	ld	a,0			;keep on this option
+ftrkdis:
+	push	af			;save the console character
+	ld	hl,ftrkop		;remove the option reverse video
+	call	remopt
+	pop	af
+	ret				;and return to caller
+distat:
+	jp	nz,errstat		;if there was an error condition
+;
+	call	gettrk			;compute the track number
+;
+	ld	de,tno			;then translate to ascii decimal
+	ld	a,20h			;with leading zero supression
+	call	cvd
+;
+	ld	hl,trdone		;then display the message
+	call	bline
+;
+	xor	a			;set the zero flag 
+	ret				;return to caller		
+errstat:
+	call	gettrk			;compute the track number
+;
+	ld	de,etrk			;convert the track number to decimal
+	ld	a,20h
+	call	cvd
+;
+	ld	hl,ferrmsg		;display the error message
+	call	bline
+errstat1:
+	ld	e,-1			;wait for a cr
+	ld	c,6
+	call	5
+	cp	cr
+	jp	nz,errstat1
+	ret
+gettrk:
+	ld	a,(cyl)	
+	ld	l,a
+	ld	h,0
+	ld	a,(head)
+	ld	e,a
+	ld	d,0
+	ld	a,(nsid)
+	and	a
+	jp	z,gettrk1
+;
+	add	hl,hl
+	add	hl,de
+gettrk1:
+	ret
+	page
+	
+	formsg
+
+;
+;
+maxtrk:	dw	0
+xyloc	equ	5134h
+	end

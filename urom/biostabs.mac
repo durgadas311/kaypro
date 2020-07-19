@@ -1,0 +1,404 @@
+	title	BIOSTABS:  BIOS Device Tables
+	.z80
+	cseg
+	include	macro.lib
+;
+	entry	defiob,devtab,kbdtab,intstat,cboot
+;
+	extrn	bios,tstack
+	extrn	goccp,xrom,kbdot
+;
+	cpyrit
+;
+;	2.2u1	T. Hayes
+;		1/16/85
+;
+;		Corrected address computations in character I/O
+;		buffer control block initialization.  Default Baud
+;		rate for printer and serial data ports set to 300.
+;		Printer and serial data ports now use auto enables
+;		SIO function - devices must use hardware handshake.
+;		Printer port output buffer expanded and input buffer
+;		made smaller
+;
+;	System device tables
+;
+;	Written by:	T. Hayes & S. Fabian
+;
+;	These tables provide the necessary information for initialization
+;	of character IO devices and for operation of the system console
+;	in either USASCII or in foreign language configurations
+;
+true	equ	-1
+false	equ	not true
+;
+int	equ	false		;interrupt driven system enable/disable
+autoen	equ	true		;auto enables function of SIO
+;
+;
+;	Default IO byte 
+;
+defiob:
+	db	81h	;CON: = video
+			;RDR: = serial printer
+			;PUN: = serial printer
+			;LST: = Centronics parallel
+wrtsafe:
+	db	0
+;
+;
+;	SIO Initialization tables
+;
+devtab:
+;
+; comm port
+;
+	db	18h	;wr0
+			;channel reset
+;
+	db	4ch	;wr4
+			;x16 clock
+			;2 stop bits
+			;no parity
+;
+	if	int	
+	db	36h	;wr1
+			;interrupt on all rx characters (parity does not affect vector)
+			;status affects vector
+			;tx interrupt enable
+	else
+	db	0	;no interrupts
+	endif
+;
+	db	0d0h	;wr2
+			;interrupt vector
+;
+	if	autoen eq false
+	db	0c1h	;wr3
+			;rx 8 bits/character
+			;rx enable
+	else
+	db	0e1h	;same as above with auto enables function
+	endif
+;
+	db	0eah	;wr5
+			;dtr enabled
+			;tx 8 bits/character
+			;tx enable
+			;rts enabled
+;
+	db	00h	;wr6 - dummy
+	db	00h	;wr7 - dummy
+;
+;	Serial printer port
+;
+	db	18h	;wr0
+			;channel reset
+;
+	db	4ch	;wr4
+			;x16 clock
+			;2 stop bits
+			;no parity
+;
+	if	int
+	db	36h	;wr1
+			;interrupt on all rx characters (parity does not affect vector)
+			;status affects vector
+			;tx interrupt enable
+	else
+	db	0	;no interrupts
+	endif	
+;
+	db	0e0h	;wr2
+			;interrupt vector
+;
+	if	autoen eq false
+	db	0c1h	;wr3
+			;rx 8 bits/character
+			;rx enable
+	else
+	db	0e1h	;same as above but with auto enables
+	endif
+;
+	db	0eah	;wr5
+			;dtr enabled
+			;tx 8 bits/character
+			;tx enable
+			;rts enabled
+;
+	db	00h	;wr6 - dummy
+	db	00h	;wr7 - dummy
+;
+;	Modem SIO
+;
+	db	18h	;wr0
+			;channel reset
+;
+	db	4ch	;wr4
+			;x16 clock
+			;2 stop bits
+			;no parity
+;
+	if	int
+	db	36h	;wr1
+			;interrupt on all rx characters (parity does not affect vector)
+			;status affects vector
+			;tx interrupt enable
+	else
+	db	0	;no interrupts
+	endif
+;
+	db	0e0h	;wr2
+			;interrupt vector
+;
+	db	0c1h	;wr3
+			;rx 8 bits/character
+			;rx enable
+;
+	db	68h	;wr5
+			;tx 8 bits/character
+			;tx enable
+;
+	db	00h	;wr6 - dummy
+	db	00h	;wr7 - dummy
+;
+;
+;	The following variables have the following parameters possible:
+;
+;	00	50 bps
+;	01	75 bps
+;	02 	110 bps
+;	03	134.5 bps
+;	04	150 bps
+;	05	300 bps
+;	06	600 bps
+;	07	1200 bps
+;	08	1800 bps
+;	09	2000 bps
+;	10	2400 bps
+;	11	3600 bps
+;	12	4800 bps
+;	13	7200 bps
+;	14	9600 bps
+;	15	19200 bps
+;
+;  Comm port baud rate
+;
+	db	05		;default to 300
+;
+;  Serial printer baud rate
+;
+	db	05		;default to 300
+;
+;  Buffer/Protocol flags
+;
+;  If set to zero, the associated devices will use no software
+;  handshake.  If the lsb is set, the devices will use xon/xoff
+;  protocol.
+;
+;  Comm port
+	db	0
+;
+;  Serial printer port
+	db	0
+;
+;  Modem port
+	db	0
+;
+;  Interrupt control byte
+;	0 = Use interrupts
+;	-1 = Use status driven
+;
+intstat:
+	if	int 
+	db	0
+	else
+	db	-1
+	endif
+;
+;	Keyboard operational tables
+;
+kbdtab:
+;fdata:
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	defb	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+;USA:
+	defb	 0BH,  0AH,  08H, 0CH	; arrow keys subsitution
+
+	defb	0f0h, 0f1h, 0f2h, 0f3h	; numeric keypad subsitution
+	defb	0f4h, 0f5h, 0f6h, 0f7h
+	defb	0f8h, 0f9h, 0fah, 0fbh
+	defb	0fch, 0fdh
+					; keyboard unshifted characters
+	defb	031H, 032H, 033H, 034H	; 1,2,3,4
+	defb	035H, 036H, 037H, 038H	; 5,6,7,8
+	defb	039H, 030H, 02DH, 03DH	; 9,0,-,=
+	defb	060H, 071H, 077H, 079H	; `,q,w,y
+	defb	05BH, 05DH, 061H, 03BH	; [,],a,;
+	defb	027H, 05CH, 07AH, 06DH	; ',\,z,m
+	defb	02CH, 02EH, 02FH, 065h	; ,,.,/,e
+	defb	069h, 06fh, 075h	;i,o,u
+					; keyboard characters shifted
+	defb	021H, 040H, 023H, 024H	; !,@,#,$
+	defb	025H, 05EH, 026H, 02AH	; %,^,&,*
+	defb	028H, 029H, 05FH, 02BH	; (,),_,+
+	defb	07EH, 051H, 057H, 059H	; ~,Q,W,Y
+	defb	07BH, 07DH, 041H, 03AH	; {,},A,:
+	defb	022H, 07CH, 05AH, 04DH	; ",|,Z,M
+	defb	03CH, 03EH, 03FH, 045h	; <,>,?,E
+	defb	049h, 04fh, 055h	; I,O,U
+	page
+;
+;	Cold Start System Initialization
+;
+;	Initialize system devices and tables then begin initial
+;	system operations in CCP.
+;
+cboot:
+	di			;this routine operates without interrupts
+;
+	ld	sp,tstack	;set a temporary stack
+;	
+	in	a,(bitport)	;turn the rom off
+	and	7fh
+	out	(bitport),a
+;
+	ld	d,bufini	;get the buffer base into hl
+	call	xrom
+;
+;	Fix buffer pointer so it points to the buffers not control
+;	table base. (2.2u1)
+;
+	ld	de,deflen * 4	;add the offset to the buffer address
+	add	hl,de
+;
+	ex	de,hl		;adjust the buffer addresses
+	ld	ix,comdef
+	call	adjust
+	call	adjust
+	call	adjust
+	call	adjust
+;
+	ld	bc,comdef
+	ld	d,bufini
+	call	xrom
+;
+
+	ld	bc,kbdot	;initialize the interrupt vector table
+	ld	d,intvec
+	call	xrom
+;
+	ld	bc,devtab	;character device initialization
+	ld	d,devini
+	call	xrom
+;
+	ld	bc,kbdtab	;keyboard table initialization
+	ld	d,kbdini
+	call	xrom
+;
+	xor	a		;set the default disk to 0
+	ld	(defdsk),a
+;
+	ld	a,(defiob)	;set the iobyte to default
+	ld	(iobyte),a
+;
+	ld	d,sgnon		;display the sign on banner
+	ld	bc,verno	;pass the version number 
+	call	xrom
+;
+	ei			;enable interrupts
+;
+	ld	de,0		;initial ccp entry
+	jp	goccp		;then go to ccp
+verno:
+	db	'u1',10,13,0	;rom type & bios version
+	page
+adjust:
+;
+;	Relocate the addresses for a character buffer
+;
+;	On entry:
+;		DE contains the base address
+;		IX points to the buffer definition to adjust
+;
+	ld	bc,2		;working constant for incrementing addresses
+;
+	call	adjword		;adjust buffer begin address
+;
+	call	adjword		;buffer end address
+;
+	add	 ix,bc		;skip input len & count
+;
+	call	adjword		;input loc
+	call	adjword		;output loc
+;
+	call	adjword		;output begin addr
+	call	adjword		;output end addr
+;
+	add	ix,bc		;skip output len & count
+;
+	call	adjword		;input loc
+	call	adjword		;output loc
+;
+	inc	ix
+;
+;	This change added to have the buffer base incremented by
+;	the size of the previous on exit. (2.2u1)
+;
+	ex	de,hl		;put the buffer base in hl
+	ld	d,0		;D will always be zero in this case
+	ld	e,(ix -7)	;get the output buffer size
+	add	hl,de		;add it to the base
+	ld	e,(ix - 17)	;get the input buffer size
+	add	hl,de		;add it to the base
+	ex	de,hl		;put the size back in the DE pair
+;
+;	end of mod
+;
+	ret
+adjword:
+	ld	l,(ix + 0)
+	ld	h,(ix + 1)
+	add	hl,de
+	ld	(ix + 0),l
+	ld	(ix + 1),h
+	add	ix,bc
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+comdef:
+	bufdef	30,5
+ptrdef:
+	bufdef	5,30
+moddef:
+	bufdef	30,5
+kbddef:
+	bufdef	20,3
+bufini	equ	54
+intvec	equ	0		;interrupt vector initialization
+;
+devini	equ	42		;character device initialization
+kbdini	equ	43		;keyboard table initialization
+sgnon	equ	40		;sign on message
+defdsk	equ	0004h		;low ram location for default drive number
+iobyte	equ	0003h		;io byte location
+bitport	equ	14h
+deflen	equ	21		;buffer control table length
+	end

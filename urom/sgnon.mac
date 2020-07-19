@@ -1,0 +1,62 @@
+        title   SGNON:  Rom and CP/M Sign On Messages
+        .z80
+        cseg
+	include macro.lib
+        entry   sgnon,cldmsg,msgout
+        extrn   vidout,ver,rev          ;video,urom,urom
+;
+        cpyrit
+;
+;       Display the CP/M signon message and the rom cold message
+;
+;       Written by:     T. Hayes
+;
+sgnon:
+        push    bc
+        ld      hl,cpmmsg
+        call    msgout
+        pop     hl
+        jr      msgout
+cldmsg:
+        ld      hl,rommsg
+msgout:
+        ld      a,(hl)
+        and     0ffh
+        ret     z
+        push    hl
+        ld      c,a
+        call    vidout
+        pop     hl
+        inc     hl
+        jr      msgout
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+cpmmsg:
+        db      26
+        db      'Kaypro CP/M Version 2.2',0
+
+
+
+
+
+rommsg:
+        db      26
+        at      10,31
+        db      'Kaypro Corporation'
+
+
+
+
+        at      14,34
+        db      'Version '
+
+
+        db      ver,'.'
+        dw      rev
+        db      0
+        end

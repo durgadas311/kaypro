@@ -1,0 +1,419 @@
+TITLE BLANK
+.comment &
+###########################################################################
+#                                                                         #
+#        Kaypro Copy  Program with safety catches for                     #
+#        Kaypro Hard disk that will stop the program from                 #
+#        running on a hard disk.                                          #
+#                                                                         #
+#        Blank Module                                                     #
+#                                                                         #
+#        By Steven R. Fabian                                              #
+#                                                                         #
+#       Copyright (c) Non-Linear Systems, Inc.                            #
+#       No warranty is made, emplied or expressed.                        #
+#                                                                         #
+###########################################################################
+#    10/01/84                                                        [01] #
+###########################################################################
+#                                                                         #
+#    01/18/85      Add line of code to clear out high 8 bits in track     #
+#                  Upon initialization of routine.                        #
+###########################################################################
+&
+	.z80
+	cseg
+cr	equ	0dh
+esc	equ	1bh
+bdos	equ	05h
+dio	equ	06h
+true	equ	-1
+false	equ	not true
+copymod	equ	false
+blkmod	equ	true
+formod	equ	false
+sysmod	equ	false
+imgmod	equ	false
+
+	include dutil.lib
+	.list
+	.lall
+
+	entry	blank
+	extrn	disopt,remopt,uresp,head,cyl
+	extrn	blops,tline,bline,botmsg,menuops,mendvr,rmenu
+	extrn	ertne,acof,maxtrk,sec,sec1,ffg,ckffmt,trk,setsec,write
+	extrn	ckit,track,str,sumit,setb,dma,cvd,cpybuf
+	extrn	acof,bcof,ccof,sytyp,tfg,setadsk,wd,lyn1
+	extrn	nsid
+
+
+;
+;	Make a blank diskette
+;
+;	On entry:
+;		IX points to the dispatcher table entry
+;		a contains 0 if this is display menu item only
+;		a contains 1 if full function call
+;
+;	
+blank:
+	cp	0			;if menu item only
+	jp	z,dmenu
+;
+	ld	hl,blanktxt		;display menu with help
+	call	disopt
+blank1:
+	call	uresp			;get user input
+	cp	0dh			;if cr
+	jp	z,blank2
+dmenu:
+	push	af
+	ld	hl,blanktxt		;remove reverse video
+	call	remopt
+	pop	af
+	ret
+
+blank2:	push	ix			; save current menu parameters
+	ld	hl,botmsg		; display bottom of screen
+	call	bline			; display it
+;
+	ld	hl,btpmsg		; display top of screen
+	call	tline			; display it
+;
+	call	blops			; blank out current options
+	ld	a,(sytyp)		; get system status
+	cp	0fdh			; are we a winchester
+	jp	nz,sb1a			; no were a floppy system check b
+;					; yes we are a winchester check a & c.
+	ld	a,(acof)		; retreive a drive conf.value for a
+	call	rwefpy			; are we a floppy
+	jp	nz,sa1			; we are a floppy set parameter.
+;					; no we aren't now check c drive
+	ld	a,(ccof)		; retreive c drive conf.value for c.
+	call	rwefpy			; are we a floppy
+	jp	nz,sc1			; yes set up parameters
+	jp	er			; if not error condition exists
+;
+;					; not in a winchester environment 
+sb1a:	ld	a,(bcof)		; retreive b drive conf.value for b
+	call	rwefpy			; are we a floppy
+	jp	nz,sb1			; yes it is so set up parameters
+;					; if not error condition exists
+;
+er:	push	bc			; we have an error condition here
+	push	hl
+	ld	hl,hdmsg
+	jp	z,ertne
+;
+bl0:	call	stat			; get which ever floppy status
+	and	04h			; strip away unnecessary bytes
+	cp	04h			; is value a drive tec drive
+	ld	ix,bscrn2		; set up Drivetec screen
+	ld	c,bscnt			; set up counter for full value
+	jr	z,arnd			; yes so we set up parameters
+	ld	ix,pbsc2		; no, set up floppy screen
+	ld	c,pbcnt			; set up partial counter
+arnd:	push	ix
+	push	bc
+	call	menuops
+	pop	bc
+	pop	ix
+blk2a:	call	mendvr
+;
+	cp	esc
+	jp	nz,blk2a
+;
+	pop	ix
+	call	rmenu
+	xor	a
+	ret
+
+bscrn2:	rtne	3,bstrt1
+bscnt	equ	($-bscrn2)/4		; give number of options
+
+bstrt1:	cp	0
+	jp	z,blk1
+
+	ld	hl,bkmsg1
+	call	disopt
+	push	bc
+	push	hl
+	call	uresp
+	pop	hl
+	pop	bc
+	cp	cr
+	jp	nz,blk1
+	push	bc
+	push	hl
+	ld	e,0
+	ld	a,(bwd)
+	ld	(wd),a
+	call	setadsk
+	jp	chdsel2			; was disk a formatted diskette
+x1:	pop	hl			; yes it was
+	pop	bc			;
+;
+	call	stat
+	and	30h			; strip off and what is our media
+	cp	10h			; is this a drivetec diskette ?
+	jr	z,b8j			; yes everything a.o.k
+	push	bc			; save off registers
+	push	hl
+	ld	hl,bwmdt
+	jp	ertne
+;
+b8j:	ld	bc,320
+	ld	(maxtrk),bc		; # of tracks for drivetec
+	ld	a,17
+	ld	(sec),a
+	ld	a,68			; this is 4*17: logical to physical 
+	ld	(sec1),a			; # of sectors per track
+	ld	a,0ffh			; turn format flag off
+	ld	(ffg),a			; set storage flag value
+	ld	a,1			; set to number of sides (2)
+	ld	(nsid),a		; save in storage area
+	xor	a			; clear accum.
+	jp	process			; continue
+;
+blk1:	push	af
+	ld	hl,bkmsg1
+	call	remopt
+	pop	af
+	ret
+;
+
+bstrt2:	cp	0
+	jp	z,blk2
+
+	ld	hl,bkmsg2
+	call	disopt
+	push	bc
+	push	hl
+	call	uresp
+	pop	hl
+	pop	bc
+	cp	cr
+	jp	nz,blk2
+	ld	a,80
+	ld	(maxtrk),a
+	ld	a,10
+	ld	(sec),a
+	ld	a,40		; this is 4*10:logical to physical
+	ld	(sec1),a
+;
+	ld	a,01
+	ld	(nsid),a
+;
+	ld	a,00h
+	ld	(ffg),a
+	jp	process
+;
+blk2:	push	af
+	ld	hl,bkmsg2
+	call	remopt
+	pop	af
+	ret
+
+
+bstrt3:	cp	0
+	jp	z,blk3
+
+	ld	hl,bkmsg3
+	call	disopt
+	push	bc
+	push	hl
+	call	uresp
+	pop	hl
+	pop	bc
+	cp	cr
+	jp	nz,blk3
+	ld	a,40			;
+	ld	(maxtrk),a		; set to max tracks for a 2
+	ld	a,10
+	ld	(sec),a
+	ld	a,40			; 4*10 : logical to physical
+	ld	(sec1),a		; set # of sectors to track
+;
+	ld	a,00
+	ld	(nsid),a
+;
+	ld	a,00h
+	ld	(ffg),a
+	jp	process
+;
+blk3:	push	af
+	ld	hl,bkmsg3
+	call	remopt
+	pop	af
+	ret
+
+pbsc2:	rtne	3,bstrt2
+	rtne	5,bstrt3
+pbcnt	equ	($-pbsc2)/4
+
+process:xor	a			; clean accumulator
+	ld	(track),a		; set up 
+	ld	(track+1),a		; Clear upper values
+	ld	a,(sec1)		; retreive sector value
+	ld	b,a			; set up b register value
+	ld	c,0			; set up c resister value
+	or	a			;
+	rr	b			; do multiplication by
+	rr	c			; 128 for # of bytes
+	ld	hl,cpybuf		; set up where to move data to
+lope:	ld	(hl),0E5H		; put e5 into memory addressed by de
+	inc	hl			; increment address pointer
+	dec	bc			; decrement the counter
+	ld	a,b			; test for zero condition
+	or	c			; 
+	jp	nz,lope			; if not zero fill buffer
+	call	sumit
+	ld	(str),hl
+;
+	ld	bc,(maxtrk)		;
+c3t:	push	bc			; save the counter
+	ld	a,0
+	ld	(tfg),a
+;
+r3t:	ld	e,1
+	ld	a,(bwd)			; retreive system floppy find
+	ld	(wd),a			; set up value for seladsk option
+	call	setadsk			; set to  system determined drive
+;
+	call	trk			; set to track #
+;
+	call	setsec			; do set sector routine
+;
+	call	dma			; do dma function
+;
+	push	ix
+	call	ckffmt			; check to see if format disk
+	pop	ix
+;
+	ld	a,(ffg)			; check format flag
+	and	a			; do test
+	call	nz,sbwrte		; if no format do a write
+;
+	call	ckit			; this routine reads back the
+					; info just written and dose checksum
+	jp	c,subrt			; start all over from the top
+;
+	push	hl
+	push	de
+	ld	e,-1			; set up a bdos call
+	ld	c,dio			; use direct i/o
+	call	bdos			; do bdos call
+	cp	esc			; check for user input
+	pop	de
+	pop	hl
+	jp	z,btom			; if abort kick out
+;
+	push	hl			; save off hl value
+	ld	hl,(track)		; retreive track number
+	ld	de,btksp			; set up buffer area, put in
+	ld	a,20h			; for zero suppression
+	call	cvd			; convert to ascii number
+	ld	hl,btkms		; set hl to msg prompt
+	call	bline			; display msg in bottom line
+	xor	a			; clear accumulator
+	pop	hl
+
+
+	ld	bc,(track)		; retreive track number
+	inc	bc			; increment a
+	ld	(track),bc		; saver new value
+	pop	bc			; retreive new value
+	dec	bc			; decrement the counter
+	ld	a,b			; pull high value
+	or	c			; make test
+	jp	nz,c3t			; continue the processing
+	ld	a,(bwd)			; retreive which drive
+	ld	(wd),a			; set up wd for sysgen
+	call	lyn1
+	xor	a			; clear the accumulator
+	ld	hl,botmsg		; display bottom of screen
+	call	bline			; display it
+	ret
+
+.comment &
+*********************************************************
+*							*
+*	Sub - Routines                                  *
+*							*
+*********************************************************
+&
+chdsel2:ld	a,l
+	or	h
+	jp	nz,x1
+	ld	hl,bsmsg
+	jp	ertne	
+
+subrt:	ld	a,(tfg)		; retreive flag value
+	cp	1		; test for retry's
+	push	bc
+	push	hl		; save off value
+	ld	hl,bsumer	; set up error message
+	jp	z,dumpop	; if error's leave
+	pop	hl		; restore
+	pop	bc
+	ld	a,1		; set up value
+	ld	(tfg),a		; set up first retry value
+	jp	r3t		; continue with one retry 
+;
+dumpop:	pop	bc		; clean counter off stack
+	jp	ertne		; go to error routine
+;
+rwefpy:	and	0ch
+	cp	0
+	ret
+;
+
+sa1:	ld	a,0		; set a for floppy
+	ld	(bwd),a
+	jp	bl0
+;
+sb1:	ld	a,1		; set b for floppy
+	ld	(bwd),a		
+	jp	bl0
+;
+sc1:	ld	a,2
+	ld	(bwd),a
+	jp	bl0
+;
+
+stat:	ld	a,(bwd)
+	cp	0
+	jp	z,sa
+	cp	1
+	jp	z,sb
+	jp	sc
+;
+sa:	ld	a,(acof)
+	ret
+sb:	ld	a,(bcof)
+	ret
+sc:	ld	a,(ccof)
+	ret		
+;
+btom:	xor	a			; clear the accumulator
+	pop	bc			; clear stack of push counter value
+	ld	hl,botmsg		; display bottom of screen
+	call	bline			; display it
+	ret
+;
+sbwrte:	call	trk			; set to track #
+	call	setsec			; do set sector routine
+	call	dma			; do dma function
+	call	write			; do a raw write
+	and	a			; test for good read
+	ret	z			; return to caller if ok
+	pop	de			; else clean the return from the stack
+	push	hl			; save hl
+	ld	hl,bwrmsg		; pass the error message
+	jp	ertne
+;
+	blkmsg
+bwd:	db	0
+
+	end

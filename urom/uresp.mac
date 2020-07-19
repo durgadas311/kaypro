@@ -1,0 +1,80 @@
+TITLE URESP
+	.z80
+	cseg
+	extrn	inchar
+	entry	uresp
+;
+;	Input user response
+;
+;	Only four responses are allowed here:
+;
+;		Up arrow
+;		Down arrow
+;		Escape
+;		Carriage return
+;
+;	Any other response will cause a beep
+;
+;	Both the ADM 3A and MicroPro conventions for cursor keys are
+;	observed
+;
+uresp:
+	ld	a,(inchar)		;see if a character was typed in menu
+	ld	b,a
+	xor	a
+	ld	(inchar),a
+	ld	a,b
+	and	a
+	jp	nz,uresp0		;use it if so
+;
+	ld	e,0ffh			;get a console character
+	ld	c,6
+	call	5
+	and	a			;if no input
+	jp	z,uresp			;try again
+uresp0:
+;
+	cp	aup			;if adm3a up arrow
+	ret	z			
+;
+	cp	adn			;if adm3a down arrow
+	ret	z
+;
+	cp	mup			;if micropro up
+	jp	nz,uresp1
+	ld	a,aup			;replace with adm3a up
+	ret
+;
+uresp1:
+	cp	mdn			;if micropro down
+	jp	nz,uresp2
+	ld	a,adn			;replace with adm3a down
+	ret
+;
+uresp2:
+	cp	esc			;if escape
+	ret	z
+;
+	cp	cr			;if carriage return
+	ret	z
+;
+	ld	e,bell			;bad input
+	ld	c,6			;ring the bell
+	call	5
+;
+	jp	uresp
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+aup	equ	'K' and 1fh		;adm3a up arrow
+adn	equ	'J' and 1fh		;adm3a down arrow
+mup	equ	'E' and 1fh		;micropro up arrow
+mdn	equ	'X' and 1fh		;micropro down arrow
+esc	equ	1bh			;escape character
+cr	equ	0dh			;carriage return
+bell	equ	7			;bell
+	end

@@ -1,0 +1,801 @@
+        title   FLPYIO:  Floppy Disk Physical Drivers
+        .z80
+        include macro.lib
+        cseg
+        entry   fpread,fpwrit,restore,selside,motoron,chkindex,rdam
+        entry   ambuf,cmdwait,psel,cmdstat,fpseek,flpyread,pdma
+        entry   flpywrit,ctracks,flpoff,fstat,fprdy,errstat
+;
+        extrn   k10flg,hstflg,curunit,sektrk    ;select <-->  select
+        extrn   sekhead,seksec,sektab,hsttab    ;select <-->  select
+        extrn   hstunit,hsttrk,hsthead,hstsec   ;select <-->  select
+        extrn   hstbuf,timer,disktime           ;select,winio,lrw
+;
+        cpyrit
+;
+;       Floppy disk IO primitives
+;
+;       Written by:     T. Hayes
+;
+;       The routines contained here are responsible for the management and
+;       operation of the floppy disk sub-system.
+;
+fpread:
+;
+;       Physical read
+;
+;       On entry:
+;               HL points to the dma buffer
+;               A = 0 if it is a 512 byte sector
+;                 = number of bytes to transfer if less than 512 (256 max) 
+;               C contains the read command
+;               The drive is selected and positioned over the track
+;
+;       On exit:
+;               A contains the result status
+;
+;
+        ld      b,a                     ;set up the byte count
+        and     a                       ;set the flag register
+        ld      a,c                     ;set up the command byte
+        ld      c,wddta                 ;and the data port address
+;
+        out     (wdcmd),a               ;issue the command
+;
+        jr      nz,fpread2              ;for less than 512
+;
+fpread1:
+        halt                            ;wait for drq
+        ini                             ;input the byte
+        jp      nz,fpread1              ;go back if notdone
+;
+fpread2:
+        halt                            ;wait for drq
+        ini                             ;input the byte
+        jp      nz,fpread2              ;go backif not done
+;
+        call    cmdstat                 ;get the command result status
+;
+        saverr  1                       ;save the error status in high ram
+        ret
+        page
+fpwrit:
+;
+;       Physical Write
+;
+;       On entry:
+;               HL points to the dma buffer
+;               A contains the write command
+;               The drive is selected and positioned over the track
+;
+;       On exit:
+;               A contains the result status
+;
+; 
+        ld      c,wddta                 ;point to the wd data port
+        ld      b,0                     ;initialize the counter 
+;
+        out     (wdcmd),a               ;issue the read command
+pwrit1:
+        halt                            ;wait for drq
+        outi                            ;write a byte to the controller
+        jp      nz,pwrit1               ;go back if more
+;
+pwrit2:
+        halt                            ;wait for drq
+        outi                            ;write a byte to the controller
+        jp      nz,pwrit2
+;
+        call    cmdstat                 ;get the result status
+;
+        saverr  2                       ;save it in high ram
+;
+        ret                             ;and return to caller
+        page
+restore:
+;
+;       Restore the drive
+;
+;       On entry:
+;               B contains the configuration byte
+;       
+;       On exit:
+;               a = -1 and zero reset if restore error
+;               a = device status if no error
+;               the appropriate selection of ctltrka or ctltrkb will contain 0
+;
+        call    motoron                 ;select and turn on motor
+;
+        call    fprdy                   ;wait for device ready
+        jr      nz,restore1             ;return if error
+;
+        push    bc                      ;set ctracks entry to 0
+        ld      a,b
+        and     uidmsk
+        dec     a
+        ld      c,a
+        ld      b,0
+        ld      hl,ctracks
+        add     hl,bc
+        ld      (hl),0
+        pop     bc
+;
+        ld      a,rstcmd                ;issue the restore command
+        out     (wdcmd),a
+;
+        call    cmdstat                 ;and get the result status
+        jr      nz,restore1             ;return if error
+;
+        and     15h                     ;mask off non-error status bits
+        xor     04h                     ;invert state of track 0 flag                   
+        ld      l,a                     ;save the status
+;
+        call    fprdy                   ;wait for ready
+        jr      nz,restore1             ;if timed out, give error
+;
+        ld      a,l                     ;else return the original status
+;
+restore1:
+        saverr  3
+        ret                             ;return that to caller
+        page
+selside:
+;
+;       Select head
+;
+;       On entry:
+;               D contains the side select bit
+;
+        in      a,(bitport)             ;get the bitport values
+        and     sselmsk                 ;mask out the current side select
+        or      d                       ;and put in the new one
+        out     (bitport),a             ;do the select
+        call    fprdy                   ;wait for ready
+        ret                             ;then return to caller
+        page
+motoron:
+;
+;       Turn the drive motor on for standard media and select drive.
+;
+;       On entry:
+;               B contains the configuration byte
+;
+        ld      a,b                     ;see if the drive is a drivetec
+        and     typmsk
+        cp      drvtec                  ;if it is a drivetec
+        jr      nz,motoron1             ;see if it is standard media
+;
+        ld      a,b                     ;if it is drivetec media
+        and     media
+        cp      dtmedia
+        jr      z,motoron2              ;ensure low speed
+;
+motoron1:
+        call    psel                    ;select first with standard media
+;
+        in      a,(bitport)             ;
+        set     4,a                     ;turn the motor on - select high speed
+        out     (bitport),a
+;
+        ret                             ;return to caller
+motoron2:
+        in      a,(bitport)             ;select low speed
+        res     4,a                     ;with dt media select after speed change
+        out     (bitport),a
+;
+        call    psel                    ;do the physical select
+        ret                             ;and return to caller
+        page
+chkindex:
+;
+;       Check for index pulse present
+;
+;       On exit:
+;
+;               A = 0 and zero set if index not found
+;               A != 0 and zero reset if index found
+;
+        call    motoron                 ;ensure motor is on and select device
+;
+        call    fstat                   ;get device status
+;
+        and     index                   ;mask for the index bit
+        ld      l,a                     ;and save a copy of that status
+;
+        ld      h,1                     ;set up the loop counters
+        ld      de,8000h
+chkidx1:
+        call    fstat                   ;get device status
+;
+        and     index                   ;mask for the index bit
+        xor     l                       ;test against the first sample
+        ret     nz                      ;return if they are different - index found
+;
+        call    timer                   ;else count down
+        jr      nz,chkidx1
+;
+        ld      a,1                     ;return error status
+        saverr  7                       ;save index not found status
+        ret
+        page
+rdam:
+;
+;       Read address mark.
+;
+;       On entry:
+;
+;               D contains the side select bit
+;               The head is positioned over the track to read
+;
+;       On exit:
+;
+;               ambuf will contain the address mark and A = 0 with
+;                  zero set if read is ok
+;
+;               A != 0 and zero reset if no address mark found
+;
+        push    de
+        call    motoron                 ;make sure the motor is on and drive selected
+        pop     de
+        call    selside                 ;put the head select in
+        ret     nz                      ;return on error
+;
+        ld      hl,ambuf                ;use ambuf for dma
+        ld      a,6                     ;address mark is 6 bytes
+        push    bc                      ;save the configuration bytes
+;
+        ld      c,rdaddr                ;this is the wd command byte
+        call    fpread                  ;do the physical read
+        saverr  4                       ;save the error status in high ram
+        pop     bc                      ;restore the configuration bytes
+;
+        and     a                       ;set the flags
+;
+;
+        ret                             ;and return to caller
+        page
+psel:
+;
+;       Select the drive indicated by the configuration byte in B.  If
+;       this is a k10/12, keep the winchester selected as well
+;
+        in      a,(bitport)             ;get the current drive select
+        and     03h                     ;save the select bits only
+        ld      l,a
+;
+        ld      a,(k10flg)              ;get the k10/12 flag
+        ld      h,a
+;
+        ld      a,b                     ;mask for the floppy select bits
+        cpl                             ;in the configuration byte
+        and     uidmsk
+        and     h                       ;make sure a winchester stays selected
+        ld      h,a
+;
+        in      a,(bitport)             ;get the current bitport values
+        and     not uidmsk              ;strip the current select bits
+        or      h                       ;put in the new ones
+        out     (bitport),a             ;and issue the new select
+;
+        and     03h                     ;see if the select changed
+        cp      l
+        ret     z                       ;return to caller if not
+;
+        ld      a,b                     ;see if this is a drivetec
+        and     drvtyp                  ;drive
+        cp      drvtec                  ;it it is not
+        ret     nz                      ;return to caller
+;                       
+        ld      h,1                     ;set up timer
+        ld      de,1000h
+psel1:
+        call    timer
+        jr      nz,psel1
+;
+        ret                             ;return to caller
+;
+        page
+cmdwait:
+;
+;       Wait for command to settle
+;
+        ld      a,9
+cmdwait1:
+        dec     a
+        jr      nz,cmdwait1
+        ret
+fprdy:
+;
+;       Wait for device ready
+;
+;       On exit:
+;               a = 0 and zero set if ready
+;               a = 1 and zero reset if the device did not become ready
+;
+;       This routine should not be executed while the controller is busy
+;
+        ld      h,2             ;set up dead mans counter
+        ld      de,0
+fprdy1:
+        call    fstat           ;get device status
+        bit     ready,a         ;test for ready status
+        jr      z,fprdy2        ;device ready
+;
+        call    timer           ;else count down
+        jr      nz,fprdy1       ;and go back if not timed out
+;
+        ld      a,1             ;else set an error return
+        saverr  8               ;save not ready status
+        and     a
+        ret
+fprdy2:
+        xor     a               ;return good status
+        ret
+;
+cmdstat:
+;
+;       Wait for device not busy
+;
+;       On exit:
+;               a = status and zero set if not busy
+;               a = 1 and zero reset if timeout occurs
+;
+        call    cmdwait         ;wait for status to settle
+;
+        ld      h,4
+        ld      de,0
+cmdstat1:
+        in      a,(wdstat)      ;get device status
+        bit     busy,a          ;test for busy
+        ret     z
+;
+        call    timer           ;count down
+        jr      nz,cmdstat1     ;go back if not zero
+;
+        ld      a,1             ;set error
+        and     a
+        ret
+;
+dskcheck:
+;
+;       See if a diskette is in the drive
+;
+;       If less than 1 second has elapsed since the last disk access
+;       as indicated by (disktime), assume that there is still media in
+;       the drive.  If more than 1 second has elapsed, look for index.
+;
+;       On entry:
+;               B contains the configuration byte
+;
+;       On exit:
+;               A = 0 and zero set if disk present
+;               A = 1 and zero reset if no disk present
+;
+        ld      a,(disktime)    ;first check the timer count
+        cp      120             ;if 1 second has not elapsed
+        ld      a,0             ;set default status byte
+        jr      nc,dskcheck1    ;return a good status
+;
+        call    chkindex        ;else check for index
+        jr      z,dskcheck1     ;if not present
+        ld      a,0             ;else return good status
+dskcheck1:
+        and     a               ;set the flags
+        ret                     ;and return to caller
+        page
+
+fpseek:
+;
+;       Floppy disk physical seek 
+;
+;       On entry:
+;               b contains the configuration byte
+;               e contains the physical device number
+;               d contains the target track
+;               ctltrka contains the track number of device 1
+;               ctltrkb contains the track number of device 2
+;
+;       On exit:
+;               a = 0 and zero flag set if operation was ok
+;               a != 0 and zero flag reset if there was a seek error
+;               a = -1 if command did not complete due to timeout
+;
+        push    de                      ;save the track number
+;
+        ld      d,0                     ;pick up the current head position
+        dec     de
+        ld      hl,ctracks
+        add     hl,de
+;
+        ld      a,(hl)                  ;a now contains the current head position
+        out     (wdtrk),a               ;put it in the track register
+;
+        pop     de                      ;get the requested track back
+;
+        ld      a,b                     ;check for drivetec drives
+        and     drvtyp
+        cp      drvtec                  ;if they are not
+        jr      nz,fpseek1              ;don't xlate track number
+;
+        ld      a,b                     ;now see if the media is dt
+        and     media
+        cp      dtmedia                 ;if it is
+        jr      z,fpseek1               ;don't xlate
+;
+        ld      a,d                     ;else multiply the track number
+        add     a,a                     ;by 4
+        add     a,a
+        ld      d,a     
+;
+fpseek1:
+        ld      a,d                     ;and issue that
+        ld      (hl),a                  ;make that the new head position
+        out     (wddta),a
+;
+        ld      a,seekcmd               ;then the seek command
+        out     (wdcmd),a
+;
+        call    cmdstat                 ;wait for command completion
+;
+        and     10h                     ;mask for seek error bit
+        ret     nz                      ;return if seek error
+;
+        call    fprdy                   ;wait for ready
+        ret                             ;and return to caller
+        page
+flpyread:
+;
+;       Floppy disk read routine
+;
+;       On entry:
+;               sektab contains the descriptor of the sector to read
+;               pdma contains the address of the location to receive the data
+;               curunit contains the configuration byte
+;
+;       On exit:
+;               the location at (pdma) will contain the requested sector
+;               and a will contain a 00h with zero set if the operation
+;               completed successfully.
+;
+;               if an uncorrectable read error occured, a will return with
+;               a -1 and zero reset.
+;
+;       This routine will attempt the read operation 10 times before
+;       reporting back an error.  During the 4th and 7th retries, a 
+;       wiggle will be performed to correct for hysterisis if that was
+;       the error.
+;
+;       On any id not found error or seek error, a restore and re-seek 
+;       operation will be performed.
+;
+;
+        ld      a,10                    ;set up the retry counter
+        ld      (retry),a
+;
+        ld      a,(hstflg)              ;set the buffer valid
+        set     0,a
+        res     1,a                     ;and not dirty
+        ld      (hstflg),a
+;
+        ld      a,(curunit)             ;get the configuration byte
+        ld      b,a
+flpyread1:
+        call    motoron                 ;select the drive and turn the motors on
+;
+        call    dskcheck                ;ensure that a diskette is in the drive
+        ret     nz                      ;return an error if not
+;
+        ld      a,b                     ;now set up for the seek
+        and     uidmsk                  ;physical unit to e
+        ld      e,a
+        ld      a,(sektrk)              ;track to d
+        ld      d,a
+        ld      (savtrk),a              ;save the track for possible error
+        call    fpseek                  ;and seek the track
+;
+        and     a                       ;set flags
+        jr      nz,flpyread2            ;if an error occured, do retry sequence
+;
+        ld      a,(sekhead)             ;get the head number
+        xor     01h                     ;and complement it
+        rla                             ;construct the side select bit
+        rla
+        ld      d,a                     ;
+        call    selside                 ;do the side select
+        jr      nz,flpyread2            ;error if it does not go ready
+;
+        ld      a,(seksec)              ;issue the sector number
+        out     (wdsec),a
+;
+        ld      a,(sektrk)              ;issue the logical track
+        out     (wdtrk),a
+;
+        ld      c,readsec               ;pass read sector
+        ld      a,0                     ;set read 512
+        ld      hl,(pdma)               ;and dma address to the
+        push    bc
+        call    fpread                  ;physical read routine
+        pop     bc
+;
+        and     a                       ;if no error
+        jr      z,flpyread3
+;
+flpyread2:
+        call    flpyerror               ;process the error condition
+        jr      nz,flpyread1            ;go back if retry is needed
+;
+        ld      a,1                     ;else signal hard error
+        and     a
+        ret                             ;back to caller
+flpyread3:
+        ld      hl,sektab               ;copy the seek table to the host table
+        ld      de,hsttab
+        ld      bc,7
+        ldir
+        and     a                       ;return good status
+        ret 
+        page
+flpywrit:
+;
+;       Write a sector to the floppy disk
+;
+;       On entry:
+;               hsttab contains the descriptor of the sector to write
+;               pdma contains the address of the buffer to write from
+;               hstunit contains the configuration byte
+;
+;       On exit:
+;               a = 0 and zero set if the operation was ok
+;               a = 1 and zero reset if there was an error
+;
+;       The error processing here is the same as that for a read except
+;       that the user will be given the option of a retry on a write 
+;       protect error.  
+;
+;
+        ld      a,10                    ;set up the retry counter
+        ld      (retry),a
+;
+        ld      a,(hstflg)              ;reset the dirty bit
+        res     1,a
+        ld      (hstflg),a
+;
+        ld      a,(hstunit)             ;get the configuration byte
+        ld      b,a
+flpywrit1:
+        call    motoron                 ;select the drive and turn the motors on
+;
+        call    dskcheck                ;ensure that a diskette is in the drive
+        ret     nz                      ;return an error if not
+;
+        ld      a,b                     ;now set up for the seek
+        and     uidmsk                  ;physical unit to e
+        ld      e,a
+        ld      a,(hsttrk)              ;track to d
+        ld      d,a
+        ld      (savtrk),a              ;save a copy of track for possible error
+        call    fpseek                  ;and seek the track
+;
+        and     a                       ;set the flags
+        jr      nz,flpywrit2            ;if an error occured, do retry sequence
+;
+        ld      a,(hsthead)             ;get the head number
+        xor     01h                     ;and complement it
+        rla                             ;construct the side select bit
+        rla
+        ld      d,a                     ;
+        call    selside                 ;do the side select
+        jr      nz,flpywrit2            ;error if it does not go ready
+;
+        ld      a,(hstsec)              ;issue the sector number
+        out     (wdsec),a
+;
+        ld      a,(hsttrk)              ;issue the logical track number
+        out     (wdtrk),a
+;
+        ld      a,writsec               ;pass read sector
+        ld      hl,(pdma)               ;and dma address to the
+        push    bc
+        call    fpwrit                  ;physical write routine
+        pop     bc
+;
+        and     a                       ;if no error
+        jr      z,flpywrit3             ;return to caller
+;
+flpywrit2:
+        bit     6,a                     ;if write protect
+        jr      z,proterr               ;process it
+;
+        call    flpyerror               ;process the error condition
+        jr      nz,flpywrit1            ;go back if retry is needed
+;
+        ld      a,1                     ;else signal hard error
+        and     a
+        ret                             ;back to caller
+flpywrit3:
+        ret
+proterr:
+        ld      a,1                     ;for now return hard error
+        and     a
+        ret
+        page
+flpyerror:
+        bit     4,a                     ;if record not found or seek error
+        jr      nz,reseek               ;restore and reseek the drive
+;
+        ld      a,(retry)               ;else decrement the retry count
+        dec     a
+        ld      (retry),a
+        ret     z                       ;if the error count is exhausted
+;
+        cp      6                       ;see if wiggle needed this time
+        jr      z,flpyerror4
+;
+        cp      3
+        ret     nz                      ;if not go back and try again
+;
+flpyerror4:
+        ld      a,(savtrk)              ;see if the head is over track 0
+        cp      0
+        jr      z,flpyerror5
+;
+        ld      a,stepout               ;if not, issue a step out
+        out     (wdcmd),a
+        call    cmdstat                 ;and wait for completion
+        jr      nz,flpyerror6
+;
+        ld      a,stepin                ;then step back in
+        out     (wdcmd),a
+        call    cmdstat
+;
+        jr      flpyerror6              ;then update the retry counter
+;
+flpyerror5:
+        ld      a,stepin                ;else step in
+        out     (wdcmd),a
+        call    cmdstat
+        jr      nz,flpyerror6
+;
+        ld      a,stepout               ;then a step out
+        out     (wdcmd),a
+        call    cmdstat
+;
+flpyerror6:
+        saverr  6                       ;save the result status
+;
+        ld      a,(retry)               ;decrement the retry counter
+        dec     a
+        ld      (retry),a
+        ret                             ;and return to caller - zero set if hard error
+reseek:
+        call    restore                 ;restore the drive
+;
+        ld      a,b                     ;set up for the seek
+        and     uidmsk                  ;with unit id
+        ld      e,a
+        ld      a,(savtrk)              ;and track number
+        ld      d,a
+        call    fpseek                  ;and seek the track
+;
+        ld      a,(retry)               ;then decrement the down counter
+        dec     a
+        ld      (retry),a
+;
+        ret                             ;and return to caller
+        page
+flpoff:
+;
+;       Deselect drive
+;
+;       On entry:
+;               B contains the configuration byte of the drive to deselect
+;
+;       On exit:
+;               The drive is deselected if the controller was not busy
+;
+        ld      a,b                     ;else get the configuration byte
+        and     uidmsk                  ;mask for the unit number
+        ld      b,a                     ;save it
+;
+        in      a,(bitport)             ;get the bitport values
+        or      b                       ;put the deselect bit in
+        res     4,a                     ;turn the drive motor off       
+        out     (bitport),a             ;and issue the deselect
+;
+        ret                             ;then return to caller
+        page
+fstat:
+;
+;       Issue force interrupt to return type 1 command status
+;
+        ld      a,fi0                   ;issue force interrupt
+        out     (wdcmd),a
+        call    cmdwait                 ;wait for the command to settle
+        in      a,(wdstat)              ;get the status back
+        ret                             ;and return it to caller        
+;
+;
+errstat:
+;
+;       On entry:
+;               A contains the result status of a disk operation
+;               TOS points to a value which describes the physical operation performed
+;
+;                       1 = Floppy Read
+;                       2 = Floppy Write
+;                       3 = Floppy Restore
+;                       4 = Floppy Read Address
+;                       5 = Floppy Seek
+;                       6 = Floppy Step in/Step out
+;                       10 = Winchester Read
+;                       11 = Winchester Write
+;                       12 = Winchester Restore
+;                       13 = Winchester Seek
+;
+;       On exit:
+;               Location FFFDh will contain the operation type
+;               Location FFFEh will contain the status
+;
+        pop     hl              ;get return from stack
+;
+        push    af
+        and     a               ;return if null status
+        jr      z,errstat1
+;
+        ld      e,(hl)          ;get the physical op type
+        ld      d,a             ;de contains all status information
+        ld      (0fffdh),de     ;store it at the high ram location
+errstat1:
+        inc     hl              ;point to the address following the physical op
+;
+        pop     af              ;restore the entry flags
+;
+        jp      (hl)            ;return to caller
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+wddta   equ     13h                     ;wd data port
+wdcmd   equ     10h                     ;wd command port
+wdstat  equ     10h                     ;wd status port
+wdtrk   equ     11h                     ;wd track port
+wdsec   equ     12h                     ;wd sector port
+bitport equ     14h                     ;system control port
+;
+rstcmd  equ     00h                     ;wd restore command
+rdaddr  equ     0c4h                    ;wd read address command
+seekcmd equ     10h                     ;wd seek command
+readsec equ     88h                     ;wd read sector command
+writsec equ     0ach                    ;wd write sector command
+stepin  equ     42h                     ;wd step in command
+stepout equ     62h                     ;wd step out command
+fi0     equ     0d0h                    ;wd force interrupt command
+;
+sselmsk equ     0fbh                    ;side select mask
+uidmsk  equ     03h                     ;physical unit mask
+typmsk  equ     0ch                     ;drive type mask
+index   equ     02h                     ;index status mask
+fdcbusy equ     01h                     ;floppy disk controller busy mask
+ready   equ     07h                     ;ready status bit number
+busy    equ     00h                     ;busy status bit number
+;
+drvtyp  equ     0ch                     ;drive type mask
+drvtec  equ     04h                     ;drivetec drive type
+media   equ     30h                     ;media type mask
+dtmedia equ     10h                     ;drivetec media type
+        dseg
+ctracks:
+ctltrka:        ds      1               ;current position of drive 1 head
+ctltrkb:        ds      1               ;current position of drive 2 head
+;
+ambuf:  ds      6                       ;read address transfer buffer
+;
+retry:  ds      1                       ;retry counter
+;
+pdma:   ds      2                       ;physical dma location
+;
+savtrk: ds      1                       ;error track number
+        end

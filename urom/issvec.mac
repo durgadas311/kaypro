@@ -1,0 +1,231 @@
+	title	ISSVEC:  Ram Resident Interrupt Handlers
+	.z80
+	cseg
+	include	macro.lib
+;
+	entry	xrom,kbdot,ustack,istack
+;
+	cpyrit
+;
+;	RAM Resident Interrupt Handlers
+;
+;	Written by:	T. Hayes
+;			5/25/84
+;
+;	It is the purpose of these routines to initialize the interrupt
+;	vector tables, initialize the interrupting devices and to provide
+;	traps that will vector interrupts to the appropriate ROM routines.
+;	These are physical device handlers and are separate from the logical 
+;	device routines.
+;
+	page
+;
+;	Interrupt Vector Routines
+;
+;	Each of these routines will trap a specific mode 2 interrupt,
+;	save the user context and vector control to the appropriate ROM
+;	routine for that device.  Upon return, the user context will be
+;	restored and an ei, reti sequence executed.  For space efficiency
+;	savreg will set up the control flow so that jumps can be executed
+;	with a ret instruction. 
+;
+;
+;	Keyboard vectors
+;
+kbdot:
+	int	kovec
+kbdest:
+	int	kesvec
+kbdin:
+	int	kivec
+kbdsp:
+	int	kspvec
+;
+;	Serial channel 1
+;
+;	Comm Port
+; 
+ser1ot:
+	int	s1ovec
+ser1es:
+	int	s1est
+ser1in:
+	int	s1ivec
+ser1sp:
+	int	s1spvec
+;
+;	Modem SIO
+;
+ser3ot:
+	int	s3ovec
+ser3es:
+	int	s3est
+ser3in:
+	int	s3ivec
+ser3sp:
+	int	s3spvec
+;
+;	Serial channel 2
+;	Printer port
+ser2ot:
+	int	s2ovec
+ser2es:
+	int	s2est
+ser2in:
+	int	s2ivec
+ser2sp:
+	int	s2spvec
+;
+;	Clock PIO
+;
+clock:
+	int	clkvec
+;
+;	Modem PIO
+;
+modem:
+	int	modvec
+	page
+;
+;	Extended ROM Vector Routine
+;
+;	It is the purpose of this routine to select ROM, call the extend
+;	ROM function dispatcher, deselect ROM and return to caller.  It is
+;	assumed that the calling routine has set the system stack to an address
+;	above 8000H.  The IOBYTE is passed to the called routine in A. 
+;
+;	On entry:
+;		e contains the ROM extended function number
+;		bc contains an optional parameter (address or data)
+;		the flag register is maintained
+;
+;	On exit:
+;		a may contain a status byte depending on the function called
+;		The ROM select bit will be restored to its entry value
+;
+xrom:
+;
+	ld	a,(iobyte)		;save a copy of the iobyte (does not matter on the interrupt level)
+	ld	h,a
+;
+	in	a,(bitport)		;get the current bitport values
+	push	af
+	set	rom,a			;select rom
+	out	(bitport),a
+;
+	ld	a,h			;get back the iobyte
+	call	exdrom			;do the rom function
+;
+;
+	pop	bc			;get the entry bitport - flags are retained
+	push	af			;save returned status
+	ld	a,b			;now ready the bitport config 
+	and	80h			;strip all but rom select
+	ld	b,a
+	in	a,(bitport)		;get the current bitport
+	and	7fh			;strip the rom select
+	or	b			;and put in the old one
+	out	(bitport),a		;and make that the new value
+;
+	pop	af			;restore status
+	ret				;and return to caller
+	page
+savreg:
+;
+;	Save the current user context.
+;
+;	All 8080 registers plus the IX and IY registers are saved on
+;	the stack.  The current stack pointer is saved and a
+;	temporary stack is established.  This routine is
+;	not re-entrant.  
+;
+	ex	(sp),hl			;put HL on top of stack
+;
+	ld	(ustack),sp		;save the user stack location
+	ld	sp,istack		;set the stack pointer to the temp
+;
+	push	de			;then save the other registers
+	push	bc
+	push	af
+	push	ix
+	push	iy
+;
+	ld	d,(hl)			;pick up the extended rom function number
+;
+	in	a,(bitport)		;get the current bitport values
+	push	af			;save a copy for return
+	set	rom,a
+	out	(bitport),a		;select rom
+;
+	call	exdrom			;perfom the iss
+;
+	pop	af			;restore the bitport configuration
+	and	0fch			;isolate the rom select bit
+	ld	d,a			;save that
+	in	a,(bitport)		;get the current bitport
+	and	03h			;remove that select bit
+	or	d			;and put in the old one
+	out	(bitport),a		;then issue that
+;
+;	Restore the user context.
+;	Switch back to the user stack and retrieve the user context from it
+;	This routine should only be called following the use of savreg.  Calling
+;	it without the use of savreg will produce fatal results.
+;
+	pop	iy			;restore the registers
+	pop	ix
+	pop	af
+	pop	bc
+	pop	de
+	ld	sp,(ustack)		;user stack pointer
+	pop	hl
+	ei				;return from interrupt
+	reti
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+;
+;	extend rom vector equates
+;
+intvec	equ	0			;interrupt initialization routine
+;
+kovec	equ	1			;keyboard out
+kesvec	equ	2			;keyboard external status
+kivec	equ	3			;keyboard in
+kspvec	equ	4			;keyboard special receive condition
+;
+s1ovec	equ	5			;comm port out
+s1est	equ	6			;comm port external status
+s1ivec	equ	7			;comm port input
+s1spvec	equ	8			;comm port special receive condition
+;
+s2ovec	equ	9			;printer port out
+s2est	equ	10			;printer port external status
+s2ivec	equ	11			;printer port input
+s2spvec	equ	12			;printer port special receive condition
+;
+s3ovec	equ	13			;modem port out
+s3est	equ	14			;modem port external status
+s3ivec	equ	15			;modem port input
+s3spvec	equ	16			;modem port special receive condition
+;
+clkvec	equ	17			;clock PIO port
+modvec	equ	18			;modem PIO port
+;
+bitport	equ	14H			;system control port address
+rom	equ	7			;ROM select bit number
+romask	equ	80h			;ROM select bit mask
+exdrom	equ	004bh			;extended rom function vector address
+iobyte	equ	0003h			;address of IOBYTE
+	dseg
+bitsav:
+	db	0			;bit port temp storage
+ustack:	
+	dw	0			;user stack pointer save address
+	ds	100			;temporary stack
+istack	equ	$	
+	end

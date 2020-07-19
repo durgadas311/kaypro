@@ -1,0 +1,127 @@
+TITLE FORMAT
+	.z80
+	entry	format,unit,head,cyl,nsid,selflpy,verflg
+	extrn	fmttrk,wdwait
+;
+;	Format an entire diskette
+;
+;	On entry:
+;		unit contains the unit number to format (1 or 2)
+;		nsid contains 0 for single sided or 1 for double sided
+;
+;	
+format:	ld	a,1			; set flag
+	ld	(verflg),a		; store it
+	ld	a,0			;initialize the cylinder number
+	ld	(cyl),a
+;
+	call	selflpy
+form1:
+	ld	a,(cyl)			;check for end of operation
+	cp	maxcyl + 1
+	ret	nc			;return to caller if so
+;
+	ld	a,(nsid)		;check number of sides
+	and	a
+	jp	nz,form2
+;
+;	Single sided format
+;
+	ld	a,1			;trash side 1
+	ld	(head),a
+	ld	a,2			;use format that is all ffh
+	call	fmttrk
+;
+	ld	a,0			;then do side 0
+	ld	(head),a
+	call	fmttrk			;with the regular format
+	jp	form3			;do end of track housekeeping
+;
+form2:
+	ld	a,0			;format side 0
+	ld	(head),a
+	call	fmttrk
+	jp	nz,form3		;bail if error
+;
+	ld	a,1			;then side 1
+	ld	(head),a
+	xor	a
+	call	fmttrk
+;
+form3:
+	jp	nz,exit			;return if there was an error
+;
+	ld	e,-1			;check for user abort
+	ld	c,6
+	call	5
+;
+	cp	esc			;if escape was pushed
+	jp	z,exit			;return to caller
+;
+	ld	hl,cyl			;then bump the cylinder number
+	inc	(hl)
+;
+	jp	form1			;go back for the next cylinder
+selflpy:
+	ld	a,(unit)		;select the drive
+	cpl
+	or	0fch
+	ld	b,a
+	in	a,(bitport)
+	or	03h
+	and	b
+	set	4,a			;turn motor on
+	out	(bitport),a
+;
+	ld	de,0			;wait
+	ld	b,2
+self1:
+	dec	de
+	ld	a,e
+	or	d
+	jp	nz,self1
+	djnz	self1
+;
+	ld	a,rstcmd		;restore the drive
+	out	(wdcmd),a
+;
+	ld	de,1000			;wait for controller to settle
+self2:
+	dec	de
+	ld	a,e
+	or	d
+	jp	nz,self2
+;	
+	call	wdwait			;wait for command completion
+;
+	in	a,(wdstat)		;get device status
+	and	10h
+	jp	nz,selflpy
+	ret
+;
+exit:	push	af
+	xor	a
+	ld	(verflg),a
+	pop	af
+	ret
+
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+bitport	equ	14h			;system bit port address
+wdcmd	equ	10h			;wd command port
+wdstat	equ	10h			;wd status port
+rstcmd	equ	00h			;wd restore command
+maxcyl	equ	39			;last cylinder number
+esc	equ	1bh			;ascii escape character
+;
+unit:	db	0			;format unit number
+cyl:	db	0			;format cylinder number
+nsid:	db	0			;number of sides flag
+head:	db	0			;format head number
+verflg:	db	0			;
+	end

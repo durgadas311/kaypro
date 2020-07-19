@@ -1,0 +1,449 @@
+        title   ISS:  Maskable Interrupt Service Subsystem
+        .z80
+	include macro.lib
+        cseg
+        entry   kbdoss,kbdiss,kbspss,kbdess
+        entry   s1oss,s1ess,s1iss,s1spss
+        entry   s2oss,s2ess,s2iss,s2spss
+        entry   s3oss,s3ess,s3iss,s3spss
+        entry   modiss,clkiss
+;
+        extrn   bufin,bufout,bufist,bufost      ;bufmgr,bufmgr,bufmgr,bufmgr
+        extrn   disktime,diskoff                ;lrw,lrw        
+        extrn   kbdbuf,modbuf                   ;devinit,devinit
+        extrn   combuf,ptrbuf                   ;devinit,devinit
+        extrn   intstat                         ;devinit
+;
+        cpyrit
+;
+;       Maskable Interrupt Service Subsystem
+;
+;       Written by:     T. Hayes
+;                       5/23/84
+;
+;       The following routines provide interrupt service for the
+;       two SIO devices and the PIO.  These are interfaced to the
+;       foreground tasks through the buffer management routines
+;
+;       Keyboard Interrupts
+;
+;       Output: 
+;               The keyboard output routine keeps a constant output
+;               of nulls to the keyboard sio.  The interrupts are generated
+;               by TBE.  A buffer (KBDOBUF) is provided for foreground
+;               tasks to control key click and beep.  Each character sent
+;               is a clock tick and is used to control drive deselect and
+;               disk buffer flush.
+;
+kbdoss:
+        in      a,(kbdcmd)              ;ensure that the transmitter is empty
+        and     tbe
+        ret     z                       ;return to caller if not
+;
+        ld      a,(intstat)             ;see if interrupt driven
+        and     a
+        jr      nz,kbdoss1              ;timer will be done in BIOS if not
+;
+        ld      a,(disktime)            ;now decrement the disk timer
+        and     a
+        jr      z,kbdoss1               ;if it is not already 0
+;
+        dec     a
+        ld      (disktime),a
+;
+        call    z,diskoff               ;deselect the disk drives if timed out
+kbdoss1:
+;
+        ld      ix,kbdbuf               ;point to the buffer data structure
+        ld      e,10
+;
+        call    bufist                  ;and test status
+;
+        call    nz,bufin                ;get the character if it is not empty
+        call    kbdchk                  ;check for interrupt operation
+;
+        jr      z,kbdoss2               ;if no output required, branch
+;
+        out     (kbddta),a              ;this is either a null or a control byte
+;
+        ld      a,resist                ;reset external status interrupts
+        out     (kbdcmd),a
+;       
+kbdoss2:
+        in      a,(kbdcmd)              ;set status for return
+        and     tbe
+        ret     z
+        ld      a,-1
+        ret                             ;and return from interrupt
+kbdchk:
+        and     a                       ;if the character is not a null
+        ret     nz                      ;return to caller
+;
+        ld      a,(intstat)             ;see if interrupt operation is being used
+        cpl
+        and     a
+        cpl
+        ret                             ;set flags and return
+        page
+;
+;       Keyboard Input Routine
+;
+;       Accept a character from the keyboard and place it in the buffer
+;       (KBDIBUF)
+;
+kbdiss:
+;
+        in      a,(kbdcmd)              ;check for rda
+        and     rda
+        ret     z                       ;return to caller if not
+;       
+        ld      ix,kbdbuf               ;point to the buffer data structure
+        ld      e,0
+;
+        in      a,(kbddta)              ;get the keyboard character
+;       
+        ld      c,a
+        call    bufost                  ;check for space available
+        call    nz,bufout               ;put it in the buffer if space available
+;
+        ld      a,resist                ;issue a reset interrupt status
+        out     (kbdcmd),a
+;
+        ld      a,-1                    ;set the return code
+        and     a
+        ret                             ;and return from interrupt
+        page
+;
+;       Keyboard Special Receive conditions
+;
+;       Because of firmware features in the Kaypro keyboard, an occasional
+;       framing error will occur when the keyboard out port is used heavily.
+;       This routine will reset the error condition caused by such an instance
+;       and repair the character which is presented to the cpu shifted
+;       one bit to the left.  This means that any 8 bit characters sent
+;       from the keyboard that display this symptom will be stripped to 7 bits.
+;
+kbspss:
+;
+        ld      a,erst                  ;issue the error reset command to the
+        out     (kbdcmd),a              ;SIO
+;
+        in      a,(kbddta)              ;get the character from the keyboard
+        rra                             ;shift the character one right
+        and     7fh                     ;reset the high bit
+        or      40h                     ;bit six was a one
+;
+        ld      c,a                     ;see if the buffer has space
+        ld      ix,kbdbuf
+        ld      e,0
+        call    bufost
+        call    nz,bufout               ;put the character in the buffer if so
+;
+        ld      a,resist                ;reset interrupt status
+        out     (kbdcmd),a
+;
+        ret                             ;and return from interrupt
+        page
+;
+;       Comm port in ISS
+;
+s1iss:
+        ld      ix,combuf               ;point to input buffer
+        ld      bc,s1oports             ;and the IO addresses
+        jr      serin
+;
+;       Printer port in ISS
+;
+s2iss:
+        ld      ix,ptrbuf               ;point to input buffer
+        ld      bc,s2oports             ;IO addresses
+        jr      serin
+;
+;       Modem port in ISS
+;
+s3iss:
+        ld      ix,modbuf               ;point to input buffer
+        ld      bc,s3oports             ;IO addresses
+        jr      serin
+        page
+;
+;       General SIO Input Handler
+;
+;       This routine is a generalized character input routine for the
+;       SIO channels.  It is assumed that the individual vector routines
+;       have set up the following parameters:
+;
+;       On entry:
+;               IX points to the input buffer data structure
+;               B contains the address of the SIO command port
+;               C contains the address of the SIO data port
+;
+;       Bit 0 of (IX + flags) indicates that XON / XOFF protocol should be
+;       used if set.  Otherwise no handshake protocol will be used.
+;
+;       On exit:
+;               No parameters returned
+;
+;
+serin:
+        in      a,(c)           ;get device status
+        and     rda             ;see if data available
+        ret     z               ;return to caller if not
+;
+        switch                  ;switch the io ports
+        ld      e,0             ;point to the input buffer
+;
+        in      a,(c)           ;read the character from the data port
+;
+        bit     0,(ix + flags)  ;check for XON/XOFF active
+        jr      z,serin2                
+;
+        cp      xon             ;if so, check for xon character from remote
+	jr	nz,serin1
+;
+	res	1,(ix + flags)	;if it is xon, reset the xmit flag
+;
+	switch			;reverse the IO addresses for output
+        call    serout          ;and kick the transmit routine
+;
+        ret                     ;then return to caller
+;
+serin1:
+        cp      xoff            ;if the character is xoff,
+        jr      nz,serin2
+;
+        set     1,(ix + flags)  ;inhibit further transmissions
+        ret                     ;and return to caller
+;
+serin2:
+        ld      d,a             ;save the character for later
+;
+        call    bufost          ;check for buffer 
+        jr      z,serin3        ;drop the chararacter if full
+;
+        push    bc              ;save the I/O addresses
+        ld      c,d             ;then put the character into the buffer
+        call    bufout
+        pop     bc              ;and get back the I/O addresses
+;
+        bit     0,(ix + flags)  ;check for input buffer xon enabled
+        jr      z,serin3        ;return to caller if not
+;
+        bit     2,(ix + flags)  ;if the receive flag is not set
+        ret     nz
+;
+        ld      a,(ix + bufmax) ;see if xoff is needed at this time
+        srl     a               ;this is sent if the buffer is at 1/2 capacity
+        cp      (ix + bufcnt)   ;if the number in the buffer is smaller
+        ret     nc              ;return to caller
+;
+        set     2,(ix + flags)  ;set the receive xoff flag and
+;
+        switch                  ;reverse the IO addresses for the output routine
+        set     3,(ix + flags)  ;signal the output routine to send xoff
+;
+        call    serout          ;send the xoff if not busy
+;
+        ret                     ;and return to caller
+serin3:
+        ld      a,-1            ;set the return status
+        and     a
+        ret                     ;and return to caller
+        page
+;
+;       Comm port out ISS
+;
+s1oss:
+        ld      ix,combuf               ;point to output buffer
+        ld      bc,s1oports             ;and IO addresses
+        jr      serout                  ;service the interrupt
+;
+;       Printer port out ISS
+;
+s2oss:
+        ld      ix,ptrbuf               ;point to output buffer
+        ld      bc,s2oports             ;IO addresses
+        jr      serout                  ;service the interrupt
+;
+;       Modem port out ISS
+;
+s3oss:
+        ld      ix,modbuf               ;point to output buffer
+        ld      bc,s3oports             ;IO addresses
+        jr      serout                  ;service the interrupt
+        page
+;
+;       General SIO output handler
+;
+;       It is assumed that the interrupt vector routines have passed
+;       the following parameters:
+;
+;       On entry:
+;               IX points to the buffer
+;               C contains the SIO command port address
+;               B contains the SIO data port address
+;
+serout:
+        ld      e,10            ;point to the output buffer
+;
+        in      a,(c)           ;get the SIO status
+        and     tbe             ;and check for tbe true
+        ret     z               ;return if not, device busy
+;
+        bit     3,(ix + flags)  ;test for xoff request
+        jr      z,sero0         ;if it is,
+;
+        switch                  ;reverse the IO port addresses
+        ld      a,xoff          ;and send xoff to remote
+        out     (c),a
+;
+        res     3,(ix + flags)  ;remove the xoff request
+        ret                     ;and return to caller
+sero0:
+        bit     4,(ix + flags)  ;test for xon request
+        jr      z,sero01        ;if it is,
+;
+        switch                  ;reverse the IO port addresses
+        ld      a,xon           ;and send xon to remote
+        out     (c),a
+;
+        res     4,(ix + flags)  ;remove the xon request
+        ret                     ;and return to caller
+;
+sero01:
+        call    bufist          ;see if the buffer is empty
+        jr      nz,sero1
+;
+        ld      a,rstint        ;reset the tbe interrupt if so
+        out     (c),a
+        ld      a,-1            ;set the return status
+        and     a
+        ret                     ;and return to caller
+sero1:
+        bit     1,(ix + flags)  ;check the xmit flag
+        jr      z,sero2
+;
+        ld      a,rstint        ;reset the tbe interrupt if so
+        out     (c),a
+        ret                     ;and return to caller
+sero2:
+        call    bufin           ;get the next character
+;
+        ld      c,b             ;load the data port address
+        out     (c),a           ;output the character
+;
+        xor     a               ;set the return status
+        ret                     ;then return to caller
+        page
+;
+;       Comm port external status ISS
+;
+s1ess:
+        ld      bc,s1oports             ;IO addresses
+        jr      seress                  ;service the interrupt
+;
+;       Printer port external status ISS
+;
+s2ess:
+        ld      bc,s2oports             ;IO addresses
+        jr      seress                  ;service the interrupt
+;
+;       Modem port external status ISS
+;
+s3ess:
+        ld      bc,s3oports             ;IO addresses
+        jr      seress                  ;service the interrupt
+kbdess:
+;
+;       Keyboard external status handler
+;
+        ld      b,kbddta
+        ld      c,kbdcmd
+        jr      seress
+        page
+;
+;       External Status Change Handler
+;
+;       On entry:
+;               B contains the data port address
+;               C contains the command port address
+;
+seress:
+        ld      a,resist                ;issue reset external status interrupts
+        out     (c),a
+;
+        ret                             ;then return to caller
+        page
+;
+;       Comm port special receive condition
+;
+s1spss:
+        ld      bc,s1oports             ;IO addresses
+        jr      sersps                  ;service the interrupt
+;
+;       Printer port special receive condition
+;
+s2spss:
+        ld      bc,s2oports             ;IO addresses
+        jr      sersps                  ;service the interrupt
+;
+;       Modem port special receive condition
+;
+s3spss:
+        ld      bc,s3oports             ;IO addresses
+        jr      sersps                  ;service the interrupt
+        page
+;
+;       Serial Special Receive Condition Handler
+;
+;       On entry:
+;               B contains the data port address
+;               C contains the control port address
+;
+sersps:
+        ld      a,erst                  ;issue an error reset
+        out     (c),a
+;
+        ret                             ;and return to caller           
+;
+;       The following modem and clock PIO service routines are
+;       provided as safety devices only
+;
+modiss:
+clkiss:
+        ret
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+kbddta  equ     05h                     ;keyboard data port address
+kbdcmd  equ     07h                     ;keyboard control port address
+ptrdta  equ     0ch                     ;serial printer data port address
+ptrcmd  equ     0eh                     ;serial printer command port address
+comdta  equ     04h                     ;serial comm data port address
+comcmd  equ     06h                     ;serial comm command port address
+modcmd  equ     0fh                     ;modem command port address
+moddta  equ     0dh                     ;modem data port address
+resist  equ     10h                     ;SIO reset interrupt status command
+erst    equ     30h                     ;error reset command
+ctlc    equ     03h                     ;control c
+xon     equ     'Q' and 1fh             ;xon character
+xoff    equ     'S' and 1fh             ;xoff character
+tbe     equ     04h                     ;transmitter buffer empty mask
+rstint  equ     28h                     ;reset tx int pending command
+rda     equ     01h                     ;receive data flag mask
+;
+s1iports equ    0604h                   ;sio channel 1 input port config
+s2iports equ    0e0ch                   ;sio channel 2 input port config
+s3iports equ    0f0dh                   ;sio channel 3 input port config
+;
+s1oports equ    0406h                   ;sio channel 1 output/control port config
+s2oports equ    0c0eh                   ;sio channel 2 output/control port config
+s3oports equ    0d0fh                   ;sio channel 3 output/control port config
+;
+        bufequ                          ;buffer equate values
+;
+        end

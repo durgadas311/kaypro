@@ -1,0 +1,312 @@
+title Pixel routines for the Kaypro 10.   (C) 1983 By NLS
+.comment %
+########################################################
+##                                                    ##
+##      KAYPRO 10 System                              ##
+##                                                    ##
+##      By M. Sherman                                 ##
+##                                                    ##
+##      Pixel routines for the Kaypro 10              ##
+##                                                    ##
+##      Copyright (C) 1983 By Non-Linear Systems, Inc ##
+##      No warranty is made, expressed or implied.    ##
+##                                                    ##
+########################################################
+##      Date: 04/14/83                    [01]        ##
+########################################################
+
+        last update:    29-Mar-83
+        -modified to run as an independent module
+          (previously used some routines in the
+           video driver)
+
+        current revision:       2.0     29-Mar-83
+         (cleanup, final prep. for prelim. release)
+        last revision:          1.0     02-Jan-83
+
+%
+
+; external variables:
+;
+extrn   row, col, esccmd, vrbase, onoff, newc, pix, saddr, vatt
+
+; public routines
+;
+public  $pixon, $pixoff, $pixel, $pixde
+
+page
+.comment %
+SPECIFICATIONS:
+        1) Using the screen as a 100 by 160 pixel matrix, this program
+is to turn individual pixels in the matrix on and off.
+        2) Normal ASCII characters (ASCII codes 0 to 127H) are not to
+be written over by graphics characters, with the exception of SPACE,
+or BLANK, characters. (ASCII code 20h)
+        3) Pixels are numbered from 0 to 99 vertically and from
+0 to 159 hrizontally, with 0,0 being the upper left corner of the
+screen and 99,159 being the lower right corner of the screen.
+        4) An offset is added to each pixel coordinate, said offset
+typically the same as that used to send cursor addressing coordinates,
+the points for the line routines, etc.
+        5) Pixels with Illegal point coordinates (off screen) are ignored.
+        6) The pixels are arranged in 4 by 2 cells, and the cells arranged
+in a 25 by 80 grid to make up the screen.
+        _____
+        |1|0|
+        |3|2|
+        |5|4|
+        |7|6|
+        -----
+%
+page
+
+; Equates table
+
+MAXROW  EQU     100     ; maximum row number
+MAXCOL  EQU     160     ; maximum column number
+SETRVID EQU     01H     ; set reverse video mask
+RVBIT   EQU     01H     ; set reverse video bit.
+REVCLR  EQU     0FEH    ;  clear reverse video
+LINSIZ  EQU     80      ; characters per line
+SPACE   EQU     20H     ; ASCII SPACE character
+offset  equ     space
+
+; for the video drivers:
+
+strcmd  equ     1fh     ; strobe register
+vcdata  equ     1fh     ; register data I/O port
+rwcmd   equ     121ch   ; low address register, register select port
+
+.Z80
+
+; PIXON sets the pixel on switch, then joins the main routine.
+; Entry parameters:     row:=row (binary, 0 to 99)+offset,
+;                       col:=column (binary, 0 to 159)+offset.
+; Exit parameters:      All registers affected.
+;
+$PIXON: ld      a,0             ; 0=pixel ON switch,
+        ld      (ONOFF),a       ; set pixel function to ON.
+        jr      $PIXEL          ; (main routine)
+
+; PIXOFF sets the pixel off switch, then joins the main routine.
+; Entry parameters:     Same as PIXON.
+; Exit parameters:      Same as PIXON.
+;
+$PIXOFF:ld      a,0ffh          ; NOT 0=pixel OFF switch,
+        ld      (ONOFF),a       ; set pixel function to OFF.
+
+; PIXEL locates the character in screen memory,
+; locates the pixel within the character to be modified,
+; and turns it ON or OFF according to the condition of the ONOFF switch,
+; IF IT IS LEGAL TO DO SO.  ASCII characters cannot be written over,
+; with the exception of SPACE, or BLANK, characters (ASCII code 20h).
+;
+; Entry parameters:     D:=row count (0 to 99)+offset
+;                       E:=column count (0 to 159)+offset
+; Exit parameters:      All registers affected.
+;
+$PIXEL: ld      a,(col)
+        sub     offset
+        ld      e,a             ; column count in e
+        ld      a,(row)
+        sub     offset
+        ld      d,a             ; row count in d
+
+; PIXDE is a routine that expects to find the point coordinates
+; (plus the offset) already in DE. ( Called by LINE )
+;
+$PIXDE: ld      a,d             ; get row count
+        cp      maxrow
+        ret     nc              ; illegal, exit
+        and     03h
+        ld      b,a             ; pixel-in-box row count
+        ld      a,d
+        rra
+        rra
+        and     03fh
+        ld      d,a             ; D:=chara row count.
+        ld      a,e             ; column count
+        cp      maxcol
+        ret     nc              ; illegal, exit
+        rrca
+        ld      e,a
+        ld      a,01            ; bit 0=1 (odd row count)
+        jr      c,PIX2          ; or
+        add     a,a             ; bit 1=1 (even row count)
+PIX2:   inc     b
+        dec     b
+        jr      z,PIX4
+PIX3:   add     a,a
+        add     a,a
+        dec     b
+        jr      nz,PIX3
+PIX4:   ld      (PIX),a         ; pixel to set in a
+        ld      a,e
+        and     7fh
+        ld      e,a
+        ld      hl,(vrbase)     ; start screen addr
+        ld      b,d
+        ld      c,e
+        ld      de,LINSIZ       ; characters per line
+        inc     b
+        jr      PIX6
+PIX5:   add     hl,de
+PIX6:   djnz    PIX5
+        ld      d,0
+        ld      e,c
+        add     hl,de
+        ld      a,h
+        and     07h             ; 2K page wrap around
+        ld      d,a
+        ld      e,l
+        ld      (SADDR),de
+        call    GETC            ; EXTERNAL, data returned in a
+        or      a
+        jp      m,PIX7          ; already a graphics character
+        cp      SPACE           ; is it a SPACE?
+        ret     nz              ; no, can't write over it, exit
+        ld      a,80h           ; was a space, now a blank graphics
+PIX7:   ld      (NEWC),a                ; b holds prev. chara.
+        ld      a,(PIX)
+        or      a
+        jp      p,PIX8          ; not bit 7, go elsewhere
+        ld      de,(SADDR)
+        call    GETATT
+        ld      (esccmd),a
+        and     SETRVID
+        jr      z,PXA1          ; bit 7, rev vid not set
+; bit 7, rev video set
+        ld      a,(ONOFF)
+        or      a
+        ret     z               ; set function, rev. vid. already set
+        ld      a,(esccmd)      ; else is clear function,
+        and     REVCLR          ; clear reverse video
+        ld      de,(SADDR)
+        call    PUTATT
+        ld      a,(NEWC)
+        cpl
+        jr      PIXST
+
+; reverse video not set, either setting or exiting.
+
+PXA1:   ld      a,(ONOFF)
+        or      a
+        ret     nz              ; not set, no need to clear it, exit.
+        ld      a,(esccmd)
+        or      RVBIT           ; set reverse video
+        call    PUTATT
+        ld      a,(NEWC)
+        cpl
+        jr      PIXST
+
+PIX8:   ld      de,(SADDR)
+        call    GETATT
+        and     SETRVID         ; reverse video mask
+        jr      nz,PIX9         ; reverse video not set
+        ld      a,(ONOFF)
+        or      a
+        jr      z,PIX8A
+        ld      a,(PIX)
+        cpl
+        ld      b,a
+        ld      a,(NEWC)
+        and     b
+        jr      PIXST
+
+PIX8A:  ld      a,(NEWC)
+        ld      b,a
+        ld      a,(PIX)
+        or      b
+PIXST:  or      80h
+        ld      de,(SADDR)
+        call    PUTC
+        ret
+
+PIX9:   ld      a,(ONOFF)
+        or      a
+        jr      z,PIX9A
+        ld      a,(PIX)
+        ld      b,a
+        ld      a,(NEWC)
+        or      b               ; setting bit in rev vid is same as clearing it
+        jr      PIXST           ; in normal video
+
+PIX9A:  ld      a,(PIX)
+        cpl
+        ld      b,a
+        ld      a,(NEWC)
+        and     b               ; clearing in rev vid same as setting in normal
+        jr      PIXST
+
+; get a character from the video display ram,
+; address in de
+;
+getc:   ld      a,d     ; qualify address
+        and     07h
+        ld      d,a
+getc2:  call    dtwait
+        in      a,(vcdata)
+        ret
+
+; put a character into the video display ram,
+; address in de
+;
+putc:   push    af
+        ld      a,d
+        and     07h
+        ld      d,a
+putc2:  call    dtwait
+        pop     af
+        out     (vcdata),a
+        ret
+
+dtwait: ld      bc,rwcmd
+rgwait: call    regrst
+        dec     c
+        ld      a,strcmd
+        out     (c),a
+rgwt2:  in      a,(c)
+        or      a
+        jp      p,rgwt2
+        ret
+
+regrst: out     (c),b
+        inc     c
+        out     (c),d
+        dec     c
+        inc     b
+        out     (c),b
+        inc     c
+        out     (c),e
+        ret
+
+puta:   ld      a,(vatt)
+putatt: push    hl
+        push    af
+        call    addatt
+        call    dtwait
+        pop     af
+        out     (vcdata),a
+        ex      de,hl
+        pop     hl
+        ret
+
+getatt: push    hl
+        call    addatt
+        call    getc2
+        ex      de,hl
+        pop     hl
+        ret
+
+addatt: ld      hl,0801h
+        add     hl,de
+        ld      a,h
+        and     07h
+        or      08h
+        ld      h,a
+        ex      de,hl
+        ret
+
+        defw    0000h           ; for L80 to munch on
+
+	end

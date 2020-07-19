@@ -1,0 +1,523 @@
+        title   WINIO:  Winchester Disk Drivers
+        .z80
+        cseg
+        include macro.lib
+;
+        entry   winrest,winpsel,winread,setup,winerror
+        entry   winwrite,stepin,stepout,winoff,timer
+;
+        extrn   hstflg,curunit,sektab,pdma      ;select, select, select, flpyio
+        extrn   hsttab,disktime,seksec,hstsec   ;select, lrw, select, select
+        extrn   errstat
+;
+        cpyrit
+;
+;       WD 1002 interface routines.
+;
+;       Written by:     T. Hayes
+;
+;       These routines provide the physical interface between the system
+;       and the WD 1002 winchester controller.
+;
+winrest:
+;
+;       Reset and restore the winchester disk
+;
+;       On entry:
+;               B contains the configuration byte of the drive to be accessed
+;
+;       On exit:
+;               A and B contain the configuration byte altered as follows:
+;                       Bits 2 and 3 will be set if the drive is off line
+;                       or reset if the controller is ready
+;
+;
+        in      a,(bitport)             ;first issue a controller reset
+        set     wres,a
+        out     (bitport),a
+        push    af
+;
+        ld      h,1                     ;hold reset for > 50 ms
+        ld      de,0
+winrest1:
+        call    timer
+        jr      nz,winrest1
+        pop     af
+;
+        res     wres,a                  ;select controller
+        out     (bitport),a
+;
+        ld      h,3
+        ld      de,6000h
+winrest11:
+        in      a,(winstat)             ;Check busy 
+        bit     busy,a                  ;
+        jr      z,winrest3              ;go on if not busy
+;       
+        call    timer                   ;else count down
+        jr      nz,winrest11 
+;
+winrest2:
+        ld      a,b                     ;set the drive to off line
+        or      offline
+        ld      b,a
+        ret                             ;and return that status to caller
+winrest3:
+        in      a,(winerr)              ;check for diagnostic errors
+        cp      1                       ;if 2797 error
+        jr      z,winrest31             ;ignore it
+;
+        and     a                       ;believe all others
+        jr      nz,winrest2             ;abort if an error shown
+;       
+winrest31:
+        push    ix                      ;save the user ix
+        ld      ix,zero-4               ;and point to a byte of 00h - fake the head
+        call    winpsel
+        pop     ix                      ;restore the user ix
+;
+        call    winrdy                  ;ready wait
+        jr      nz,winrest32
+        call    winrdy                  ;wait for device ready
+        jr      z,winrest2              ;abort if timed out
+;
+winrest32:
+        ld      a,rstcmd                ;issue the restore command
+        out     (wincmd),a
+;
+        call    winbusy                 ;wait for not busy
+        jr      z,winrest2              ;abort if timed out
+;
+        in      a,(winstat)             ;get device status
+;
+        bit     error,a                 ;if there was an error
+        jr      nz,winrest2             ;abort
+winrest6:
+        ld      a,b                     ;drive is selected and on line
+        and     not offline
+        ld      b,a
+        ret                             ;return that status to caller
+        page
+winread:
+;
+;       1002 read sector routine
+;
+;       On entry:
+;               sektab contains the parameters for the sector to read
+;
+;       On exit:
+;               a = 0 if read completed correctly and (pbuf) will contain
+;                     the data from the requested sector.
+;               a != 0 if an error occured
+;
+;
+        ld      a,(hstflg)              ;default to valid,clean buffer
+        set     0,a
+        res     1,a
+        ld      (hstflg),a
+;
+        ld      a,(curunit)             ;pick up the configuration byte
+        ld      b,a
+;
+        ld      a,4                     ;set up for 4 retries
+        ld      (retry),a
+;
+        push    ix                      ;save the user ix
+winread1:
+        ld      ix,sektab               ;point to the parameter table
+        call    setup                   ;and do the task registers
+        jr      z,winread4              ;abort on ready timeout
+;
+        ld      a,rdcmd                 ;issue the read commadn
+        out     (wincmd),a
+;
+        call    winbusy                 ;wait for not busy
+        jr      z,winread4              ;abort if timed out
+;
+        in      a,(winstat)             ;get status
+;
+        bit     error,a                 ;if error
+        jr      nz,winread4
+;
+        bit     drq,a                   ;if no data request
+        jr      z,winread4              ;there is an error condition
+;
+        pop     ix                      ;restore the user ix
+;
+        ld      hl,(pdma)               ;else get the dma location
+        ld      c,windta                ;the data port address
+        ld      b,0                     ;and set up the count
+;
+        inir                            ;input the sector
+        inir
+;
+        ld      hl,sektab               ;update the host buffer
+        ld      de,hsttab               ;table entries
+        ld      bc,7
+        ldir
+;       
+        ld      a,0                     ;signal good error status
+        and     a
+        ret
+winread4:
+        ld      a,(retry)               ;see if the retry counter is zero
+        dec     a
+        ld      (retry),a
+;
+        jr      nz,winread5
+;
+        pop     ix                      ;if it is, restore the user ix
+;
+        ld      a,(hstflg)              ;invalidate the buffer
+        and     0fch
+        ld      (hstflg),a
+;
+        in      a,(winerr)              ;report error status
+        saverr  11
+;
+        ld      a,1                     ;and return an error condition
+        ret
+winread5:
+        call    winerror                ;do error processing
+        jr      winread1                ;and try again
+        page
+winwrite:
+;
+;       1002 write sector routine
+;
+;       On entry:
+;               hsttab contains the parameters for the sector to write
+;
+;       On exit:
+;               a = 0 if read completed correctly and (pbuf) will contain
+;                     the data from the requested sector.
+;               a != 0 if an error occured
+;
+;
+        ld      a,(hstflg)              ;default to valid,clean buffer
+        set     0,a
+        res     1,a
+        ld      (hstflg),a
+;
+        ld      a,(curunit)             ;pick up the configuration byte
+        ld      b,a
+;
+        ld      a,4                     ;set up for 4 retries
+        ld      (retry),a
+;
+        push    ix                      ;save the user ix
+winwrit1:
+        ld      ix,hsttab               ;point to the parameter table
+        call    setup                   ;and do the task registers
+        jr      z,winwrit4              ;abort on ready timeout
+;
+        ld      a,wrcmd                 ;issue the write command
+        out     (wincmd),a
+;
+        ld      de,0                    ;set up a dead man's counter
+        ld      h,3
+winwrit2:
+        in      a,(winstat)             ;get the device status
+        bit     drq,a                   ;wait for data request
+        jr      nz,winwrit3
+;
+        call    timer                   ;do a timer tick
+        jr      nz,winwrit2             ;and go back if more
+winwrit3:
+        ld      hl,(pdma)               ;output the data to the controller
+        ld      c,windta
+        ld      b,0
+        otir
+        otir
+;
+        call    winbusy                 ;wait for completion
+        jr      z,winwrit4              ;if it timed out - error
+;
+        in      a,(winstat)             ;get device status
+        bit     error,a                 ;check for errors
+        jr      nz,winwrit4
+;
+        pop     ix                      ;restore the user ix
+;
+        xor     a                       ;signal good error status
+        ret
+winwrit4:
+        ld      a,(retry)               ;see if the retry counter is zero
+        dec     a
+        ld      (retry),a
+;
+        jr      nz,winwrit5
+;
+        pop     ix                      ;if it is, restore the user ix
+;
+        ld      a,(hstflg)              ;invalidate the buffer
+        and     0fch
+        ld      (hstflg),a
+;
+        in      a,(winerr)              ;report the error
+        saverr  12
+;
+        ld      a,1                     ;and return an error condition
+        ret
+winwrit5:
+        call    winerror                ;do error processing
+        jr      winwrit1                ;and try again
+        page
+winerror:
+;
+;       Process a read or write error.
+;
+;       On entry:
+;               ix points to the requested sector table
+;               b contains the configuration byte
+;
+;       On each entry into this routine, the system will first check
+;       for an id not found error.  If this is the case, a full restore
+;       will be executed.  This is because there are certain occasions
+;       when the controller gets confused and must be completely reset.
+;       If the error is not an nid, the heads will be stepped out one cylinder
+;       and back again unless the head is over cylinder 0000h.  In that
+;       case, the heads will be stepped in and back out.
+;
+        in      a,(winerr)              ;check for nid error
+        bit     nid,a
+        jr      nz,winerror1
+;
+        call    winrest                 ;do a restore if this is the case
+;
+        ret                             ;and return to caller
+winerror1:
+        in      a,(winlsb)              ;get the cylinder lsb
+        ld      l,a
+        in      a,(winmsb)              ;and the cylinder msb
+        ld      h,a                     ;save this half
+        or      l                       ;if it is cylinder 0
+        jr      z,winerror2
+;
+        call    stepout                 ;wait for completion - if error
+        ret     nz                      ;then return to caller
+;
+        call    stepin                  ;step back in
+        ret                             ;then return to caller
+winerror2:
+        call    stepin                  ;step in 1 cylinder
+        ret     nz
+;
+        call    stepout                 ;and step back out
+        ret
+        page
+stepout:
+        dec     hl                      ;decrement the cylinder number
+        ld      a,l                     ;give that one to the controller
+        out     (winlsb),a
+        ld      a,h
+        out     (winmsb),a
+;
+        call    stepcmd                 ;issue the seek command and get status
+        ret
+stepin:
+        inc     hl                      ;then step back in
+        ld      a,l                     ;issue the track number
+        out     (winlsb),a
+        ld      a,h
+        out     (winmsb),a
+;
+        call    stepcmd                 ;issue the seek command and get status
+        ret
+;
+stepcmd:
+        ld      a,seekcmd               ;issue the seek command
+        out     (wincmd),a
+;
+        call    winbusy                 ;wait for not busy
+;
+        bit     error,a                 ;set error status
+        push    hl                      ;save the cylinder
+        call    z,winrest               ;restore if there was a seek error
+        pop     hl                      ;restore the cylinder
+        ret                             ;and return to caller
+        page
+winpsel:
+;
+;       WD 1002 physical select routine
+;
+        ld      a,b                     ;get the config byte
+        and     uidmsk                  ;isolate the physical unit number
+;
+        add     a,a                     ;shift that left 3
+        add     a,a
+        add     a,a
+        or      wincfg                  ;select ecc and sector size options
+        or      (ix + head)             ;and put in the head select
+;
+        out     (winsdh),a              ;and issue the select
+        ret                             ;return to caller
+        page
+timer:
+;
+;       General down counter routine
+;
+;       On entry:
+;               HDE are a 24 bit counter
+;       On exit:
+;               The counter will have been decremented
+;               zero is set if the counter is done
+;               zero is reset if the counter is not at 000000h
+;
+;       Typical timings are 25 t states in the loop with an additional
+;       overhead of 29 t states in the calling routine.  This assumes
+;       that the calling routine is using a call xxx and jr nz,xxxx.
+;       This gives a time of 13.5 usec for each iteration of the loop.
+;       Times when de goes 0 will be marginally longer but should not
+;       be significant.
+;
+        dec     de
+        ld      a,d
+        or      e
+        ret     nz
+        dec     h
+        ret
+        page
+setup:
+;
+;       Set up the task register file for the next read or write
+;       operation then issue the command
+;
+;       On entry:
+;               b contains the configuration byte
+;               c contains the command
+;               ix points to the parameter list
+;
+        push    bc                      ;save the command and config byte
+        call    winpsel                 ;and select the drive
+        pop     bc
+;
+        call    winrdy                  ;wait for device ready
+        ret     z                       ;return if error
+;
+        ld      a,pcmpcyl               ;set up for precomp
+        out     (winpcmp),a
+;
+        ld      a,1                     ;these are all single sector reads
+        out     (winsc),a
+;
+        ld      a,(ix + secno)          ;the sector number
+        out     (winsec),a
+;
+        ld      a,(ix + cyl)            ;and the cylinder
+        out     (winlsb),a
+        ld      a,(ix + cyl + 1)
+        out     (winmsb),a
+;
+        ld      a,1                     ;reset the zero flag
+        and     a
+        ret                             ;return to caller
+        page
+winoff:
+;
+;       If the 1002 is not at 305, seek track
+;       305 then select physical unit 3. It is assumed that
+;       the host buffer has been flushed.
+;
+        in      a,(winlsb)              ;see if the drive is at 305 already
+        cp      31h
+        jr      nz,winoff1
+        in      a,(winmsb)
+        cp      01h
+        jr      z,winoff2
+winoff1:
+;
+        ld      a,01h
+        out     (winmsb),a
+        ld      a,31h
+        out     (winlsb),a
+;
+        ld      a,seekcmd               ;now issue a seek to that cylinder
+        out     (wincmd),a
+;
+        ld      a,30                    ;set the down counter
+        ld      (disktime),a
+;
+        ret                             ;return to caller
+winoff2:        
+        ld      a,nosel                 ;now deselect the drive
+        out     (winsdh),a
+;
+        ret                             ;and return to caller
+        page
+winrdy:
+;
+;       Wait for device ready
+;
+        ld      h,5
+        ld      de,0
+winrdy1:
+        in      a,(winstat)             ;check for ready
+        bit     ready,a
+        ret     nz                      ;return if it is
+;
+        call    timer                   ;else count down
+        ret     z                       ;return if timed out
+        jr      winrdy1                 ;else try again
+;
+;
+winbusy:
+;
+;       Wait for device not busy
+;
+        ld      h,7                     ;set up dead man counter
+        ld      de,0    
+winbusy1:
+        in      a,(winstat)             ;get status
+        cpl
+        bit     busy,a                  ;if not busy
+        ret     nz                      ;return
+        call    timer                   ;else count down
+        ret     z                       ;and return if timed out
+        jr      winbusy1
+        page
+;       *********************************************************
+;       *                                                       *
+;       *       D a t a     D e f i n i t i o n s               *
+;       *                                                       *
+;       *********************************************************
+;
+bitport equ     14h                     ;system control port
+windta  equ     80h                     ;1002 data port
+winpcmp equ     81h                     ;1002 precomp port
+winerr  equ     81h                     ;1002 error port
+winsc   equ     82h                     ;1002 sector count port
+winsec  equ     83h                     ;1002 sector number port
+winlsb  equ     84h                     ;1002 lsb of cylinder port
+winmsb  equ     85h                     ;1002 msb of cylinder port
+winsdh  equ     86h                     ;1002 size/drive/head port
+winstat equ     87h                     ;1002 status port
+wincmd  equ     87h                     ;1002 command port
+;
+rstcmd  equ     10h                     ;1002 restore command
+seekcmd equ     70h                     ;1002 seek command
+rdcmd   equ     20h                     ;1002 read command
+wrcmd   equ     30h                     ;1002 write command
+;
+wres    equ     01h                     ;bit number of 1002 reset control 
+offline equ     0ch                     ;off line status
+uidmsk  equ     03h                     ;unit number mask
+wincfg  equ     0a0h                    ;ecc and sector size bits
+busy    equ     07h                     ;bit number of 1002 busy bit
+error   equ     00h                     ;bit number of 1002 error bit
+drq     equ     03h                     ;bit number of 1002 data request
+nid     equ     04h                     ;bit number of 1002 no id status bit
+seek    equ     04h                     ;bit number of 1002 seek complete status
+pcmpcyl equ     306/2                   ;starting precomp cylinder number
+ready   equ     06h                     ;bit number of 1002 ready bit
+nosel   equ     0b8h                    ;winchester de-select
+;
+cyl     equ     00h                     ;displacement to cylinder number
+secno   equ     02h                     ;displacement to sector number
+head    equ     04h                     ;displacement to head number
+;
+zero:   db      0                       ;a byte of zero
+;
+        dseg
+retry:  ds      1                       ;retry counter
+        end

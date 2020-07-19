@@ -1,0 +1,156 @@
+TITLE DRAW
+	.z80
+	cseg
+	entry	draw
+;
+;	Line drawing routines
+;
+;	On entry:
+;		IX points to a set of line drawing commands of the folowing format:
+;
+;		cmd	params		def
+;
+;		00	x1 y1 x2	Draw a horizontal line from position
+;					x1, y1 to x2, y1
+;
+;		01	x1 y1 y2	Draw a vertical line from position 
+;					x1, y1 to x1, y2
+;
+;		02	x1 y1 xx	Display character xx at position 
+;					x1, y1
+;
+;		ff			End of command string
+;
+;
+draw:
+	ld	a,(ix + 0)		;load the op code
+;
+	cp	00			;if horizontal
+	jp	z,hline
+;
+	cp	01			;if vertical
+	jp	z,vline
+;
+	cp	02			;if display character
+	jp	z,dchar
+;
+	ret				;it must be end of string
+	page
+hline:
+;
+;	Display a horizontal line
+;
+	ld	a,(ix + x1)		;save the starting position
+	ld	(pos),a
+;
+hline1:
+	ld	e,esc			;display an escape = sequence
+	call	cout
+	ld	e,'='
+	call	cout
+;
+	ld	e,(ix + y1)		;then the y position
+	call	cout
+;
+	ld	a,(pos)			;then the x position
+	ld	e,a
+	call	cout
+;
+	ld	e,horlin		;then the character
+	call	cout
+;
+	ld	a,(pos)			
+	cp	(ix + x2)		;check for end of line
+	jp	z,hline2
+;
+	inc	a			;else increment the position
+	ld	(pos),a
+	jp	hline1			;and do it again
+hline2:
+	ld	de,4			;point to the next op code
+	add	ix,de
+	jp	draw
+	page
+vline:
+;
+;	Display a horizontal line
+;
+	ld	a,(ix + y1)		;save the starting position
+	ld	(pos),a
+;
+vline1:
+	ld	e,esc			;display an escape = sequence
+	call	cout
+	ld	e,'='
+	call	cout
+;
+	ld	a,(pos)
+	ld	e,a			;then the y position
+	call	cout
+;
+	ld	e,(ix + x1)		;then the x position
+	call	cout
+;
+	ld	e,verlin		;then the character
+	call	cout
+;
+	ld	a,(pos)			
+	cp	(ix + y2)		;check for end of line
+	jp	z,vline2
+;
+	inc	a			;else increment the position
+	ld	(pos),a
+	jp	vline1			;and do it again
+vline2:
+	ld	de,4			;point to the next op code
+	add	ix,de
+	jp	draw
+	page
+dchar:
+;
+;	Display a character at position x y
+;
+	ld	e,esc			;display esc =
+	call	cout
+	ld	e,'='
+	call	cout
+;
+	ld	e,(ix + y1)		;then y
+	call	cout
+;
+	ld	e,(ix + x1)		;then x
+	call	cout
+;
+	ld	e,(ix + chr)		;then the character
+	call	cout
+;
+	ld	de,4			;point to the next op code
+	add	ix,de
+	jp	draw
+	page
+cout:
+;
+;	display the character in E
+;
+	ld	c,6
+	call	5
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+x1	equ	1		;x1 displacement
+x2	equ	3		;x2 displacement
+y1	equ	2		;y1 displacement
+y2	equ	3		;y2 displacement
+chr	equ	3		;character displacement
+;
+esc	equ	1bh
+horlin	equ	0b0h		;horizontal line character
+verlin	equ	0d5h		;vertical line character
+;
+pos:	db	0		;working storage
+	end

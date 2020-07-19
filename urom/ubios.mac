@@ -1,0 +1,369 @@
+	.z80
+	cseg
+	include	macro.lib
+;
+	entry	bios,cstack,tstack,bioset,biortn
+	entry	tstack
+	entry	goccp
+;
+	extrn	defiob,xrom,devtab,kbdtab,kbdot,intstat,cboot
+;
+	cpyrit
+;
+;	CP/M BIOS Jump Table
+;
+;	Written by:	T. Hayes
+;
+bios:
+	jp	cboot		; arrive here from cold start
+	jp	wboot		; arrive here for warm start
+	jp	const		; console status return in A FF=ready, 00=not
+	jp	conin		; console char in
+	jp	conout		; console char out
+	jp	list		; listing char out
+	jp	punch		; punch char out
+	jp	reader		; reader char in
+	jp	home		; move to track 0 on selected disk drive
+	jp	seldsk		; select disk drive
+	jp	settrk		; set track #
+	jp	setsec		; set sector #
+	jp	setdma		; set DMA address
+	jp	read		; read selected sector
+	jp	write		; write selected sector
+	jp	listst		; list status (Ready to print a char)
+	jp	sectran		; sector translate
+;
+curpatch:
+	db	0,0,0,0		;safety for old programs to patch cursor keys
+; 
+	jp	xcall		; extended ROM calls
+	dw	defiob-bios	;displacement to initialization tables
+	jp	duser		;display current user number
+	jp	open0		;open a command file in user 0 - ccp function
+	jp	ccprd		;perform the next ccp read function
+	page
+;
+;	BIOS Entry Routines
+;
+;	These routines set up a temporary stack and call the appropriate 
+;	ROM routines using XROM. During this process the contents of
+;	A, HL and DE are vulnerable.  All other registers are passed through
+;	to the called routine.  Whether or not the contents of registers are
+;	modified on exit is up to the called routine.
+;
+;	Console Status
+;
+const:
+	call	counter		;count down the deselect timer
+	biocal	cstvec
+;
+;	Console In
+;
+conin:
+	call	const		;wait here for ready
+	and	a
+	jr	z,conin
+;
+	biocal	cinvec
+;
+;	Console Out
+;
+conout:
+	push	bc
+	call	counter		;count down the deselect timer
+	pop	bc
+	biocal	cotvec
+;
+;	List Out
+;
+list:
+	push	bc
+	call	counter		;count down the deselect timer
+	pop	bc	
+	biocal	lstvec
+;
+;	Punch Out
+;
+punch:
+	push	bc
+	call	counter		;count down the deselect timer
+	pop	bc
+	biocal	punvec
+;
+;	Reader In
+;
+reader:
+	call	counter		;count down the deselect timer
+	biocal	rdrvec
+;
+;	Home Drive
+;
+home:
+	biocal	homvec
+;
+;	Select Drive
+;
+seldsk:
+	biocal	selvec
+;
+;	Set Track
+;
+settrk:
+	biocal	trkvec
+;
+;	Set Sector
+;
+setsec:
+	biocal	secvec
+;
+;	Set DMA Address
+;
+setdma:
+	biocal	dmavec
+;
+;	Read Sector
+;
+read:
+	call	settime		;set the disk deselect timer
+	biocal	rdvec
+;
+;	Write Sector
+;
+write:
+	call	settime		;set the disk deselect timer
+	biocal	wrvec
+;
+;	List Device Status
+;
+listst:
+	biocal	lstavec
+;
+;	Sector Translation
+;
+sectran:
+	biocal	trnvec
+;
+;	Extended Rom Call
+;
+xcall:
+	ld	a,d
+	ld	(xcaldat),a
+	call	bioset
+xcaldat:
+	db	0	
+;
+settime:
+;
+;	Set the disk deselect timer
+;
+;
+	ld	hl,2800h		;approx 5 sec wait at ccp
+	ld	(dtime),hl
+	ld	hl,800h			;1 sec after for winch deselect
+	ld	(whome),hl
+	ret
+counter:
+;
+;	Count down the deselect timer and deselect if it goes zero
+;
+	ld	a,(intstat)		;see if this system is running interrupts
+	and	a
+	ret	z			;return to caller if so
+;
+	ld	hl,(dtime)
+	ld	a,h
+	or	l
+	ret	z
+	dec	hl
+	ld	(dtime),hl
+	ld	a,h
+	or	l
+	ret	nz
+	ld	hl,(whome)
+	ld	(dtime),hl
+	ld	hl,0
+	ld	(whome),hl
+	biocal	dsel
+;
+;	Display ccp user number
+;
+duser:
+	biocal	usrvec
+;
+;	Attempt to open the current ccp command file in user 0
+;
+open0:
+	call	getusr
+	ld	(curuser),a
+	ld	(fcbuser),a
+	ld	de,comfcb
+	ld	c,openf		; open a file (check user 0 if not found)
+	call	bdos
+	ld	(ccperr),a
+	inc	a
+	ret	nz		; nz=file opened
+	ld	a,(curuser)	; get current user #
+	or	a
+	jr	z,nogd		; in user 0, file open no good
+	xor	a
+	ld	(fcbuser),a	; try user 0
+	call	setusr
+	ld	de,comfcb	; try to open file
+	ld	c,openf
+	call	bdos
+	ld	(ccperr),a	; ccp error return
+	ld	a,(curuser)
+	call	setusr		;restore user #
+nogd:
+	ld	a,(ccperr)	; was open ok?
+	inc	a
+	ret			; back to ccp
+ccprd:
+	ld	a,(fcbuser)
+	call	setusr		; read a sector
+	ld	de,comfcb
+	call	ccpread
+	push	af
+	ld	a,(curuser)
+	call	setusr
+	pop	af
+	ret
+setusr:
+	ld	e,a
+setusr1:
+	ld	c,32
+	jp	bdos
+getusr:
+	ld	e,-1
+	jr	setusr1
+	page
+;
+;	System Warm Boot Routine
+;
+;	Reload the CCP and BDOS, and enter the CPP.
+;
+wboot:
+	ld	sp,tstack	;set a high ram stack
+;
+	ld	hl,0		;ensure that the safety bytes are null
+	ld	(curpatch),hl
+	ld	(curpatch + 2),hl
+;
+	ld	d,sysld		;load the system
+	call	xrom
+;
+	ld	de,3		;enter ccp with a command line clear
+goccp:
+	ld	a,0c3h		;set up the low RAM vectors
+	ld	(0000h),a	;for BIOS
+	ld	(0005h),a	;and BDOS
+;
+	ld	hl,bios+3	;now the addresses
+	ld	(0001h),hl
+	ld	hl,bdos
+	ld	(0006h),hl
+;
+	ld	hl,defdsk
+	ld	a,(hl)		;check for valid disk on last operation
+	and	0fh
+	cp	maxdisk		;if larger than the highest possible
+	ld	a,(hl)		;get a new copy in case
+	jp	c,goccp1
+;
+	xor	a		;set to drive 0
+goccp1:
+	ld	(hl),a
+;
+	ld	c,a		;pass the drive value to ccp
+;
+	ld	sp,100h		;set the system stack
+;
+	ld	hl,ccp		;compute the correct ccp entry address
+	add	hl,de
+;
+	jp	(hl)		;enter ccp
+	page
+;
+;	Set a temporary stack for BIOS operations and set the address path
+;	for subsequent operations
+;
+bioset:
+	pop	hl		;retrieve the data address
+	ld	d,(hl)		;load the vector number
+;
+	ld	(cstack),sp	;save the user stack pointer
+	ld	sp,tstack	;set the stack to the temp stack
+;
+	ld	hl,biortn	;now set up the processing path
+	push	hl		;last op is restore the stack
+;
+	jp	xrom		;do the rom call
+;
+;	Restore the user stack and return
+;
+biortn:
+	ld	sp,(cstack)	;get the user stack
+	ei			;re-enable interrupts - just in case...
+	ret			;and return to caller
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+;	Extended ROM call routine numbers
+;
+cstvec	equ	25		;console status
+cinvec	equ	26		;console in
+cotvec	equ	27		;console out
+lstvec	equ	28		;list out
+punvec	equ	29		;punch out
+rdrvec	equ	30		;reader in
+homvec	equ	31		;home disk drive
+selvec	equ	32		;select drive
+trkvec	equ	33		;set track
+secvec	equ	34		;set sector
+dmavec	equ	35		;set dma
+rdvec	equ	36		;read sector
+wrvec	equ	37		;write sector
+lstavec	equ	38		;list status
+trnvec	equ	39		;sector translate
+sysld	equ	41		;reload ccp & bdos
+usrvec	equ	48		;display ccp user number
+opnvec	equ	49		;ccp open a file in user 0 function
+dsel	equ	52		;disk drive deselect
+;
+;
+;	General equates
+;
+defdsk	equ	0004h		;low ram location for default drive number
+iobyte	equ	0003h		;io byte location
+maxdisk	equ	03		;maximum number of drives allowed
+;
+ccp	equ	bios-1600h	;ccp entry
+bdos	equ	ccp+806h	;bdos entry	
+comfcb	equ	ccp+7cdh	;location of ccp command file fcb
+bitport	equ	14h		;system control port
+openf	equ	15		; open disk function
+ccperr	equ	ccp+7EEH	;ccp open error flag location
+ccpread	equ	ccp+0F9H	;ccp read sector routine
+;
+;	Storage locations
+;
+	dseg
+curuser:db	0	; current user
+fcbuser:db	0	; user # of load file
+;
+dtime:	dw	0		;disk deselect counter
+whome:	dw	0		;winchester lag counter
+cstack:
+	dw	0		;user stack pointer storage
+savstk:
+	dw	0		;cp/m stack pointer storage
+;
+	ds	80		;temp stack
+tstack	equ	$
+	ds	20		;temp stack for ccp work
+ccpstk	equ	$
+	end

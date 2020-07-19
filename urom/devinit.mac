@@ -1,0 +1,292 @@
+	title	DEVINIT:  Character I/O Device Initialization
+	.z80	
+	include	macro.lib
+	cseg
+	entry	devinit,combuf,ptrbuf,modbuf
+	entry	kbdbuf
+	entry	getdev,loddev
+	entry	intstat
+	entry	ldbufs
+;
+	extrn	kbdoss,xfer		;iss,diskinit
+;
+	cpyrit
+;
+;	Character I/O device initialization
+;
+;	This routine is responsible for initialization of the SIO chips
+;	baud rate genterators and the PIO.
+;
+;	On entry:
+;		BC points to the following data structure:
+;
+;			00 - 07	s1 comm SIO initialization table
+;			08 - 0f s2 printer SIO initialization table
+;			10 - 17	s3 modem SIO initialization table
+;			18 	s1 buad rate constant
+;			19 	s2 buad rate constant
+;			1a 	s1 handshake flag byte
+;			1b	s2 handshake flag byte
+;			1c	s3 handshake flag byte
+;
+;	The SIO init tables have the following format:
+;
+;		00	Write register 00
+;		01	Write register 04
+;		02	Write register 01
+;		03	Write register 02
+;		04	Write register 03
+;		05	Write register 05
+;		06	Write register 06
+;		07	Write register 07
+;
+;	Certain assumptions have been made concerning the SIO initialization.
+;	First, interrupt vectors (WR2, channel B) are fixed.  For the keyboard
+;	and the comm port the interrupt vector should be D0h. For the printer
+;	serial port and modem port the vector is E0h.  To operate with the code
+;	in this ROM, interrupts on transmit and receive should be enabled as 
+;	well as status affects vector.  The use of auto enables for hardware
+;	handshake is an option.  Although WR6 and WR7 are provided, the 
+;	interrupt service routines provided do not fully support synchronous
+;	operation.
+;
+;	The handshake flag bits are used to facilitate xon/xoff protocol.  To
+;	enable this mode of operation bit 0 should be set and all other bits
+;	reset.
+;
+;
+	page
+devinit:
+	ld	(devtbl),bc		;save the device table address
+	push	bc			;point to the data structure with ix
+	pop	ix
+;
+	ld	a,(ix + s1baud)		;set up the comm port baud rate
+	out	(bauda),a
+;
+	ld	a,(ix + s2baud)		;and the printer port baud rate
+	out	(baudb),a
+;
+	ld	a,(ix + s1flag)		;put the handshake flags into the buffers
+	ld	(combuf + flags),a	;comm device
+;
+	ld	a,(ix + s2flag)		
+	ld	(ptrbuf + flags),a	;printer device
+;
+	ld	a,(ix + s3flag)
+	ld	(modbuf + flags),a	;modem device
+;
+	ld	a,(ix + intflg)		;set up the interrupt control byte
+	ld	(intstat),a
+;
+	ld	c,s1cmd			;initialize the comm SIO
+	call	sioinit
+;
+	ld	c,s2cmd			;initialize the printer SIO
+	call	sioinit
+;
+	ld	c,s3cmd			;initialize the modem SIO
+	call	sioinit
+;
+	ld	ix,kbdinit		;point to the keyboard table
+	ld	c,s0cmd			;initialize the keyboard SIO
+	call	sioinit
+;
+	ld	a,(intstat)		;check for interrupts enabled
+	and	a
+	jr	z,devinit1
+;
+	ld	a,1			;disable kb interrupts
+	out	(c),a
+	xor	a
+	out	(c),a
+;
+devinit1:
+	call	kbdoss			;start the counter
+;
+devin2:
+	ld	hl,pioastr		;initialize the clock PIO
+	ld	c,pioaadr
+	ld	b,pioalen
+	otir
+;
+	ld	a,0			;set the address to register 0
+	out	(pioadta),a
+;
+	ld	hl,piobstr		;then the modem
+	ld	c,piobadr
+	ld	b,pioblen
+	otir
+;
+	ld	a,0a0h			;put the modem on hook
+	out	(piobdta),a
+;
+	ret				;return to caller
+	page
+sioinit:
+	ld	b,0			;do WR0 first
+	call	wr
+	ld	b,4			;then WR4
+	call	wr
+	ld	b,1			;WR1
+	call	wr
+	call	wr			;WR2
+	call	wr			;WR3
+	inc	b
+	call	wr			;WR5
+	call	wr			;WR6
+	call	wr			;WR7
+	ret
+wr:
+	out	(c),b			;select the write register number
+	ld	a,(ix + 0)		;send the byte addressed by
+	out	(c),a			;ix to that register
+	inc	ix			;point to the next parameter byte
+	inc	b			;and the next write register
+	ret
+	page
+getdev:
+;
+;	Return the address of the current device initialization tables
+;
+;	This function should only be executed following the system
+;	device initialization since prior to that time the device
+;	tables have not been defined to the rom.
+;
+;	On exit:
+;		HL contains the address of the last tables 
+;		used to initialize the character I/O devices.
+;
+	ld	hl,(devtbl)		;get the device table address
+;
+	ret				;and return to caller
+	page
+loddev:
+;
+;	Load new device initialization table
+;
+;	On entry:
+;		BC points to the new device initialization tables
+;
+;	On exit:
+;		The new tables will have been loaded at the location
+;		used for the last device initialization and the device
+;		initialization will have been completed.
+;
+	ld	h,b			;set up to move the tables in
+	ld	l,c			;source
+;
+	ld	de,(devtbl)		;destination
+	ld	bc,dtblen		;number of bytes
+	call	xfer
+;
+	ld	bc,(devtbl)
+	jp	devinit			;re-initialize
+	page
+ldbufs:
+;
+;	Load Buffer Definition Tables
+;
+;	On entry:
+;		BC points to the buffer data structures in RAM
+;
+;	On exit:
+;		The buffer data structures will have been loaded into
+;		the locations starting at combuf
+;
+;		HL will contain the address of combuf
+;
+	ld	h,b
+	ld	l,c			;set up addresses for the move
+	ld	de,combuf
+	push	de			;save a copy for later
+	ld	bc,deflen * 4		;there are 4 definitions exptected
+	call	xfer			;move into place
+;
+	pop	hl			;return the address of combuf
+	ret
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+;	Equates
+;
+s1baud	equ	18h			;comm channel baud rate displacement
+s2baud	equ	19h			;printer channel baud rate displacement
+;
+bauda	equ	00h			;comm port baud rate control port
+baudb	equ	08h			;printer port baud rate control port
+;
+deflen	equ	21			;number of bytes in table definition
+;
+s1flag	equ	1ah			;comm port flag displacement
+s2flag	equ	1bh			;printer port flag displacement
+s3flag	equ	1ch			;modem port flag displacement
+intflg	equ	1dh			;interrupt control byte displacement
+;
+s0cmd	equ	07h			;keyboard command port
+s1cmd	equ	06h			;comm command port
+s2cmd	equ	0eh			;printer command port
+s3cmd	equ	0fh			;modem command port
+;
+pioaadr	equ	22h			;clock pio control port
+pioadta	equ	20h			;clock pio data port
+piobadr	equ	23h			;modem pio control port
+piobdta	equ	21h			;modem pio data port
+;
+dtblen	equ	1dh			;number of bytes in the device table
+;	
+	bufequ				;buffer equates
+;
+;
+;	Data areas
+;
+pioastr:
+	db	03h,03H,03H			;resets
+	db	0cfh				;select bit port mode
+	db	0c0h				;6 & 7 in all others out
+	db	07h				;disable interrupts
+pioalen	equ	$-pioastr
+;
+piobstr:
+	db	03h,03h,03h			;resets
+	db	0fh				;all bits output
+	db	07h				;no interrupts
+pioblen	equ	$-piobstr 
+
+kbdinit:
+;
+;	Keyboard initialization table
+;
+	db	18h
+	db	4ch
+	db	1eh
+	db	0d0h
+	db	0c1h
+	db	0eah
+	dseg
+intstat:
+	ds	1				;interrupt control byte	
+devtbl:
+	ds	2				;address of the last device table used
+;
+combuf:
+	ds	deflen
+ptrbuf:
+	ds	deflen
+modbuf:
+	ds	deflen
+kbdbuf:
+	ds	deflen
+comdta:
+	ds	30+5
+ptrdta:
+	ds	30+5
+moddta:
+	ds	30+5
+kbddta:
+	ds	20+5
+	end

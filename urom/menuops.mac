@@ -1,0 +1,45 @@
+TITLE MENUOPS
+	.z80
+	cseg
+	entry	menuops
+;
+;	Display the menu options
+;
+;	On entry:
+;		IX points to the menu table
+;		C contains the number of entries in the table
+;
+menuops:
+	ld	b,c			;set up the counter
+	push	ix			;save the table pointer
+;
+menuops1:
+	push	bc			;save the counter
+;
+	ld	l,(ix + adrlsb)		;load the routine address
+	ld	h,(ix + adrmsb)
+;
+	ld	de,menuops2		;put the return address on the stack
+	push	de
+	ld	a,0			;signal display only
+	jp	(hl)			;and execute
+menuops2:
+	pop	bc
+;
+	ld	de,4			;point to the next entry
+	add	ix,de
+;
+	djnz	menuops1		;go back if more
+;
+	pop	ix			;restore the table pointer
+	ret				;or return to caller
+	page
+;	*********************************************************
+;	*							*
+;	*	D a t a     D e f i n i t i o n s		*
+;	*							*
+;	*********************************************************
+;
+adrlsb	equ	2			;address lsb displacement
+adrmsb	equ	3			;address msb displacement
+	end
