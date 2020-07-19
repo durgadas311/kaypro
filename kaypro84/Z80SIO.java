@@ -133,6 +133,7 @@ public class Z80SIO implements IODevice, InterruptController {
 		private Z80SIOPort chA; // null on Ch A
 		private int intrs;
 		private int mdms = 0;	// modem inputs, floating
+		private boolean rr0Latch = false;
 		private int modem = -1;
 		private Semaphore wait;
 
@@ -241,8 +242,8 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((wr[1] & 0x02) != 0 && (rr[0] & rr0_txp_c) != 0) {
 				intr |= 2;
 			}
-			// TODO: external status detection
-			if ((wr[1] & 0x01) != 0 && (rr[0] & 0xf8) != 0) {
+			// CTS/DCD detection done in setModem()
+			if ((wr[1] & 0x01) != 0 && (rr[0] & 0xd0) != 0) {
 				intr |= 4;
 			}
 			// TODO: special receive condition detection
@@ -258,8 +259,10 @@ public class Z80SIO implements IODevice, InterruptController {
 			intrs = intr;
 			// TODO: set Ch A RR[0] bit D1...
 			if (intrs != 0) {
+				if (chA == null) rr[0] |= rr0_int_c;
 				raiseINT(index);
 			} else {
+				if (chA == null) rr[0] &= ~rr0_int_c;
 				lowerINT(index);
 			}
 		}
@@ -333,11 +336,11 @@ public class Z80SIO implements IODevice, InterruptController {
 						break;
 					case 1:
 						break;
-					case 2:
+					case 2:	// reset ext/status
 						updateIntr(intrs & ~4);
-						// TODO: clear latched state?
 						rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
 						rr[0] |= (mdms & (rr0_cts_c | rr0_dcd_c));
+						rr0Latch = false;
 						break;
 					case 3:
 						reset(); // right?
@@ -381,6 +384,7 @@ public class Z80SIO implements IODevice, InterruptController {
 			Arrays.fill(rr, (byte)0);
 			rr[0] |= rr0_txp_c;
 			rr[0] |= (mdms & (rr0_cts_c | rr0_dcd_c));
+			rr0Latch = false;
 			updateIntr(0);
 			// TODO: chkIntr()? must exclude TxE
 			// We essentially made space in Rx...
@@ -497,13 +501,19 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((mdm & VirtualUART.SET_DCD) != 0) {
 				nuw |= rr0_dcd_c;
 			}
+			int diff = (mdms ^ nuw) & (rr0_cts_c | rr0_dcd_c);
 			mdms &= ~(rr0_cts_c | rr0_dcd_c);
 			mdms |= nuw;
 			// TODO: these bits latch, must maintain separate static state...
-			rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
-			rr[0] |= nuw;
-			// TODO: must make this thread-safe...
-			chkIntr();
+			if (!rr0Latch && diff != 0) {
+				rr[0] &= ~(rr0_cts_c | rr0_dcd_c);
+				rr[0] |= nuw;
+				rr0Latch = true;
+			}
+			if ((wr[1] & 0x01) != 0 && diff != 0) {
+				// TODO: must make this thread-safe...
+				updateIntr(intrs | 4);
+			}
 		}
 		// For some reason, "synchronized" is required to ensure
 		// we always return the latest values. Probably don't
@@ -519,10 +529,10 @@ public class Z80SIO implements IODevice, InterruptController {
 			if ((wr[5] & wr5_brk_c) != 0) {
 				mdm |= VirtualUART.GET_BREAK;
 			}
-			if ((rr[0] & rr0_cts_c) != 0) {
+			if ((mdms & rr0_cts_c) != 0) {
 				mdm |= VirtualUART.SET_CTS;
 			}
-			if ((rr[0] & rr0_dcd_c) != 0) {
+			if ((mdms & rr0_dcd_c) != 0) {
 				mdm |= VirtualUART.SET_DCD;
 			}
 			return mdm;
