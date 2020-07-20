@@ -229,7 +229,7 @@ maxrtne equ     ($-extab)/2             ;maximum extended function number + 1
 ;       *********************************************************
 ;
 ver     equ     32h                     ;version number
-rev     equ     3230h                   ;revision
+rev     equ     3330h                   ;revision
 versum  equ     ver + '.' + (rev shr 8 and 0ffh) + (rev and 0ffh)
 verloc  equ     0fff8h                  ;high ram location for version number
         end

@@ -6,12 +6,13 @@
 ;
         extrn   ltoptab,k10flg,wbstat,seldsk    ;select,select,select,select
         extrn   settrk,setsec,setdma,read       ;select,sets,sets,lrw
-        extrn   csum,msgout,diskoff,vidout      ;diskinit,sgnon,lrw,video
+        extrn   csum,msgout,diskoff             ;diskinit,sgnon,lrw
         extrn   timer,flush                     ;winio,lrw
+        extrn   conout                          ;cdisp
 ;
         cpyrit
 ;
-;       System cold boot routine. 
+;       System cold boot routine.
 ;
 ;       Written by:     T. Hayes
 ;
@@ -80,7 +81,7 @@ bootfd:
         ld      hl,16                           ;else read the next 16 records
         ld      de,16                           ;starting with sector 16
         ld      bc,1                            ;on track 1
-        call    rdblock                 
+        call    rdblock
 ;
         jp      nz,bootfd                       ;if error in read
 ;
@@ -98,7 +99,7 @@ rdblock:
 ;               BC contains the track number
 ;               temp + 2 contains the dma address
 ;               Drive A has been selected
-;               
+;
 ;       On exit:
 ;               a = 0 if read was ok (zero set)
 ;               a = 1 if an error occured (zero reset)
@@ -111,7 +112,7 @@ rdblock:
         ld      (temp + 12),bc
 ;
 rdblock1:
-        ld      bc,(temp + 12)  
+        ld      bc,(temp + 12)
         call    settrk                  ;set the track number
 ;
         ld      bc,(temp + 10)          ;sector
@@ -252,23 +253,32 @@ winsys:
 disuser:
 ;
 ;       Display the user number and >
+;	*must* honor iobyte, which happens to be in A.
 ;
+	; must preserve A (iobyte) and pass to conout...
+	push	af
         ld      hl,(usrnum)
         ld      a,(hl)                  ;pick up the user number from ccp
         cp      10                      ;if it is greater than 10
         jr      c,disuser1
 ;
-        push    af
         ld      c,'1'                   ;display a 1
-        call    vidout
-        pop     af
+        pop     af	; iobyte
+        push    af
+	push	hl
+        call    conout
+	pop	hl
+        ld      a,(hl)                  ;pick up the user number from ccp
         sub     10                      ;and reduce the number by 10
 disuser1:
-        or      30h                     ;convert the number to ascii
+        or      '0'                     ;convert the number to ascii
         ld      c,a
-        call    vidout                  ;display it
+        pop     af	; iobyte
+        push    af
+        call    conout                  ;display it
         ld      c,'>'                   ;and the greater than
-        call    vidout
+        pop     af	; iobyte
+        call    conout
         ret                             ;then return to caller
         page
 ;       *********************************************************
