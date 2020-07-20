@@ -118,7 +118,7 @@ devin2:
 	ld	b,pioblen
 	otir
 ;
-	ld	a,0a0h			;put the modem on hook
+	ld	a,040h			;put the modem on hook
 	out	(piobdta),a
 ;
 	ret				;return to caller
