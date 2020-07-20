@@ -51,7 +51,8 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private static boolean needWin = false;
 	private static boolean need256K = false;
 	private static int nFlpy = 2;
-	private static String defRom = "81-478b.rom";	// The "Universal ROM" (CP/M 2.2u)
+	static final String uRom = "81-478b.rom"; // The "Universal ROM" (CP/M 2.2u)
+	private static String defRom = uRom;
 
 	public Kaypro(Properties props, LEDHandler lh, KayproCrt crt) {
 		String s;
@@ -263,7 +264,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			nFlpy = 1;
 			// FALLTHROUGH
 		case K2XX:	// "2X W/MODEM and CLOCK"
-			defRom = "81-478b.rom";
+			defRom = uRom;
 			needPio = true;
 			break;
 
@@ -273,7 +274,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 			break;
 
 		case KROBIE:
-			defRom = "81-478b.rom";
+			defRom = uRom;
 			needPio = true;
 			break;
 

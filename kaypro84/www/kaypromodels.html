@@ -45,8 +45,20 @@ The user must ensure the CP/M version is compatible with ROM.
 <TR><TD>81-326</TD><TD>1.7R</TD><TD>4X</TD><TD>2.2G, 2.2H</TD></TR>
 <TR><TD>81-478a</TD><TD>2.01</TD><TD>10, 2X, 2/84, 4/84,<BR>
 			4X, 12X, ROBIE</TD><TD>2.2u1</TD></TR>
+<TR><TD>81-478b</TD><TD>2.02</TD><TD>10, 2X, 2/84, 4/84,<BR>
+			4X, 12X, ROBIE</TD><TD>2.2u1</TD></TR>
+<TR><TD>81-478c</TD><TD>2.03</TD><TD>10, 2X, 2/84, 4/84,<BR>
+			4X, 12X, ROBIE</TD><TD>2.2u1</TD></TR>
 </TABLE>
 (*) CP/M versions not differentiated, signon strings indicate model supported.
+<P>The ROM 81-478a v2.01 in my Kaypro was labeled simply "81-478".
+<P>The ROM 81-478b v2.02 is derived from UROM source code as available.
+It appears to fix a bug where initialization of the RTC/MODEM/PIO was
+being skipped. It is not known how it was labeled.
+This is the current default ROM for models that support it.
+<P>The ROM 81-478c v2.03 is a new version that fixes a CON: redirection
+bug where the user number and '&gt;' from the prompt (e.g. "A0&gt;") were
+always sent to the built-in CRT no matter how CON: had been redirected.
 <P>
 <P>There are multiple aspects to ROM-CP/M compatability. Some subtle changes
 were made over time to the ROM entry points (older CP/M may not make correct ROM calls),
