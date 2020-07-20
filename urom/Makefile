@@ -40,9 +40,13 @@ rels: $(ROMREL)
 
 81-478.rom: $(ROMREL)
 	vcpm urom
+	cpmhex2bin -e -i 0x2000 -q $@ <urom.hex
 
 clean:
 	rm -f *.lst *.rel
 
-syncdown:
+urom.sub:
+	ln -s ~/git/kaypro/urom/$@ $@
+
+syncdown: urom.sub
 	unix2cpm -s ~/git/kaypro/urom/*.mac ~/git/kaypro/urom/*.lib .

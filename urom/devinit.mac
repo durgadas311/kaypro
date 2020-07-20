@@ -7,6 +7,7 @@
 	entry	getdev,loddev
 	entry	intstat
 	entry	ldbufs
+	entry	devin2
 ;
 	extrn	kbdoss,xfer		;iss,diskinit
 ;
@@ -118,7 +119,7 @@ devin2:
 	ld	b,pioblen
 	otir
 ;
-	ld	a,040h			;put the modem on hook
+	ld	a,0a0h			;put the modem on hook
 	out	(piobdta),a
 ;
 	ret				;return to caller

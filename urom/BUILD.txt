@@ -1,0 +1,13 @@
+Building UROM
+
+1. Setup VirtualCpm environment (vcpm) ...
+
+2. Add m80.com and l80.com to vcpm (drive A:).
+
+3. Create a work dir.
+
+4. Symlink Makefile from here to work dir.
+
+5. (from work dir) "make syncdown"
+
+6. (from work dir) "make"

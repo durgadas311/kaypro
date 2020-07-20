@@ -94,6 +94,7 @@ start1:
         inc     hl
         ld      (hl),versum
 ;
+	call	devin2		; take modem on hook
         call    vidinit         ; init video sub-system
         call    diskinit        ; init disk sub-system
         jp      bootsys         ; boot system
@@ -228,7 +229,7 @@ maxrtne equ     ($-extab)/2             ;maximum extended function number + 1
 ;       *********************************************************
 ;
 ver     equ     32h                     ;version number
-rev     equ     3130h                   ;revision
+rev     equ     3230h                   ;revision
 versum  equ     ver + '.' + (rev shr 8 and 0ffh) + (rev and 0ffh)
 verloc  equ     0fff8h                  ;high ram location for version number
         end
