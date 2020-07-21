@@ -31,6 +31,9 @@ cpnet12.logdisk:
 	CPNETLDR to start CP/NET. Requires the CPNetDevice be
 	configured in the config file.
 
+cpm3-update.logdisk:
+	Updates to apply to existing CP/M boot disks. See README.TXT.
+
 cpm3-extra.logdisk:
 	Additional CP/M 3 files/commands.
 

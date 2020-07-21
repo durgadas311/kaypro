@@ -16,7 +16,7 @@ K2XDRVS = -d a:33,b:34
 K2XMODS = -m "33=dds,mdd,mds;34=dds,mdd,mds"
 DSO = -p def,a:
 
-all: c3k2x.sys c3k10.sys
+all: c3k2x.sys c3k10.sys ldcpm3.com
 
 %.rel: %.asm
 	vcpm rmac "$?" '$$SZLA'

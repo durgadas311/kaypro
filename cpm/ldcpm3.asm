@@ -1,4 +1,4 @@
-vers equ '0e' ; March 18, 2017  19:52  drm  "LDCPM3.ASM"
+vers equ '0f' ; July 20, 2020  19:52  drm  "LDCPM3.ASM"
 
 	maclib Z80
 
@@ -25,7 +25,7 @@ LOADER:
 ; Identify ROM by...
 ; we can't map ROM in, we are in low memory.
 ; can't call ROM, either.
-; U-ROM places '2.01' in 0fff8h...
+; U-ROM places '2.01' and chksum in 0fff8h...
 ; 81-292 places copyout in 0fde5h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 ; 81-302 places copyout in 0f919h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
 ; 81-326 places copyout in 0f822h (DB 14 CB BF D3 14 ED B0 DB 14 CB FF D3 14 C9)
@@ -174,23 +174,31 @@ errmsg: MVI	C,msgout
 	jmp	cpm
 
 chkuni:
+	mvi	c,0	; checksum
+	mvi	b,4	; num chars
 	lxi	h,0fff8h
-	mov	a,m
+chku0:	mov	a,m
+	call	chkdig	; (preserves A) extra sanity checking
+	jrc	chku1
+	add	c
+	mov	c,a
 	inx	h
-	cpi	'2'
-	rnz
-	mov	a,m
-	inx	h
-	cpi	'.'
-	rnz
-	mov	a,m
-	inx	h
-	cpi	'0'
-	rnz
-	mov	a,m
-	inx	h
-	cpi	'1'
+	djnz	chku0
+	mov	a,m	; checksum
+	cmp	c
+	ret	; ZR=OK
+chku1:	xra	a
+	dcr	a	; NZ
 	ret
+
+chkdig:	; return CY if not digit or '.'
+	cpi	'.'
+	rz	; NC
+	cpi	'0'
+	rc	; also NZ
+	cpi	'9'+1
+	cmc	; CY if > '9', NC if OK
+	ret	; might be ZR and CY!
 
 ; HL = prospective location
 chksig:
