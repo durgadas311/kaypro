@@ -146,7 +146,10 @@ movev:	jmp move	; block move memory to memory
 	jmp 0		; reserved for future expansion
 	jmp 0		; reserved for future expansion
 
+; The following are accessed externally, relative to wboot entry.
+; (for both utilities as well as SETUP.COM)
 @dstat: ds	1
+	ds	1	; unused by Kaypro
 
 	dw	@lptbl	;logical/physical drive table
 	dw	thread	;module thread
@@ -158,18 +161,23 @@ movev:	jmp move	; block move memory to memory
 curmdl: ds	2		; currently selected Disk I/O module address
 @cmode: ds	2
 @dph:	ds	2
-@dma:	dw	0
-wbtrap: dw	0
 
-tmpdrv: db	0
+icovec: dw	1000000000000000b
+icivec: dw	0100000000000000b
+iaovec: dw	0000000000000000b
+iaivec: dw	0000000000000000b
+ilovec: dw	0000001000000000b
+
 defsrc: db	0,0ffh,0ffh,0ffh
+tmpdrv: db	0
 srctyp: db	000$00$000b	;only bits 3,4 are used (others ignored)
 
-icivec: dw	0100000000000000b
-icovec: dw	1000000000000000b
-iaivec: dw	0000000000000000b
-iaovec: dw	0000000000000000b
-ilovec: dw	0000001000000000b
+	dw	@memstr ; Memory driver module string
+	dw	@rtcstr ; RTC driver module string
+; End of externally dependent locations.
+
+@dma:	dw	0
+wbtrap: dw	0
 
 goccp:	mvi	a,1	;select bank 1 (where CCP is)
 	call	bnksel
@@ -291,6 +299,11 @@ too3:
 	lspd	istk
 	ei
 	reti	;resets PIO interupt
+
+; Belongs with RTC code, but must be in cseg.
+@rtcstr: db	'MM58167 ',0,'RTC Driver ',0,'v3.10'
+	dw	vers
+	db	'$'
 
 ; SEARCH for a module by device #.
 ;   entry:	C = device # (0-249)
@@ -513,6 +526,9 @@ addjmp: add	l	;a=0,3,6,9,...
 	mov	h,a
 icall:	pchl		;indirect call
 
+@memstr: db	'256K ',0,'Kaypro RAM MMU ',0,'v3.10'
+	dw	vers
+	db	'$'
 bnksel:
 	sta	@cbnk	; remember current bank
 	push	b

@@ -21,9 +21,9 @@ all: c3k2x.sys c3k10.sys ldcpm3.com
 %.rel: %.asm
 	vcpm rmac "$?" '$$SZLA'
 
-ldcpm3.com: ldcpm3.asm
-	vcpm mac ldcpm3.asm '$$SZLA'
-	vcpm hexcom ldcpm3
+%.com: %.asm
+	vcpm mac "$?" '$$SZLA'
+	vcpm hexcom "$*"
 
 b3k2x.spr: $(BASE) fdc3kp.rel lptbl2x.rel
 	vcpm link "b3k2x=mbios3kp,fdc3kp,crt,keybd,centr,serial,end,lptbl2x,getdp3kp,scb[b,os,nr]"
