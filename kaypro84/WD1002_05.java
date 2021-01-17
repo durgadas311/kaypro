@@ -40,6 +40,22 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	public static final int sts_Corr_c = 0x04;
 	public static final int sts_Error_c = 0x01;
 
+	public static final int err_BadBlock_c = 0x80;
+	public static final int err_Uncorr_c = 0x40;
+	public static final int err_CRC_c = 0x20;
+	public static final int err_ID_nf_c = 0x10;
+	public static final int err_Aborted_c = 0x04;
+	public static final int err_TR000_c = 0x02;
+	public static final int err_DAM_nf_c = 0x01;
+
+	// after reset... diagnostic errors
+	public static final int dia_WD1015_err_c = 0x05;
+	public static final int dia_WD1014_err_c = 0x04;
+	public static final int dia_Buffer_err_c = 0x03;
+	public static final int dia_WD1010_err_c = 0x02;
+	public static final int dia_WD2797_err_c = 0x01;
+	public static final int dia_Pass_c = 0x00;
+
 	// SystemPort bits
 	static final int ctrl_Reset_c = 0x02;	// active low
 
@@ -98,6 +114,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	private long mediaCyl;
 	private long mediaHead;
 	private long mediaLat;
+	private boolean formatted;
 
 	// mode COMMAND
 	private byte[] cmdBuf = new byte[8];
@@ -112,31 +129,31 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	private String name;
 
 	// Expected drive characteristic by drive: (XEBEC S1410 manual)
-	// Drive        cyl  hd red-wr precomp
-	// CM5206   256  2  256 256
-	// CM5410   256  4  256 256
-	// CM5616   256  6  256 256
+	// Drive    cyl  hd red-wr precomp
+	// CM5206   256  2  256    256
+	// CM5410   256  4  256    256
+	// CM5616   256  6  256    256
 	// HD561    180  2  128    180
 	// HD562    180  2  128    180
-	// RMS503   153  2  77  77
-	// RMS506   153  4  77  77
-	// RMS512   153  8  77  77
-	// ST506    153  4  128 64
-	// ST412    306  4  128 64	*** normal Kaypro 10 drive ***
-	// TM602S   153  4  128 153
-	// TM603S   153  6  128 153
-	// TM603SE  230  6  128 128
-	// TI5.25+  153  4  64  64
-	// RO101    192  2  96  0
-	// RO102    192  4  96  0
-	// RO103    192  6  96  0
-	// RO104    192  8  96  0
-	// RO201    321  2  132 0
-	// RO202    321  4  132 0
-	// RO203    321  6  132 0
-	// RO204    321  8  132 0
-	// MS1-006  306  2  153 0
-	// MS1-012  306  4  153 0
+	// RMS503   153  2  77     77
+	// RMS506   153  4  77     77
+	// RMS512   153  8  77     77
+	// ST506    153  4  128    64
+	// ST412    306  4  128    64	*** normal Kaypro 10 drive ***
+	// TM602S   153  4  128    153
+	// TM603S   153  6  128    153
+	// TM603SE  230  6  128    128
+	// TI5.25+  153  4  64     64
+	// RO101    192  2  96     0
+	// RO102    192  4  96     0
+	// RO103    192  6  96     0
+	// RO104    192  8  96     0
+	// RO201    321  2  132    0
+	// RO202    321  4  132    0
+	// RO203    321  6  132    0
+	// RO204    321  8  132    0
+	// MS1-006  306  2  153    0
+	// MS1-012  306  4  153    0
 	//
 	private int[][] params = new int[][] {
 		{ 0, 0, 0, 0 },		// /* INVALID=0    */
@@ -232,6 +249,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				mediaSsz = sectorSize;
 				mediaSpt = sectorsPerTrack;
 				mediaLat = 1;
+				formatted = false;
 				Arrays.fill(buf, (byte)0);
 				String hdr = String.format("%dc%dh%dz%dp%dl\n",
 					mediaCyl, mediaHead, mediaSsz, mediaSpt, mediaLat);
@@ -242,6 +260,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				fd.seek(capacity);	// i.e. END - sizeof(buf)
 				fd.write(buf);
 			} else {
+				formatted = true;
 				fd.seek(fd.length() - buf.length);
 				int n = fd.read(buf);
 				if (n != buf.length || (n = checkHeader(buf)) < 0) {
@@ -432,14 +451,16 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			break;
 		case adr_Status_c:
 			// TODO: reset bits?
-			cmdBuf[adr_Status_c] &= ~sts_Error_c;
+			//cmdBuf[adr_Status_c] &= ~sts_Error_c;
 			break;
 		}
+		//System.err.format("WD1002_05 in %02x %02x\n", port, val);
 		return val;
 	}
 
 	public void out(int port, int val) {
 		port &= 7;
+		//System.err.format("WD1002_05 out %02x %02x\n", port, val);
 		switch(port) {
 		case adr_Precomp_c:
 			// anything?
@@ -448,6 +469,8 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		case adr_Cmd_c:
 			//cmdBuf[adr_Status_c] &= ~sts_SeekDone_c;
 			curCmd = (byte)val;
+			cmdBuf[adr_Status_c] &= ~sts_Error_c;
+			cmdBuf[adr_Error_c] = 0;
 			processCmd();
 			return;
 		case adr_Data_c:
@@ -474,6 +497,11 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			cmdBuf[adr_Status_c] |= sts_Ready_c;
 			cmdBuf[adr_Status_c] |= sts_SeekDone_c;
 		}
+		// On RESET, self-test (diags) are run.
+		// Results are reported in error register, w/o status err bit.
+		// Kaypro software (HDFMT) expects this error,
+		// As the model of controller used has no floppy chip.
+		cmdBuf[adr_Error_c] = dia_WD2797_err_c;
 	}
 
 	private void putData(int val) {
@@ -559,6 +587,13 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 				setError();
 				break;
 			}
+			// Drives are shipped formatted?
+			//if (!formatted) {
+			//	// TODO: is this err_ID_nf_c or err_DAM_nf_c?
+			//	cmdBuf[adr_Error_c] |= err_ID_nf_c;
+			//	setError();
+			//	break;
+			//}
 			try {
 				driveFd.seek(off);
 				// dataBuf includes (fake) ECC, must limit read()...
@@ -599,14 +634,25 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 			break;
 		case cmd_Seek_c:
 			cmdBuf[adr_Status_c] |= sts_SeekDone_c;
-			// FALLTHROUGH
-		case cmd_FormatTrack_c:
 			// validate address, but otherwise just return success.
 			off = getOff();
 			if (off >= capacity) {
 				setError();
 				break;
 			}
+			break;
+		case cmd_FormatTrack_c:
+			// validate address
+			off = getOff();
+			if (off >= capacity) {
+				setError();
+				break;
+			}
+			// set DRQ, get data (ignored), "format" track
+			// (zero data?)
+			dataIx = 0;
+			cmdBuf[adr_Status_c] |= sts_Drq_c;
+			cmdBuf[adr_Status_c] |= sts_Busy_c;
 			break;
 		default:
 			break;
@@ -620,6 +666,12 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 
 		switch (curCmd & 0xf0) {
 		case cmd_Write_c:
+			// Drives are shipped formatted?
+			//if (!formatted) {
+			//	cmdBuf[adr_Error_c] |= err_ID_nf_c;
+			//	setError();
+			//	break;
+			//}
 			//off = getOff();
 			off = wrOff;
 			try {
@@ -644,6 +696,12 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 					break;
 				}
 			}
+			setDone();
+			break;
+		case cmd_FormatTrack_c:
+			// sector redirection table - ignored
+			// TODO: track-by-track, or just once for all?
+			formatted = true;
 			setDone();
 			break;
 		default:

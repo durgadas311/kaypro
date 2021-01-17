@@ -97,6 +97,19 @@ WD1002-0.U.cpm3
 	Includes CP/NET 3.
 
 ##### Floppy Disks to install the Kaypro 10 Winchester #####
+(CP/M 2.2u, requires ROM 81-478)
+k10u-rld-h.logdisk:
+	01/17/2020 08:29:55
+	Kaypro 10X
+	Autoload Diskette #1, reload only - no format
+	  CP/M 2.2u and Utilities
+
+k10u-rld-h-fmt.logdisk:
+	01/17/2020 08:29:55
+	Kaypro 10X
+	Autoload Diskette #1, format HDD and reload
+	  CP/M 2.2u and Utilities
+
 (CP/M 2.2H, requires ROM 81-302c)
 k10hald1.logdisk:
 	09/24/2003 10:51:23
@@ -104,6 +117,7 @@ k10hald1.logdisk:
 	Autoload Diskette #1
 	  CP/M 2.2H and Utilities
 
+(Intended for k10hald1, but also work with k10u-rld-h[-fmt])
 k10hald2.logdisk:
 	09/24/2003 10:57:35
 	Kaypro 10
