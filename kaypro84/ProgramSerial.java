@@ -41,7 +41,7 @@ public class ProgramSerial extends InputStream implements SerialDevice, Runnable
 	// bits a la VirtualUART get/setModem()
 	public void modemChange(VirtualUART me, int mdm) {
 		// For test purposes:
-		System.err.format("MODEM LINES %04x\n", mdm);
+		//System.err.format("MODEM LINES %04x\n", mdm);
 	}
 	public String dumpDebug() {
 		return "";
