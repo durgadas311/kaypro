@@ -2,8 +2,8 @@ CLASS_PATH = .:z80cpu/z80core.jar:diablo630/Diablo630Embedded.jar
 
 JAVAS = $(wildcard *.java)
 CLASSES = $(subst .java,.class,$(JAVAS))
-DEST = durgadas.com:/http/durgadas.com/sims/kaypro
-SEBHC = durgadas.com:/http/durgadas.com/sebhc/kaypro
+DEST = durgadas.com:/var/www/html/sims/kaypro
+SEBHC = durgadas.com:/var/www/html/sebhc/kaypro
 
 all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 
