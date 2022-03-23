@@ -1,0 +1,8 @@
+IndexIgnore header.html footer.html
+IndexOrderDefault Descending Date
+AddDescription "PCB render, back" k10-wd1002-pcb-back.png
+AddDescription "PCB render, front" k10-wd1002-pcb-front.png
+AddDescription "Schematic of WD1002 adapter" k10-wd1002.pdf
+AddDescription "kicad project files" k10-wd1002.tgz
+AddDescription "K10-WD1002 photo, back" k10-wd1002-back.png
+AddDescription "K10-WD1002 photo, front" k10-wd1002-front.png
