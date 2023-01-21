@@ -3,6 +3,8 @@
 import java.util.Properties;
 import java.io.*;
 
+import z80core.Memory;
+
 public class Kaypro2Memory extends KayproRoms implements Memory, GppListener {
 	GeneralPurposePort gpp;
 	// One single bank of 64K, plus ROMs...
@@ -65,4 +67,6 @@ public class Kaypro2Memory extends KayproRoms implements Memory, GppListener {
 			KayproOperator.error(null, "Core Dump", ee.getMessage());
 		}
 	}
+
+	public String dumpDebug() { return ""; }
 }

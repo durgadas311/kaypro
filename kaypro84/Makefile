@@ -1,4 +1,4 @@
-CLASS_PATH = .:z80cpu/z80core.jar:diablo630/Diablo630Embedded.jar
+CLASS_PATH = .:z80cpu/z80core.jar:z80cpu/z80debug.jar:diablo630/Diablo630Embedded.jar
 
 JAVAS = $(wildcard *.java)
 CLASSES = $(subst .java,.class,$(JAVAS))
@@ -32,6 +32,8 @@ temp: __FRC__
 	cp -r docs temp/
 	./mkAbout >temp/docs/About.html
 	cd temp; jar -xf ../z80cpu/z80core.jar
+	rm -rf temp/META-INF
+	cd temp; jar -xf ../z80cpu/z80debug.jar
 	rm -rf temp/META-INF
 	cd temp; jar -xf ../diablo630/Diablo630Embedded.jar
 	rm -rf temp/META-INF

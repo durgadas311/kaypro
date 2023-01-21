@@ -2,6 +2,7 @@
 
 import java.util.Properties;
 import java.io.*;
+import z80core.Memory;
 
 public class Memory84X extends KayproRoms implements Memory, GppListener, IODevice {
 	GeneralPurposePort gpp;
