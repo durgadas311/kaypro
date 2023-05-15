@@ -14,3 +14,9 @@ AddDescription "Virtual Z80 Source Code" z80cpu.tgz
 AddDescription "Virtual Diablo 630 Printer Source Code" diablo630.tgz
 AddDescription "Virtual Kaypro Diskettes (see index.txt)" disks
 AddDescription "Example Virtual Kaypro Config Files" configs
+AddDescription "Emergency Debug Monitor" monitor.bin
+AddDescription "Emergency Debug Monitor Documentation" monitor.pdf
+AddDescription "Star Trek Game for X/84 and 10" strtrk.com
+AddDescription "Original 2X Star Trek Game" startrek.com
+AddDescription "Kaypro 10 81-302c Reload disks" k10hald.zip
+AddDescription "Kaypro 10 WD1002-HDO documentation" WD1002-05_Winchester_Controller_19xx_Western_Digital.pdf

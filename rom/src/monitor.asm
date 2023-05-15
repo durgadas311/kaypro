@@ -151,7 +151,7 @@ conine:
 	pop	psw
 	ret
 
-signon:	db	CR,LF,'Kaypro /84 Monitor v'
+signon:	db	CR,LF,'Kaypro Monitor v'
 vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 	db	CR,LF,TRM
 
@@ -220,12 +220,14 @@ ncmnds	equ	($-comnds)/3
 menu:
 	db	CR,LF,'D <start> <end> - display memory in HEX'
 	db	CR,LF,'S <start> - set/view memory'
+	db	CR,LF,'    (CR) = skip fwd, ''-'' = skip bkwd, ''.'' = done'
 	db	CR,LF,'G <start> - go to address'
 	db	CR,LF,'F <start> <end> <data> - fill memory'
 	db	CR,LF,'M <start> <end> <dest> - Move data'
 	db	CR,LF,'I <port> [num] - Input from port'
 	db	CR,LF,'O <port> <value> [...] - Output to port'
 	db	CR,LF,'V - Show ROM version'
+	db	CR,LF,'^C aborts command entry'
 	db	TRM
 
 Qcomnd:
@@ -507,12 +509,8 @@ oc0:		; L has byte to output...
 	pop	h	; discard port
 	ret
 
-versms:	db	CR,LF,'Version ',TRM
-
 Vcomnd:
-	lxi	h,versms
-	call	msgprt
-	lxi	h,vernum
+	lxi	h,signon
 	jmp	msgprt
 
 *********************************************************
@@ -683,7 +681,7 @@ hexcon: 		;convert ASCII character to HEX digit
 ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 	ret
 
-	rept	1000h-$
+	rept	0800h-$
 	db	0ffh
 	endm
 
