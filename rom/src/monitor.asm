@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	010h	; ROM version
+VERN	equ	011h	; ROM version
 
 romsiz	equ	1000h	; minimum space for ROM
 
@@ -24,6 +24,10 @@ DEL	equ	127
 
 ; WD1943 at 5.0688MHz...
 B9600	equ	0eh
+; */84 (and 10) sysport drive select
+DS0	equ	0010b
+DS1	equ	0001b
+DSNONE	equ	0011b	; also mask
 
 sio1	equ	04h	; "serial data", "keyboard"
 sio2	equ	0ch	; "serial printer", "modem"
@@ -40,6 +44,8 @@ sioC	equ	02h
 condat	equ	sio1+sioA+sioD
 conctl	equ	sio1+sioA+sioC
 conbrr	equ	brd1
+
+sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
 
 stack	equ	00000h	; stack at top of memory (wrapped)
 
@@ -115,6 +121,8 @@ init:	di
 
 	lxi	h,signon
 	call	msgprt
+
+	call	proginit
 	; save registers on stack, for debugger access...
 	jmp	debug
 
@@ -134,11 +142,20 @@ prompt:	db	CR,LF,': ',TRM
 
 ; Get char from console
 ; Returns: A=char, stripped
-conin:	in	conctl
-	ani	00000001b
-	jrz	conin
-	in	condat
+conin:	push	h
+ci2:	lxi	h,0
+ci0:	in	conctl		; 11
+	ani	00000001b	;  7
+	jrnz	ci1		;  7
+	dcx	h		;  6
+	mov	a,l		;  4
+	ora	h		;  4
+	jrnz	ci0		; 12 = 51 (12.75uS) (~0.8 sec)
+	call	progress
+	jr	ci2
+ci1:	in	condat
 	ani	07fh
+	pop	h
 	ret
 
 ; Get char from console, toupper and echo
@@ -684,6 +701,21 @@ ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 	rept	0800h-$
 	db	0ffh
 	endm
+
+; These only work on */84 (and 10) models.
+; Have no effect (and does nothing) on */83 models.
+proginit:
+	in	sysp84
+	ani	not DSNONE
+	ori	DS0
+	out	sysp84
+	ret
+
+progress:
+	in	sysp84
+	xri	DSNONE
+	out	sysp84
+	ret
 
 ; RAM used...
 	org	0ff00h
