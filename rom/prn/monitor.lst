@@ -1,7 +1,7 @@
 		; serial-port ROM monitor/boot for debugging Kaypro.
 		; Uses "aux serial" a.k.a "Serial Printer" port.
 		
-0011          	VERN	equ	011h	; ROM version
+0012          	VERN	equ	012h	; ROM version
 		
 1000          	romsiz	equ	1000h	; minimum space for ROM
 		
@@ -168,7 +168,7 @@ FFFF          	true	equ	not false
 00A4  B4      		ora	h		;  4
 00A5          		jrnz	ci0		; 12 = 51 (12.75uS) (~0.8 sec)
 00A5  20F5    		DB	20H,ci0-$-1
-00A7  CD0908  		call	progress
+00A7  CD0E08  		call	progress
 00AA          		jr	ci2
 00AA  18ED    		DB	18H,ci2-$-1
 00AC  DB04    	ci1:	in	condat
@@ -191,7 +191,7 @@ FFFF          	true	equ	not false
       204D6F6E
       69746F72
       2076
-00D1  312E31  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+00D1  312E32  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 00D4  0D0A00  		db	CR,LF,TRM
 		
 00D7  0D0A073F	errm:	db	CR,LF,BEL,'?',TRM
@@ -1509,13 +1509,18 @@ FFFF          	true	equ	not false
 0802  E6FC    		ani	not DSNONE
 0804  F602    		ori	DS0
 0806  D314    		out	sysp84
-0808  C9      		ret
+0808  3E41    		mvi	a,'A'
+080A  320030  		sta	3000h
+080D  C9      		ret
 		
-0809          	progress:
-0809  DB14    		in	sysp84
-080B  EE03    		xri	DSNONE
-080D  D314    		out	sysp84
-080F  C9      		ret
+080E          	progress:
+080E  DB14    		in	sysp84
+0810  EE03    		xri	DSNONE
+0812  D314    		out	sysp84
+0814  3A0030  		lda	3000h
+0817  EE03    		xri	00000011b
+0819  320030  		sta	3000h
+081C  C9      		ret
 		
 		; RAM used...
 FF00          		org	0ff00h
@@ -1532,7 +1537,7 @@ Statistics:
      4	passes
      0	jr promotions
    132	symbols
-  2064	bytes
+  2077	bytes
 
    788	macro calls
   3759	macro bytes

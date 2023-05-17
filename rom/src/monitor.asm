@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	011h	; ROM version
+VERN	equ	012h	; ROM version
 
 romsiz	equ	1000h	; minimum space for ROM
 
@@ -151,7 +151,7 @@ ci0:	in	conctl		; 11
 	mov	a,l		;  4
 	ora	h		;  4
 	jrnz	ci0		; 12 = 51 (12.75uS) (~0.8 sec)
-	call	progress
+	call	progress	; on */83 (20.4uS or ~1.3 sec)
 	jr	ci2
 ci1:	in	condat
 	ani	07fh
@@ -709,12 +709,17 @@ proginit:
 	ani	not DSNONE
 	ori	DS0
 	out	sysp84
+	mvi	a,'A'
+	sta	3000h
 	ret
 
 progress:
 	in	sysp84
 	xri	DSNONE
 	out	sysp84
+	lda	3000h
+	xri	00000011b
+	sta	3000h
 	ret
 
 ; RAM used...
