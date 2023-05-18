@@ -1,9 +1,9 @@
 		; serial-port ROM monitor/boot for debugging Kaypro.
 		; Uses "aux serial" a.k.a "Serial Printer" port.
 		
-0012          	VERN	equ	012h	; ROM version
+0013          	VERN	equ	013h	; ROM version
 		
-1000          	romsiz	equ	1000h	; minimum space for ROM
+0800          	romsiz	equ	0800h	; minimum space for ROM
 		
 			maclib	z80
 **** z80.lib ****
@@ -135,7 +135,7 @@ FFFF          	true	equ	not false
 007B  21BF00  		lxi	h,signon
 007E  CDDB04  		call	msgprt
 		
-0081  CD0008  		call	proginit
+0081  CD9705  		call	proginit
 			; save registers on stack, for debugger access...
 0084  C3DC00  		jmp	debug
 		
@@ -168,7 +168,7 @@ FFFF          	true	equ	not false
 00A4  B4      		ora	h		;  4
 00A5          		jrnz	ci0		; 12 = 51 (12.75uS) (~0.8 sec)
 00A5  20F5    		DB	20H,ci0-$-1
-00A7  CD0E08  		call	progress
+00A7  CDA505  		call	progress	; on */83 (20.4uS or ~1.3 sec)
 00AA          		jr	ci2
 00AA  18ED    		DB	18H,ci2-$-1
 00AC  DB04    	ci1:	in	condat
@@ -191,7 +191,7 @@ FFFF          	true	equ	not false
       204D6F6E
       69746F72
       2076
-00D1  312E32  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+00D1  312E33  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 00D4  0D0A00  		db	CR,LF,TRM
 		
 00D7  0D0A073F	errm:	db	CR,LF,BEL,'?',TRM
@@ -883,36 +883,27 @@ FFFF          	true	equ	not false
 0594  D630    	ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 0596  C9      		ret
 		
+		; These only work on */84 (and 10) models.
+		; Have no effect (and does nothing) on */83 models.
+0597          	proginit:
+0597  DB14    		in	sysp84
+0599  E6FC    		ani	not DSNONE
+059B  F602    		ori	DS0
+059D  D314    		out	sysp84
+059F  3E41    		mvi	a,'A'
+05A1  320030  		sta	3000h
+05A4  C9      		ret
+		
+05A5          	progress:
+05A5  DB14    		in	sysp84
+05A7  EE03    		xri	DSNONE
+05A9  D314    		out	sysp84
+05AB  3A0030  		lda	3000h
+05AE  EE03    		xri	00000011b
+05B0  320030  		sta	3000h
+05B3  C9      		ret
+		
 			rept	0800h-$
-0597  FF      		db	0ffh
-0598  FF      		db	0ffh
-0599  FF      		db	0ffh
-059A  FF      		db	0ffh
-059B  FF      		db	0ffh
-059C  FF      		db	0ffh
-059D  FF      		db	0ffh
-059E  FF      		db	0ffh
-059F  FF      		db	0ffh
-05A0  FF      		db	0ffh
-05A1  FF      		db	0ffh
-05A2  FF      		db	0ffh
-05A3  FF      		db	0ffh
-05A4  FF      		db	0ffh
-05A5  FF      		db	0ffh
-05A6  FF      		db	0ffh
-05A7  FF      		db	0ffh
-05A8  FF      		db	0ffh
-05A9  FF      		db	0ffh
-05AA  FF      		db	0ffh
-05AB  FF      		db	0ffh
-05AC  FF      		db	0ffh
-05AD  FF      		db	0ffh
-05AE  FF      		db	0ffh
-05AF  FF      		db	0ffh
-05B0  FF      		db	0ffh
-05B1  FF      		db	0ffh
-05B2  FF      		db	0ffh
-05B3  FF      		db	0ffh
 05B4  FF      		db	0ffh
 05B5  FF      		db	0ffh
 05B6  FF      		db	0ffh
@@ -1502,26 +1493,6 @@ FFFF          	true	equ	not false
 07FE  FF      		db	0ffh
 07FF  FF      		db	0ffh
 		
-		; These only work on */84 (and 10) models.
-		; Have no effect (and does nothing) on */83 models.
-0800          	proginit:
-0800  DB14    		in	sysp84
-0802  E6FC    		ani	not DSNONE
-0804  F602    		ori	DS0
-0806  D314    		out	sysp84
-0808  3E41    		mvi	a,'A'
-080A  320030  		sta	3000h
-080D  C9      		ret
-		
-080E          	progress:
-080E  DB14    		in	sysp84
-0810  EE03    		xri	DSNONE
-0812  D314    		out	sysp84
-0814  3A0030  		lda	3000h
-0817  EE03    		xri	00000011b
-0819  320030  		sta	3000h
-081C  C9      		ret
-		
 		; RAM used...
 FF00          		org	0ff00h
 FF00          	addr0:	ds	2
@@ -1537,8 +1508,8 @@ Statistics:
      4	passes
      0	jr promotions
    132	symbols
-  2077	bytes
+  2048	bytes
 
-   788	macro calls
+   759	macro calls
   3759	macro bytes
      0	invented symbols

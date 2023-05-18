@@ -1,9 +1,9 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	012h	; ROM version
+VERN	equ	013h	; ROM version
 
-romsiz	equ	1000h	; minimum space for ROM
+romsiz	equ	0800h	; minimum space for ROM
 
 	maclib	z80
 
@@ -698,10 +698,6 @@ hexcon: 		;convert ASCII character to HEX digit
 ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 	ret
 
-	rept	0800h-$
-	db	0ffh
-	endm
-
 ; These only work on */84 (and 10) models.
 ; Have no effect (and does nothing) on */83 models.
 proginit:
@@ -721,6 +717,10 @@ progress:
 	xri	00000011b
 	sta	3000h
 	ret
+
+	rept	0800h-$
+	db	0ffh
+	endm
 
 ; RAM used...
 	org	0ff00h

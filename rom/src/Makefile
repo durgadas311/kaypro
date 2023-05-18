@@ -2,7 +2,7 @@
 # "monitor" is a simple, serial-port-based, debug monitor
 
 DOCS = ../doc/monitor.pdf
-BINS = ../bin/monitor.bin
+BINS = ../bin/monitor.bin ../bin/memtest.bin
 all: $(BINS)
 
 ../bin/%.bin: %.asm
