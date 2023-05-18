@@ -3,7 +3,7 @@
 ; no RAM (no stack). Uses drive A LED (*/84 and 10) or
 ; video ram (*/83) for indicating progress and failure.
 
-VERN	equ	010h	; ROM version
+VERN	equ	011h	; ROM version
 
 TEST	equ	0
 
@@ -32,6 +32,7 @@ DEL	equ	127
 DS0	equ	0010b
 DS1	equ	0001b
 DSNONE	equ	0011b	; also mask
+MTRON	equ	10000b	; MOTOR control
 
 sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
 
@@ -41,6 +42,7 @@ sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
 
 	in	sysp84
 	ani	not DSNONE
+	ani	not MTRON
 	ori	DS0	; drive A LED on
 	out	sysp84
 	mvi	a,'0'

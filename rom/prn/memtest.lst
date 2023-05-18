@@ -3,7 +3,7 @@
 		; no RAM (no stack). Uses drive A LED (*/84 and 10) or
 		; video ram (*/83) for indicating progress and failure.
 		
-0010          	VERN	equ	010h	; ROM version
+0011          	VERN	equ	011h	; ROM version
 		
 0000          	TEST	equ	0
 		
@@ -34,6 +34,7 @@ FFFF          	true	equ	not false
 0002          	DS0	equ	0010b
 0001          	DS1	equ	0001b
 0003          	DSNONE	equ	0011b	; also mask
+0010          	MTRON	equ	10000b	; MOTOR control
 		
 0014          	sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
 		
@@ -43,81 +44,82 @@ FFFF          	true	equ	not false
 		
 0001  DB14    		in	sysp84
 0003  E6FC    		ani	not DSNONE
-0005  F602    		ori	DS0	; drive A LED on
-0007  D314    		out	sysp84
-0009  3E30    		mvi	a,'0'
-000B  320030  		sta	vidram
-000E  57      		mov	d,a	; pass indicator
-000F  AF      		xra	a	; 00 - initial test seed
+0005  E6EF    		ani	not MTRON
+0007  F602    		ori	DS0	; drive A LED on
+0009  D314    		out	sysp84
+000B  3E30    		mvi	a,'0'
+000D  320030  		sta	vidram
+0010  57      		mov	d,a	; pass indicator
+0011  AF      		xra	a	; 00 - initial test seed
 			; test memory... 8000-FFFF
-0010  210080  	mt0:	lxi	h,ramsta
-0013  4F      		mov	c,a
-0014  77      	mt1:	mov	m,a
-0015  C601    		adi	1
-0017  27      		daa
-0018  23      		inx	h
-0019  47      		mov	b,a
-001A  7C      		mov	a,h
-001B  B5      		ora	l
-001C  78      		mov	a,b
-001D          		jrnz	mt1
-001D  20F5    		DB	20H,mt1-$-1
-001F  210080  		lxi	h,ramsta
-0022  79      		mov	a,c
-0023  BE      	mt2:	cmp	m
-0024          		jrnz	error
-0024  2023    		DB	20H,error-$-1
-0026  C601    		adi	1
-0028  27      		daa
-0029  23      		inx	h
-002A  47      		mov	b,a
-002B  7C      		mov	a,h
-002C  B5      		ora	l
-002D  78      		mov	a,b
-002E          		jrnz	mt2
-002E  20F3    		DB	20H,mt2-$-1
+0012  210080  	mt0:	lxi	h,ramsta
+0015  4F      		mov	c,a
+0016  77      	mt1:	mov	m,a
+0017  C601    		adi	1
+0019  27      		daa
+001A  23      		inx	h
+001B  47      		mov	b,a
+001C  7C      		mov	a,h
+001D  B5      		ora	l
+001E  78      		mov	a,b
+001F          		jrnz	mt1
+001F  20F5    		DB	20H,mt1-$-1
+0021  210080  		lxi	h,ramsta
+0024  79      		mov	a,c
+0025  BE      	mt2:	cmp	m
+0026          		jrnz	error
+0026  2023    		DB	20H,error-$-1
+0028  C601    		adi	1
+002A  27      		daa
+002B  23      		inx	h
+002C  47      		mov	b,a
+002D  7C      		mov	a,h
+002E  B5      		ora	l
+002F  78      		mov	a,b
+0030          		jrnz	mt2
+0030  20F3    		DB	20H,mt2-$-1
 			; end of pass - no errors
-0030  DB14    		in	sysp84
-0032  EE03    		xri	DSNONE
-0034  D314    		out	sysp84	; switch to other drive LED on
-0036  7A      		mov	a,d
-0037  C601    		adi	1
-0039  FE3A    		cpi	'9'+1
-003B          		jrc	pp0
-003B  3802    		DB	38H,pp0-$-1
+0032  DB14    		in	sysp84
+0034  EE03    		xri	DSNONE
+0036  D314    		out	sysp84	; switch to other drive LED on
+0038  7A      		mov	a,d
+0039  C601    		adi	1
+003B  FE3A    		cpi	'9'+1
+003D          		jrc	pp0
+003D  3802    		DB	38H,pp0-$-1
 0000          	 if TEST
 		 endif
-003D  3E30    		mvi	a,'0'
-003F  320030  	pp0:	sta	vidram
-0042  57      		mov	d,a
-0043  79      		mov	a,c
-0044  C601    		adi	1
-0046  27      		daa
-0047          		jr	mt0
-0047  18C7    		DB	18H,mt0-$-1
+003F  3E30    		mvi	a,'0'
+0041  320030  	pp0:	sta	vidram
+0044  57      		mov	d,a
+0045  79      		mov	a,c
+0046  C601    		adi	1
+0048  27      		daa
+0049          		jr	mt0
+0049  18C7    		DB	18H,mt0-$-1
 		
-0049  3E45    	error:	mvi	a,'E'
-004B  320030  		sta	vidram
-004E  DB14    		in	sysp84
-0050  E6FC    		ani	not DSNONE
-0052  F602    		ori	DS0	; drive A LED on
-0054  D314    		out	sysp84
-0056  2150C3  	er0:	lxi	h,50000
-0059  2B      	er1:	dcx	h
-005A  7C      		mov	a,h
-005B  B5      		ora	l
-005C          		jrnz	er1
-005C  20FB    		DB	20H,er1-$-1
-005E  DB14    		in	sysp84
-0060  EE01    		xri	1
-0062  D314    		out	sysp84	; flash drive A LED
-0064  3A0030  		lda	vidram
-0067  EE17    		xri	17h	; 'E' / 'R'
-0069  320030  		sta	vidram
-006C          		jr	er0
-006C  18E8    		DB	18H,er0-$-1
+004B  3E45    	error:	mvi	a,'E'
+004D  320030  		sta	vidram
+0050  DB14    		in	sysp84
+0052  E6FC    		ani	not DSNONE
+0054  F602    		ori	DS0	; drive A LED on
+0056  D314    		out	sysp84
+0058  2150C3  	er0:	lxi	h,50000
+005B  2B      	er1:	dcx	h
+005C  7C      		mov	a,h
+005D  B5      		ora	l
+005E          		jrnz	er1
+005E  20FB    		DB	20H,er1-$-1
+0060  DB14    		in	sysp84
+0062  EE01    		xri	1
+0064  D314    		out	sysp84	; flash drive A LED
+0066  3A0030  		lda	vidram
+0069  EE17    		xri	17h	; 'E' / 'R'
+006B  320030  		sta	vidram
+006E          		jr	er0
+006E  18E8    		DB	18H,er0-$-1
 		
-006E  4B617970		db	'Kaypro Emergency Memory Test v'
+0070  4B617970		db	'Kaypro Emergency Memory Test v'
       726F2045
       6D657267
       656E6379
@@ -125,13 +127,11 @@ FFFF          	true	equ	not false
       6F727920
       54657374
       2076
-008C  312E30  		db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+008E  312E31  		db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 0000          	 if TEST
 		 endif
 		
 			rept	romsiz-$
-008F  FF      		db	0ffh
-0090  FF      		db	0ffh
 0091  FF      		db	0ffh
 0092  FF      		db	0ffh
 0093  FF      		db	0ffh
@@ -2044,9 +2044,9 @@ Statistics:
 
      4	passes
      0	jr promotions
-    32	symbols
+    33	symbols
   2048	bytes
 
-  1926	macro calls
+  1924	macro calls
   3759	macro bytes
      0	invented symbols

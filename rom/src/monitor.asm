@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	013h	; ROM version
+VERN	equ	014h	; ROM version
 
 romsiz	equ	0800h	; minimum space for ROM
 
@@ -28,6 +28,7 @@ B9600	equ	0eh
 DS0	equ	0010b
 DS1	equ	0001b
 DSNONE	equ	0011b	; also mask
+MTRON	equ	10000b	; MOTOR control
 
 sio1	equ	04h	; "serial data", "keyboard"
 sio2	equ	0ch	; "serial printer", "modem"
@@ -703,6 +704,7 @@ ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 proginit:
 	in	sysp84
 	ani	not DSNONE
+	ani	not MTRON
 	ori	DS0
 	out	sysp84
 	mvi	a,'A'
