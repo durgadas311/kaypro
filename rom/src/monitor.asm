@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	014h	; ROM version
+VERN	equ	015h	; ROM version
 
 romsiz	equ	0800h	; minimum space for ROM
 
@@ -24,6 +24,7 @@ DEL	equ	127
 
 ; WD1943 at 5.0688MHz...
 B9600	equ	0eh
+B300	equ	05h
 ; */84 (and 10) sysport drive select
 DS0	equ	0010b
 DS1	equ	0001b
@@ -227,6 +228,10 @@ comnds:
 	dw	Icomnd
 	db	'O'
 	dw	Ocomnd
+	db	'N'
+	dw	Ncomnd
+	db	'T'
+	dw	Tcomnd
 	db	'V'
 	dw	Vcomnd
 ncmnds	equ	($-comnds)/3
@@ -244,6 +249,8 @@ menu:
 	db	CR,LF,'M <start> <end> <dest> - Move data'
 	db	CR,LF,'I <port> [num] - Input from port'
 	db	CR,LF,'O <port> <value> [...] - Output to port'
+	db	CR,LF,'N <hw> - iNitialize hardware (KB83, KB84, CRTC)'
+	db	CR,LF,'T <hw> - Test hardware (CRTC)'
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -527,6 +534,113 @@ oc0:		; L has byte to output...
 	pop	h	; discard port
 	ret
 
+skb:	call	char
+	rz		;end of buffer/line before a character was found (ZR)
+	cpi	' '	;skip all leading spaces
+	rnz		;if not space, then done (NZ)
+	jr	skb	;else if space, loop untill not space
+
+Ncomnd:
+	call	skb	; skip blanks
+	jz	error	; required param
+	; this may need refinement
+	dcx	d
+	lxi	h,kb83
+	call	strcmp
+	jrz	nkb83
+	lxi	h,kb84
+	call	strcmp
+	jrz	nkb84
+	lxi	h,crtc
+	call	strcmp
+	jrz	ncrtc
+	jmp	error
+
+kb83:	db	'KB83',TRM
+kb84:	db	'KB84',TRM
+crtc:	db	'CRTC',TRM
+
+nkb83:	mvi	a,B300
+	out	0ch	; */83 baud gen for SIO1 ch B
+nkb84:	lxi	h,sioini
+	mvi	c,sio1+sioB+sioC
+	mvi	b,siolen
+	outir
+	ret
+
+ncrtc:	lxi	h,crtini
+	mvi	c,1dh	; */84 CRTC 6545 data port
+	mvi	b,16
+	xra	a	; start with reg 00
+nc0:	dcr	c
+	outp	a	; select reg
+	inr	a	; ++reg
+	inr	c	;
+	outi
+	jrnz	nc0
+	mvi	a,1fh	; enable CRTC
+	out	1ch
+	ret
+
+crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
+
+strcmp:	push	d
+	xra	a
+sc0:	cmp	m	; TRM?
+	jrz	sc9	; A = 0
+	ldax	d
+	sub	m
+	jrnz	sc9	; A is NZ
+	inx	h
+	inx	d
+	jr	sc0
+sc9:	pop	d
+	ora	a
+	ret
+
+Tcomnd:
+	call	skb	; skip blanks
+	jz	error	; required param
+	; this may need refinement
+	dcx	d
+	lxi	h,crtc
+	call	strcmp
+	jrz	tcrtc
+	jmp	error
+
+tcrtc:	lxi	h,waitm
+	call	msgprt
+	mvi	b,5	; count
+	mvi	e,80h	; compare
+	mvi	a,1fh
+	out	1ch	; select reg
+tc0:	in	1ch
+	ani	80h
+	cmp	e
+	jrz	tc9
+	in	conctl
+	ani	00000001b
+	jrz	tc0
+	in	condat
+	lxi	h,abrtm
+	call	msgprt
+	ret
+tc9:	mov	a,e
+	xri	80h
+	mov	e,a
+	jrnz	tc8
+	lxi	h,updtm
+	call	msgprt
+	djnz	tc0
+	ret
+tc8:	call	space
+	djnz	tc0
+	ret
+
+waitm:	db	CR,LF,'Wait... ',TRM
+abrtm:	db	'Abort',TRM
+updtm:	db	'Update',TRM
+
 Vcomnd:
 	lxi	h,signon
 	jmp	msgprt
@@ -655,14 +769,12 @@ char:	mov	a,e	;remove a character from line buffer,
 
 ; Get HEX value from line buffer
 ; Return: CY=error, HL=value, bit7(B)=1 if no input
-getaddr:		;extract address from line buffer (dilimitted by " ")
+getaddr:		;extract address from line buffer (delimitted by " ")
 	setb	7,b	;flag to detect no address entered
 	lxi	h,0
-ga2:	call	char
+	call	skb
 	rz		;end of buffer/line before a character was found
-	cpi	' '	;skip all leading spaces
-	jrnz	ga1	;if not space, then start getting HEX digits
-	jr	ga2	;else if space, loop untill not space
+	jr	ga1	;if not space, then start getting HEX digits
 
 ga0:	call	char
 	rz
@@ -672,7 +784,7 @@ ga1:	call	hexcon	;start assembling digits into 16 bit accumilator
 	push	d	;save buffer pointer
 	mov	e,a
 	mvi	d,0
-	dad	h	;shift "accumilator" left 1 digit
+	dad	h	;shift "accumulator" left 1 digit
 	dad	h
 	dad	h
 	dad	h
