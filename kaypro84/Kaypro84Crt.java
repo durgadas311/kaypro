@@ -88,7 +88,7 @@ public class Kaypro84Crt extends KayproCrt
 
 	public Kaypro84Crt(Properties props) {
 		regs = new int[32];
-		Arrays.fill(lines, ' ');
+		Arrays.fill(lines, '?'); // simulate garbage
 		Arrays.fill(blinks, ' ');
 		Arrays.fill(halfint, ' ');
 		Arrays.fill(halfblnk, ' ');
@@ -194,8 +194,10 @@ public class Kaypro84Crt extends KayproCrt
 		switch(port) {
 		case vcstat:
 			// TODO: determine proper handling of Update bit
-			val = status | sts_Update;
-			status &= 0x7f;
+			val = status;
+			// alternate sts_Update each time,
+			// could be more sophisticated.
+			status ^= sts_Update;
 			break;
 		case vcrdat:
 			val = get_vcrdat();
