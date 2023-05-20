@@ -179,6 +179,7 @@ public class Kaypro84Crt extends KayproCrt
 		crt_en = false;
 		Arrays.fill(regs, 0);
 		status = sts_VBlnk;	// always on is OK?
+		repaint();
 	}
 
 	public int getBaseAddress() {
