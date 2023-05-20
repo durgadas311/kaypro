@@ -15,7 +15,9 @@ AddDescription "Virtual Diablo 630 Printer Source Code" diablo630.tgz
 AddDescription "Virtual Kaypro Diskettes (see index.txt)" disks
 AddDescription "Example Virtual Kaypro Config Files" configs
 AddDescription "Emergency Debug Monitor" monitor.bin
+AddDescription "Emergency Memory Test ROM" memtest.bin
 AddDescription "Emergency Debug Monitor Documentation" monitor.pdf
+AddDescription "Debug Monitor for Early Kaypro-II (2716)" mon2k.bin
 AddDescription "Star Trek Game for X/84 and 10" strtrk.com
 AddDescription "Original 2X Star Trek Game" startrek.com
 AddDescription "Kaypro 10 81-302c Reload disks" k10hald.zip
