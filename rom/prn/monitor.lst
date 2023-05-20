@@ -3,7 +3,12 @@
 		
 0018          	VERN	equ	018h	; ROM version
 		
-0800          	romsiz	equ	0800h	; minimum space for ROM
+0000          	rom2k	equ	0
+		
+0000          	 if rom2k
+		 else
+1000          	romsiz	equ	1000h	; space for ROM
+		 endif
 		
 			maclib	z80
 **** z80.lib ****
@@ -196,9 +201,11 @@ FFFF          	true	equ	not false
 00BD  F1      		pop	psw
 00BE  C9      		ret
 		
-00BF  0D0A4B61	signon:	db	CR,LF,'Kaypro Monitor v'
+00BF  0D0A4B61	signon:	db	CR,LF,'Kaypro'
       7970726F
-      204D6F6E
+0000          	 if rom2k
+		 endif
+00C7  204D6F6E		db	' Monitor v'
       69746F72
       2076
 00D1  312E38  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
@@ -265,9 +272,17 @@ FFFF          	true	equ	not false
 0128  4E      		db	'N'
 0129  4405    		dw	Ncomnd
 012B  54      		db	'T'
+<<<<<<< HEAD
 012C  BD05    		dw	Tcomnd
 012E  58      		db	'X'
 012F  4F06    		dw	Xcomnd
+=======
+012C  BA05    		dw	Tcomnd
+FFFF          	 if not rom2k
+012E  58      		db	'X'
+012F  4C06    		dw	Xcomnd
+		 endif
+>>>>>>> 335999a (split rom build for 2716)
 0131  56      		db	'V'
 0132  7306    		dw	Vcomnd
 000C          	ncmnds	equ	($-comnds)/3
@@ -355,7 +370,7 @@ FFFF          	true	equ	not false
       7420746F
       20706F72
       74
-025C  0D0A4E20		db	CR,LF,'N <hw> - iNitialize hardware (KB83, KB84, CRTC)'
+025C  0D0A4E20		db	CR,LF,'N <hw> - iNitialize hardware (KB83'
       3C68773E
       202D2069
       4E697469
@@ -364,19 +379,26 @@ FFFF          	true	equ	not false
       72647761
       72652028
       4B423833
-      2C204B42
+FFFF          	 if not rom2k
+0280  2C204B42		db		', KB84, CRTC'
       38342C20
       43525443
-      29
-028D  0D0A5420		db	CR,LF,'T <hw> - Test hardware (KBD, CRTC)'
+		 endif
+028C  29      		db		')'
+028D  0D0A5420		db	CR,LF,'T <hw> - Test hardware (KBD'
       3C68773E
       202D2054
       65737420
       68617264
       77617265
       20284B42
-      442C2043
-      52544329
+      44
+FFFF          	 if not rom2k
+02AA  2C204352		db		', CRTC'
+      5443
+		 endif
+02B0  29      		db		')'
+FFFF          	 if not rom2k
 02B1  0D0A5820		db	CR,LF,'X <hw> - eXtract hardware to 8000H (CRTC)'
       3C68773E
       202D2065
@@ -388,6 +410,7 @@ FFFF          	true	equ	not false
       30303048
       20284352
       544329
+		 endif
 02DC  0D0A5620		db	CR,LF,'V - Show ROM version'
       2D205368
       6F772052
@@ -756,6 +779,7 @@ FFFF          	true	equ	not false
 0544  CD3B05  		call	skb	; skip blanks
 0547  CA0301  		jz	error	; required param
 			; this may need refinement
+<<<<<<< HEAD
 054A  1B      		dcx	d
 054B  216605  		lxi	h,kb83
 054E  CDAD05  		call	strcmp
@@ -770,14 +794,42 @@ FFFF          	true	equ	not false
 0561          		jrz	ncrtc
 0561  2824    		DB	28H,ncrtc-$-1
 0563  C30301  		jmp	error
+=======
+0547  1B      		dcx	d
+0548  216305  		lxi	h,kb83
+054B  CDAA05  		call	strcmp
+054E          		jrz	nkb83
+054E  2826    		DB	28H,nkb83-$-1
+FFFF          	 if not rom2k
+0550  216805  		lxi	h,kb84
+0553  CDAA05  		call	strcmp
+0556          		jrz	nkb84
+0556  2822    		DB	28H,nkb84-$-1
+0558  216D05  		lxi	h,crtc
+055B  CDAA05  		call	strcmp
+055E          		jrz	ncrtc
+055E  2824    		DB	28H,ncrtc-$-1
+		 endif
+0560  C30301  		jmp	error
+>>>>>>> 335999a (split rom build for 2716)
 		
 0566  4B423833	kb83:	db	'KB83',TRM
       00
+<<<<<<< HEAD
 056B  4B423834	kb84:	db	'KB84',TRM
+=======
+FFFF          	 if not rom2k
+0568  4B423834	kb84:	db	'KB84',TRM
+>>>>>>> 335999a (split rom build for 2716)
       00
 0570  43525443	crtc:	db	'CRTC',TRM
       00
+<<<<<<< HEAD
 0575  4B424400	kbd:	db	'KBD',TRM
+=======
+		 endif
+0572  4B424400	kbd:	db	'KBD',TRM
+>>>>>>> 335999a (split rom build for 2716)
 		
 0579  3E05    	nkb83:	mvi	a,B300
 057B  D30C    		out	kbdbrr	; */83 baud gen for SIO1 ch B
@@ -788,6 +840,7 @@ FFFF          	true	equ	not false
 0584  EDB3    		DB	0EDH,0B3H
 0586  C9      		ret
 		
+<<<<<<< HEAD
 0587  219D05  	ncrtc:	lxi	h,crtini
 058A  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
 058C  0610    		mvi	b,16
@@ -804,11 +857,31 @@ FFFF          	true	equ	not false
 0598  3E1F    		mvi	a,31	; R31 enables CRTC
 059A  D31C    		out	crtctl
 059C  C9      		ret
+=======
+FFFF          	 if not rom2k
+0584  219A05  	ncrtc:	lxi	h,crtini
+0587  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
+0589  0610    		mvi	b,16
+058B  AF      		xra	a	; start with reg 00
+058C  0D      	nc0:	dcr	c
+058D          		outp	a	; select reg
+058D  ED79    		DB	0EDH,a*8+41H
+058F  3C      		inr	a	; ++reg
+0590  0C      		inr	c	;
+0591          		outi
+0591  EDA3    		DB	0EDH,0A3H
+0593          		jrnz	nc0
+0593  20F7    		DB	20H,nc0-$-1
+0595  3E1F    		mvi	a,31	; R31 enables CRTC
+0597  D31C    		out	crtctl
+0599  C9      		ret
+>>>>>>> 335999a (split rom build for 2716)
 		
 059D  6A505699	crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
       190A1919
       780F600F
       00000000
+		 endif
 		
 05AD  D5      	strcmp:	push	d
 05AE  AF      		xra	a
@@ -831,6 +904,7 @@ FFFF          	true	equ	not false
 05BD  CD3B05  		call	skb	; skip blanks
 05C0  CA0301  		jz	error	; required param
 			; this may need refinement
+<<<<<<< HEAD
 05C3  1B      		dcx	d
 05C4  217505  		lxi	h,kbd
 05C7  CDAD05  		call	strcmp
@@ -876,6 +950,57 @@ FFFF          	true	equ	not false
 060F          		djnz	tc0
 060F  10D4    		DB	10H,tc0-$-1
 0611  C9      		ret
+=======
+05C0  1B      		dcx	d
+05C1  217205  		lxi	h,kbd
+05C4  CDAA05  		call	strcmp
+05C7          		jrz	tkbd
+05C7  2846    		DB	28H,tkbd-$-1
+FFFF          	 if not rom2k
+05C9  216D05  		lxi	h,crtc
+05CC  CDAA05  		call	strcmp
+05CF          		jrz	tcrtc
+05CF  2803    		DB	28H,tcrtc-$-1
+		 endif
+05D1  C30301  		jmp	error
+		
+FFFF          	 if not rom2k
+05D4  213406  	tcrtc:	lxi	h,waitm
+05D7  CD9F06  		call	msgprt
+05DA  0605    		mvi	b,5	; count
+05DC  1E80    		mvi	e,80h	; compare
+05DE  3E1F    		mvi	a,31
+05E0  D31C    		out	crtctl	; select reg
+05E2  DB1C    	tc0:	in	crtctl
+05E4  E680    		ani	80h
+05E6  BB      		cmp	e
+05E7          		jrz	tc9
+05E7  280F    		DB	28H,tc9-$-1
+05E9  DB06    		in	conctl
+05EB  E601    		ani	00000001b
+05ED          		jrz	tc0
+05ED  28F3    		DB	28H,tc0-$-1
+05EF  DB04    		in	condat
+05F1  213F06  		lxi	h,abrtm
+05F4  CD9F06  		call	msgprt
+05F7  C9      		ret
+05F8  7B      	tc9:	mov	a,e
+05F9  EE80    		xri	80h
+05FB  5F      		mov	e,a
+05FC          		jrnz	tc8
+05FC  200B    		DB	20H,tc8-$-1
+05FE  214506  		lxi	h,updtm
+0601  CD9F06  		call	msgprt
+0604  DB1F    		in	crtram	; clear Update
+0606          		djnz	tc0
+0606  10DA    		DB	10H,tc0-$-1
+0608  C9      		ret
+0609  CD9006  	tc8:	call	space
+060C          		djnz	tc0
+060C  10D4    		DB	10H,tc0-$-1
+060E  C9      		ret
+		 endif
+>>>>>>> 335999a (split rom build for 2716)
 		
 0612  213706  	tkbd:	lxi	h,waitm
 0615  CDA206  		call	msgprt
@@ -902,7 +1027,12 @@ FFFF          	true	equ	not false
       2E2000
 0642  41626F72	abrtm:	db	'Abort',TRM
       7400
+<<<<<<< HEAD
 0648  55706461	updtm:	db	'Update',TRM
+=======
+FFFF          	 if not rom2k
+0645  55706461	updtm:	db	'Update',TRM
+>>>>>>> 335999a (split rom build for 2716)
       746500
 		
 064F          	Xcomnd:
@@ -916,6 +1046,7 @@ FFFF          	true	equ	not false
 065C  2803    		DB	28H,xcrtc-$-1
 065E  C30301  		jmp	error
 		
+<<<<<<< HEAD
 0661  210080  	xcrtc:	lxi	h,8000h
 0664  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
 0666  0614    		mvi	b,20
@@ -930,6 +1061,23 @@ FFFF          	true	equ	not false
 0670          		jrnz	xc0
 0670  20F7    		DB	20H,xc0-$-1
 0672  C9      		ret
+=======
+065E  210080  	xcrtc:	lxi	h,8000h
+0661  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
+0663  0614    		mvi	b,20
+0665  AF      		xra	a	; start with reg 00
+0666  0D      	xc0:	dcr	c
+0667          		outp	a	; select reg
+0667  ED79    		DB	0EDH,a*8+41H
+0669  3C      		inr	a	; ++reg
+066A  0C      		inr	c	;
+066B          		ini
+066B  EDA2    		DB	0EDH,0A2H
+066D          		jrnz	xc0
+066D  20F7    		DB	20H,xc0-$-1
+066F  C9      		ret
+		 endif
+>>>>>>> 335999a (split rom build for 2716)
 		
 0673          	Vcomnd:
 0673  21BF00  		lxi	h,signon
@@ -1119,6 +1267,7 @@ FFFF          	true	equ	not false
 		
 		; These only work on */84 (and 10) models.
 		; Have no effect (and does nothing) on */83 models.
+<<<<<<< HEAD
 075A          	proginit:
 075A  AF      		xra	a
 075B          		stai
@@ -1156,6 +1305,54 @@ FFFF          	true	equ	not false
 078D  C9      		ret
 		
 			rept	0800h-$
+=======
+0757          	proginit:
+0757  AF      		xra	a
+0758          		stai
+0758  ED47    		DB	0EDH,47H
+FFFF          	 if not rom2k
+075A  DB14    		in	sysp84
+075C  E6FC    		ani	not DSNONE
+075E  E6EF    		ani	not MTRON
+0760  F602    		ori	DS0
+0762  D314    		out	sysp84
+		 endif
+0764  3E41    		mvi	a,'A'
+0766  320030  		sta	3000h
+0769  C9      		ret
+		
+076A          	progoff:
+076A  3EFF    		mvi	a,0ffh
+076C          		stai
+076C  ED47    		DB	0EDH,47H
+FFFF          	 if not rom2k
+076E  DB14    		in	sysp84
+0770  F603    		ori	DSNONE
+0772  D314    		out	sysp84
+		 endif
+0774  AF      		xra	a
+0775  320030  		sta	3000h
+0778  C9      		ret
+		
+0779          	progress:
+0779          		ldai
+0779  ED57    		DB	0EDH,57H
+077B  C0      		rnz
+FFFF          	 if not rom2k
+077C  DB14    		in	sysp84
+077E  EE03    		xri	DSNONE
+0780  D314    		out	sysp84
+		 endif
+0782  3A0030  		lda	3000h
+0785  EE03    		xri	00000011b
+0787  320030  		sta	3000h
+078A  C9      		ret
+		
+			rept	romsiz-$
+078B  FF      		db	0ffh
+078C  FF      		db	0ffh
+078D  FF      		db	0ffh
+>>>>>>> 335999a (split rom build for 2716)
 078E  FF      		db	0ffh
 078F  FF      		db	0ffh
 0790  FF      		db	0ffh
@@ -1270,6 +1467,2054 @@ FFFF          	true	equ	not false
 07FD  FF      		db	0ffh
 07FE  FF      		db	0ffh
 07FF  FF      		db	0ffh
+0800  FF      		db	0ffh
+0801  FF      		db	0ffh
+0802  FF      		db	0ffh
+0803  FF      		db	0ffh
+0804  FF      		db	0ffh
+0805  FF      		db	0ffh
+0806  FF      		db	0ffh
+0807  FF      		db	0ffh
+0808  FF      		db	0ffh
+0809  FF      		db	0ffh
+080A  FF      		db	0ffh
+080B  FF      		db	0ffh
+080C  FF      		db	0ffh
+080D  FF      		db	0ffh
+080E  FF      		db	0ffh
+080F  FF      		db	0ffh
+0810  FF      		db	0ffh
+0811  FF      		db	0ffh
+0812  FF      		db	0ffh
+0813  FF      		db	0ffh
+0814  FF      		db	0ffh
+0815  FF      		db	0ffh
+0816  FF      		db	0ffh
+0817  FF      		db	0ffh
+0818  FF      		db	0ffh
+0819  FF      		db	0ffh
+081A  FF      		db	0ffh
+081B  FF      		db	0ffh
+081C  FF      		db	0ffh
+081D  FF      		db	0ffh
+081E  FF      		db	0ffh
+081F  FF      		db	0ffh
+0820  FF      		db	0ffh
+0821  FF      		db	0ffh
+0822  FF      		db	0ffh
+0823  FF      		db	0ffh
+0824  FF      		db	0ffh
+0825  FF      		db	0ffh
+0826  FF      		db	0ffh
+0827  FF      		db	0ffh
+0828  FF      		db	0ffh
+0829  FF      		db	0ffh
+082A  FF      		db	0ffh
+082B  FF      		db	0ffh
+082C  FF      		db	0ffh
+082D  FF      		db	0ffh
+082E  FF      		db	0ffh
+082F  FF      		db	0ffh
+0830  FF      		db	0ffh
+0831  FF      		db	0ffh
+0832  FF      		db	0ffh
+0833  FF      		db	0ffh
+0834  FF      		db	0ffh
+0835  FF      		db	0ffh
+0836  FF      		db	0ffh
+0837  FF      		db	0ffh
+0838  FF      		db	0ffh
+0839  FF      		db	0ffh
+083A  FF      		db	0ffh
+083B  FF      		db	0ffh
+083C  FF      		db	0ffh
+083D  FF      		db	0ffh
+083E  FF      		db	0ffh
+083F  FF      		db	0ffh
+0840  FF      		db	0ffh
+0841  FF      		db	0ffh
+0842  FF      		db	0ffh
+0843  FF      		db	0ffh
+0844  FF      		db	0ffh
+0845  FF      		db	0ffh
+0846  FF      		db	0ffh
+0847  FF      		db	0ffh
+0848  FF      		db	0ffh
+0849  FF      		db	0ffh
+084A  FF      		db	0ffh
+084B  FF      		db	0ffh
+084C  FF      		db	0ffh
+084D  FF      		db	0ffh
+084E  FF      		db	0ffh
+084F  FF      		db	0ffh
+0850  FF      		db	0ffh
+0851  FF      		db	0ffh
+0852  FF      		db	0ffh
+0853  FF      		db	0ffh
+0854  FF      		db	0ffh
+0855  FF      		db	0ffh
+0856  FF      		db	0ffh
+0857  FF      		db	0ffh
+0858  FF      		db	0ffh
+0859  FF      		db	0ffh
+085A  FF      		db	0ffh
+085B  FF      		db	0ffh
+085C  FF      		db	0ffh
+085D  FF      		db	0ffh
+085E  FF      		db	0ffh
+085F  FF      		db	0ffh
+0860  FF      		db	0ffh
+0861  FF      		db	0ffh
+0862  FF      		db	0ffh
+0863  FF      		db	0ffh
+0864  FF      		db	0ffh
+0865  FF      		db	0ffh
+0866  FF      		db	0ffh
+0867  FF      		db	0ffh
+0868  FF      		db	0ffh
+0869  FF      		db	0ffh
+086A  FF      		db	0ffh
+086B  FF      		db	0ffh
+086C  FF      		db	0ffh
+086D  FF      		db	0ffh
+086E  FF      		db	0ffh
+086F  FF      		db	0ffh
+0870  FF      		db	0ffh
+0871  FF      		db	0ffh
+0872  FF      		db	0ffh
+0873  FF      		db	0ffh
+0874  FF      		db	0ffh
+0875  FF      		db	0ffh
+0876  FF      		db	0ffh
+0877  FF      		db	0ffh
+0878  FF      		db	0ffh
+0879  FF      		db	0ffh
+087A  FF      		db	0ffh
+087B  FF      		db	0ffh
+087C  FF      		db	0ffh
+087D  FF      		db	0ffh
+087E  FF      		db	0ffh
+087F  FF      		db	0ffh
+0880  FF      		db	0ffh
+0881  FF      		db	0ffh
+0882  FF      		db	0ffh
+0883  FF      		db	0ffh
+0884  FF      		db	0ffh
+0885  FF      		db	0ffh
+0886  FF      		db	0ffh
+0887  FF      		db	0ffh
+0888  FF      		db	0ffh
+0889  FF      		db	0ffh
+088A  FF      		db	0ffh
+088B  FF      		db	0ffh
+088C  FF      		db	0ffh
+088D  FF      		db	0ffh
+088E  FF      		db	0ffh
+088F  FF      		db	0ffh
+0890  FF      		db	0ffh
+0891  FF      		db	0ffh
+0892  FF      		db	0ffh
+0893  FF      		db	0ffh
+0894  FF      		db	0ffh
+0895  FF      		db	0ffh
+0896  FF      		db	0ffh
+0897  FF      		db	0ffh
+0898  FF      		db	0ffh
+0899  FF      		db	0ffh
+089A  FF      		db	0ffh
+089B  FF      		db	0ffh
+089C  FF      		db	0ffh
+089D  FF      		db	0ffh
+089E  FF      		db	0ffh
+089F  FF      		db	0ffh
+08A0  FF      		db	0ffh
+08A1  FF      		db	0ffh
+08A2  FF      		db	0ffh
+08A3  FF      		db	0ffh
+08A4  FF      		db	0ffh
+08A5  FF      		db	0ffh
+08A6  FF      		db	0ffh
+08A7  FF      		db	0ffh
+08A8  FF      		db	0ffh
+08A9  FF      		db	0ffh
+08AA  FF      		db	0ffh
+08AB  FF      		db	0ffh
+08AC  FF      		db	0ffh
+08AD  FF      		db	0ffh
+08AE  FF      		db	0ffh
+08AF  FF      		db	0ffh
+08B0  FF      		db	0ffh
+08B1  FF      		db	0ffh
+08B2  FF      		db	0ffh
+08B3  FF      		db	0ffh
+08B4  FF      		db	0ffh
+08B5  FF      		db	0ffh
+08B6  FF      		db	0ffh
+08B7  FF      		db	0ffh
+08B8  FF      		db	0ffh
+08B9  FF      		db	0ffh
+08BA  FF      		db	0ffh
+08BB  FF      		db	0ffh
+08BC  FF      		db	0ffh
+08BD  FF      		db	0ffh
+08BE  FF      		db	0ffh
+08BF  FF      		db	0ffh
+08C0  FF      		db	0ffh
+08C1  FF      		db	0ffh
+08C2  FF      		db	0ffh
+08C3  FF      		db	0ffh
+08C4  FF      		db	0ffh
+08C5  FF      		db	0ffh
+08C6  FF      		db	0ffh
+08C7  FF      		db	0ffh
+08C8  FF      		db	0ffh
+08C9  FF      		db	0ffh
+08CA  FF      		db	0ffh
+08CB  FF      		db	0ffh
+08CC  FF      		db	0ffh
+08CD  FF      		db	0ffh
+08CE  FF      		db	0ffh
+08CF  FF      		db	0ffh
+08D0  FF      		db	0ffh
+08D1  FF      		db	0ffh
+08D2  FF      		db	0ffh
+08D3  FF      		db	0ffh
+08D4  FF      		db	0ffh
+08D5  FF      		db	0ffh
+08D6  FF      		db	0ffh
+08D7  FF      		db	0ffh
+08D8  FF      		db	0ffh
+08D9  FF      		db	0ffh
+08DA  FF      		db	0ffh
+08DB  FF      		db	0ffh
+08DC  FF      		db	0ffh
+08DD  FF      		db	0ffh
+08DE  FF      		db	0ffh
+08DF  FF      		db	0ffh
+08E0  FF      		db	0ffh
+08E1  FF      		db	0ffh
+08E2  FF      		db	0ffh
+08E3  FF      		db	0ffh
+08E4  FF      		db	0ffh
+08E5  FF      		db	0ffh
+08E6  FF      		db	0ffh
+08E7  FF      		db	0ffh
+08E8  FF      		db	0ffh
+08E9  FF      		db	0ffh
+08EA  FF      		db	0ffh
+08EB  FF      		db	0ffh
+08EC  FF      		db	0ffh
+08ED  FF      		db	0ffh
+08EE  FF      		db	0ffh
+08EF  FF      		db	0ffh
+08F0  FF      		db	0ffh
+08F1  FF      		db	0ffh
+08F2  FF      		db	0ffh
+08F3  FF      		db	0ffh
+08F4  FF      		db	0ffh
+08F5  FF      		db	0ffh
+08F6  FF      		db	0ffh
+08F7  FF      		db	0ffh
+08F8  FF      		db	0ffh
+08F9  FF      		db	0ffh
+08FA  FF      		db	0ffh
+08FB  FF      		db	0ffh
+08FC  FF      		db	0ffh
+08FD  FF      		db	0ffh
+08FE  FF      		db	0ffh
+08FF  FF      		db	0ffh
+0900  FF      		db	0ffh
+0901  FF      		db	0ffh
+0902  FF      		db	0ffh
+0903  FF      		db	0ffh
+0904  FF      		db	0ffh
+0905  FF      		db	0ffh
+0906  FF      		db	0ffh
+0907  FF      		db	0ffh
+0908  FF      		db	0ffh
+0909  FF      		db	0ffh
+090A  FF      		db	0ffh
+090B  FF      		db	0ffh
+090C  FF      		db	0ffh
+090D  FF      		db	0ffh
+090E  FF      		db	0ffh
+090F  FF      		db	0ffh
+0910  FF      		db	0ffh
+0911  FF      		db	0ffh
+0912  FF      		db	0ffh
+0913  FF      		db	0ffh
+0914  FF      		db	0ffh
+0915  FF      		db	0ffh
+0916  FF      		db	0ffh
+0917  FF      		db	0ffh
+0918  FF      		db	0ffh
+0919  FF      		db	0ffh
+091A  FF      		db	0ffh
+091B  FF      		db	0ffh
+091C  FF      		db	0ffh
+091D  FF      		db	0ffh
+091E  FF      		db	0ffh
+091F  FF      		db	0ffh
+0920  FF      		db	0ffh
+0921  FF      		db	0ffh
+0922  FF      		db	0ffh
+0923  FF      		db	0ffh
+0924  FF      		db	0ffh
+0925  FF      		db	0ffh
+0926  FF      		db	0ffh
+0927  FF      		db	0ffh
+0928  FF      		db	0ffh
+0929  FF      		db	0ffh
+092A  FF      		db	0ffh
+092B  FF      		db	0ffh
+092C  FF      		db	0ffh
+092D  FF      		db	0ffh
+092E  FF      		db	0ffh
+092F  FF      		db	0ffh
+0930  FF      		db	0ffh
+0931  FF      		db	0ffh
+0932  FF      		db	0ffh
+0933  FF      		db	0ffh
+0934  FF      		db	0ffh
+0935  FF      		db	0ffh
+0936  FF      		db	0ffh
+0937  FF      		db	0ffh
+0938  FF      		db	0ffh
+0939  FF      		db	0ffh
+093A  FF      		db	0ffh
+093B  FF      		db	0ffh
+093C  FF      		db	0ffh
+093D  FF      		db	0ffh
+093E  FF      		db	0ffh
+093F  FF      		db	0ffh
+0940  FF      		db	0ffh
+0941  FF      		db	0ffh
+0942  FF      		db	0ffh
+0943  FF      		db	0ffh
+0944  FF      		db	0ffh
+0945  FF      		db	0ffh
+0946  FF      		db	0ffh
+0947  FF      		db	0ffh
+0948  FF      		db	0ffh
+0949  FF      		db	0ffh
+094A  FF      		db	0ffh
+094B  FF      		db	0ffh
+094C  FF      		db	0ffh
+094D  FF      		db	0ffh
+094E  FF      		db	0ffh
+094F  FF      		db	0ffh
+0950  FF      		db	0ffh
+0951  FF      		db	0ffh
+0952  FF      		db	0ffh
+0953  FF      		db	0ffh
+0954  FF      		db	0ffh
+0955  FF      		db	0ffh
+0956  FF      		db	0ffh
+0957  FF      		db	0ffh
+0958  FF      		db	0ffh
+0959  FF      		db	0ffh
+095A  FF      		db	0ffh
+095B  FF      		db	0ffh
+095C  FF      		db	0ffh
+095D  FF      		db	0ffh
+095E  FF      		db	0ffh
+095F  FF      		db	0ffh
+0960  FF      		db	0ffh
+0961  FF      		db	0ffh
+0962  FF      		db	0ffh
+0963  FF      		db	0ffh
+0964  FF      		db	0ffh
+0965  FF      		db	0ffh
+0966  FF      		db	0ffh
+0967  FF      		db	0ffh
+0968  FF      		db	0ffh
+0969  FF      		db	0ffh
+096A  FF      		db	0ffh
+096B  FF      		db	0ffh
+096C  FF      		db	0ffh
+096D  FF      		db	0ffh
+096E  FF      		db	0ffh
+096F  FF      		db	0ffh
+0970  FF      		db	0ffh
+0971  FF      		db	0ffh
+0972  FF      		db	0ffh
+0973  FF      		db	0ffh
+0974  FF      		db	0ffh
+0975  FF      		db	0ffh
+0976  FF      		db	0ffh
+0977  FF      		db	0ffh
+0978  FF      		db	0ffh
+0979  FF      		db	0ffh
+097A  FF      		db	0ffh
+097B  FF      		db	0ffh
+097C  FF      		db	0ffh
+097D  FF      		db	0ffh
+097E  FF      		db	0ffh
+097F  FF      		db	0ffh
+0980  FF      		db	0ffh
+0981  FF      		db	0ffh
+0982  FF      		db	0ffh
+0983  FF      		db	0ffh
+0984  FF      		db	0ffh
+0985  FF      		db	0ffh
+0986  FF      		db	0ffh
+0987  FF      		db	0ffh
+0988  FF      		db	0ffh
+0989  FF      		db	0ffh
+098A  FF      		db	0ffh
+098B  FF      		db	0ffh
+098C  FF      		db	0ffh
+098D  FF      		db	0ffh
+098E  FF      		db	0ffh
+098F  FF      		db	0ffh
+0990  FF      		db	0ffh
+0991  FF      		db	0ffh
+0992  FF      		db	0ffh
+0993  FF      		db	0ffh
+0994  FF      		db	0ffh
+0995  FF      		db	0ffh
+0996  FF      		db	0ffh
+0997  FF      		db	0ffh
+0998  FF      		db	0ffh
+0999  FF      		db	0ffh
+099A  FF      		db	0ffh
+099B  FF      		db	0ffh
+099C  FF      		db	0ffh
+099D  FF      		db	0ffh
+099E  FF      		db	0ffh
+099F  FF      		db	0ffh
+09A0  FF      		db	0ffh
+09A1  FF      		db	0ffh
+09A2  FF      		db	0ffh
+09A3  FF      		db	0ffh
+09A4  FF      		db	0ffh
+09A5  FF      		db	0ffh
+09A6  FF      		db	0ffh
+09A7  FF      		db	0ffh
+09A8  FF      		db	0ffh
+09A9  FF      		db	0ffh
+09AA  FF      		db	0ffh
+09AB  FF      		db	0ffh
+09AC  FF      		db	0ffh
+09AD  FF      		db	0ffh
+09AE  FF      		db	0ffh
+09AF  FF      		db	0ffh
+09B0  FF      		db	0ffh
+09B1  FF      		db	0ffh
+09B2  FF      		db	0ffh
+09B3  FF      		db	0ffh
+09B4  FF      		db	0ffh
+09B5  FF      		db	0ffh
+09B6  FF      		db	0ffh
+09B7  FF      		db	0ffh
+09B8  FF      		db	0ffh
+09B9  FF      		db	0ffh
+09BA  FF      		db	0ffh
+09BB  FF      		db	0ffh
+09BC  FF      		db	0ffh
+09BD  FF      		db	0ffh
+09BE  FF      		db	0ffh
+09BF  FF      		db	0ffh
+09C0  FF      		db	0ffh
+09C1  FF      		db	0ffh
+09C2  FF      		db	0ffh
+09C3  FF      		db	0ffh
+09C4  FF      		db	0ffh
+09C5  FF      		db	0ffh
+09C6  FF      		db	0ffh
+09C7  FF      		db	0ffh
+09C8  FF      		db	0ffh
+09C9  FF      		db	0ffh
+09CA  FF      		db	0ffh
+09CB  FF      		db	0ffh
+09CC  FF      		db	0ffh
+09CD  FF      		db	0ffh
+09CE  FF      		db	0ffh
+09CF  FF      		db	0ffh
+09D0  FF      		db	0ffh
+09D1  FF      		db	0ffh
+09D2  FF      		db	0ffh
+09D3  FF      		db	0ffh
+09D4  FF      		db	0ffh
+09D5  FF      		db	0ffh
+09D6  FF      		db	0ffh
+09D7  FF      		db	0ffh
+09D8  FF      		db	0ffh
+09D9  FF      		db	0ffh
+09DA  FF      		db	0ffh
+09DB  FF      		db	0ffh
+09DC  FF      		db	0ffh
+09DD  FF      		db	0ffh
+09DE  FF      		db	0ffh
+09DF  FF      		db	0ffh
+09E0  FF      		db	0ffh
+09E1  FF      		db	0ffh
+09E2  FF      		db	0ffh
+09E3  FF      		db	0ffh
+09E4  FF      		db	0ffh
+09E5  FF      		db	0ffh
+09E6  FF      		db	0ffh
+09E7  FF      		db	0ffh
+09E8  FF      		db	0ffh
+09E9  FF      		db	0ffh
+09EA  FF      		db	0ffh
+09EB  FF      		db	0ffh
+09EC  FF      		db	0ffh
+09ED  FF      		db	0ffh
+09EE  FF      		db	0ffh
+09EF  FF      		db	0ffh
+09F0  FF      		db	0ffh
+09F1  FF      		db	0ffh
+09F2  FF      		db	0ffh
+09F3  FF      		db	0ffh
+09F4  FF      		db	0ffh
+09F5  FF      		db	0ffh
+09F6  FF      		db	0ffh
+09F7  FF      		db	0ffh
+09F8  FF      		db	0ffh
+09F9  FF      		db	0ffh
+09FA  FF      		db	0ffh
+09FB  FF      		db	0ffh
+09FC  FF      		db	0ffh
+09FD  FF      		db	0ffh
+09FE  FF      		db	0ffh
+09FF  FF      		db	0ffh
+0A00  FF      		db	0ffh
+0A01  FF      		db	0ffh
+0A02  FF      		db	0ffh
+0A03  FF      		db	0ffh
+0A04  FF      		db	0ffh
+0A05  FF      		db	0ffh
+0A06  FF      		db	0ffh
+0A07  FF      		db	0ffh
+0A08  FF      		db	0ffh
+0A09  FF      		db	0ffh
+0A0A  FF      		db	0ffh
+0A0B  FF      		db	0ffh
+0A0C  FF      		db	0ffh
+0A0D  FF      		db	0ffh
+0A0E  FF      		db	0ffh
+0A0F  FF      		db	0ffh
+0A10  FF      		db	0ffh
+0A11  FF      		db	0ffh
+0A12  FF      		db	0ffh
+0A13  FF      		db	0ffh
+0A14  FF      		db	0ffh
+0A15  FF      		db	0ffh
+0A16  FF      		db	0ffh
+0A17  FF      		db	0ffh
+0A18  FF      		db	0ffh
+0A19  FF      		db	0ffh
+0A1A  FF      		db	0ffh
+0A1B  FF      		db	0ffh
+0A1C  FF      		db	0ffh
+0A1D  FF      		db	0ffh
+0A1E  FF      		db	0ffh
+0A1F  FF      		db	0ffh
+0A20  FF      		db	0ffh
+0A21  FF      		db	0ffh
+0A22  FF      		db	0ffh
+0A23  FF      		db	0ffh
+0A24  FF      		db	0ffh
+0A25  FF      		db	0ffh
+0A26  FF      		db	0ffh
+0A27  FF      		db	0ffh
+0A28  FF      		db	0ffh
+0A29  FF      		db	0ffh
+0A2A  FF      		db	0ffh
+0A2B  FF      		db	0ffh
+0A2C  FF      		db	0ffh
+0A2D  FF      		db	0ffh
+0A2E  FF      		db	0ffh
+0A2F  FF      		db	0ffh
+0A30  FF      		db	0ffh
+0A31  FF      		db	0ffh
+0A32  FF      		db	0ffh
+0A33  FF      		db	0ffh
+0A34  FF      		db	0ffh
+0A35  FF      		db	0ffh
+0A36  FF      		db	0ffh
+0A37  FF      		db	0ffh
+0A38  FF      		db	0ffh
+0A39  FF      		db	0ffh
+0A3A  FF      		db	0ffh
+0A3B  FF      		db	0ffh
+0A3C  FF      		db	0ffh
+0A3D  FF      		db	0ffh
+0A3E  FF      		db	0ffh
+0A3F  FF      		db	0ffh
+0A40  FF      		db	0ffh
+0A41  FF      		db	0ffh
+0A42  FF      		db	0ffh
+0A43  FF      		db	0ffh
+0A44  FF      		db	0ffh
+0A45  FF      		db	0ffh
+0A46  FF      		db	0ffh
+0A47  FF      		db	0ffh
+0A48  FF      		db	0ffh
+0A49  FF      		db	0ffh
+0A4A  FF      		db	0ffh
+0A4B  FF      		db	0ffh
+0A4C  FF      		db	0ffh
+0A4D  FF      		db	0ffh
+0A4E  FF      		db	0ffh
+0A4F  FF      		db	0ffh
+0A50  FF      		db	0ffh
+0A51  FF      		db	0ffh
+0A52  FF      		db	0ffh
+0A53  FF      		db	0ffh
+0A54  FF      		db	0ffh
+0A55  FF      		db	0ffh
+0A56  FF      		db	0ffh
+0A57  FF      		db	0ffh
+0A58  FF      		db	0ffh
+0A59  FF      		db	0ffh
+0A5A  FF      		db	0ffh
+0A5B  FF      		db	0ffh
+0A5C  FF      		db	0ffh
+0A5D  FF      		db	0ffh
+0A5E  FF      		db	0ffh
+0A5F  FF      		db	0ffh
+0A60  FF      		db	0ffh
+0A61  FF      		db	0ffh
+0A62  FF      		db	0ffh
+0A63  FF      		db	0ffh
+0A64  FF      		db	0ffh
+0A65  FF      		db	0ffh
+0A66  FF      		db	0ffh
+0A67  FF      		db	0ffh
+0A68  FF      		db	0ffh
+0A69  FF      		db	0ffh
+0A6A  FF      		db	0ffh
+0A6B  FF      		db	0ffh
+0A6C  FF      		db	0ffh
+0A6D  FF      		db	0ffh
+0A6E  FF      		db	0ffh
+0A6F  FF      		db	0ffh
+0A70  FF      		db	0ffh
+0A71  FF      		db	0ffh
+0A72  FF      		db	0ffh
+0A73  FF      		db	0ffh
+0A74  FF      		db	0ffh
+0A75  FF      		db	0ffh
+0A76  FF      		db	0ffh
+0A77  FF      		db	0ffh
+0A78  FF      		db	0ffh
+0A79  FF      		db	0ffh
+0A7A  FF      		db	0ffh
+0A7B  FF      		db	0ffh
+0A7C  FF      		db	0ffh
+0A7D  FF      		db	0ffh
+0A7E  FF      		db	0ffh
+0A7F  FF      		db	0ffh
+0A80  FF      		db	0ffh
+0A81  FF      		db	0ffh
+0A82  FF      		db	0ffh
+0A83  FF      		db	0ffh
+0A84  FF      		db	0ffh
+0A85  FF      		db	0ffh
+0A86  FF      		db	0ffh
+0A87  FF      		db	0ffh
+0A88  FF      		db	0ffh
+0A89  FF      		db	0ffh
+0A8A  FF      		db	0ffh
+0A8B  FF      		db	0ffh
+0A8C  FF      		db	0ffh
+0A8D  FF      		db	0ffh
+0A8E  FF      		db	0ffh
+0A8F  FF      		db	0ffh
+0A90  FF      		db	0ffh
+0A91  FF      		db	0ffh
+0A92  FF      		db	0ffh
+0A93  FF      		db	0ffh
+0A94  FF      		db	0ffh
+0A95  FF      		db	0ffh
+0A96  FF      		db	0ffh
+0A97  FF      		db	0ffh
+0A98  FF      		db	0ffh
+0A99  FF      		db	0ffh
+0A9A  FF      		db	0ffh
+0A9B  FF      		db	0ffh
+0A9C  FF      		db	0ffh
+0A9D  FF      		db	0ffh
+0A9E  FF      		db	0ffh
+0A9F  FF      		db	0ffh
+0AA0  FF      		db	0ffh
+0AA1  FF      		db	0ffh
+0AA2  FF      		db	0ffh
+0AA3  FF      		db	0ffh
+0AA4  FF      		db	0ffh
+0AA5  FF      		db	0ffh
+0AA6  FF      		db	0ffh
+0AA7  FF      		db	0ffh
+0AA8  FF      		db	0ffh
+0AA9  FF      		db	0ffh
+0AAA  FF      		db	0ffh
+0AAB  FF      		db	0ffh
+0AAC  FF      		db	0ffh
+0AAD  FF      		db	0ffh
+0AAE  FF      		db	0ffh
+0AAF  FF      		db	0ffh
+0AB0  FF      		db	0ffh
+0AB1  FF      		db	0ffh
+0AB2  FF      		db	0ffh
+0AB3  FF      		db	0ffh
+0AB4  FF      		db	0ffh
+0AB5  FF      		db	0ffh
+0AB6  FF      		db	0ffh
+0AB7  FF      		db	0ffh
+0AB8  FF      		db	0ffh
+0AB9  FF      		db	0ffh
+0ABA  FF      		db	0ffh
+0ABB  FF      		db	0ffh
+0ABC  FF      		db	0ffh
+0ABD  FF      		db	0ffh
+0ABE  FF      		db	0ffh
+0ABF  FF      		db	0ffh
+0AC0  FF      		db	0ffh
+0AC1  FF      		db	0ffh
+0AC2  FF      		db	0ffh
+0AC3  FF      		db	0ffh
+0AC4  FF      		db	0ffh
+0AC5  FF      		db	0ffh
+0AC6  FF      		db	0ffh
+0AC7  FF      		db	0ffh
+0AC8  FF      		db	0ffh
+0AC9  FF      		db	0ffh
+0ACA  FF      		db	0ffh
+0ACB  FF      		db	0ffh
+0ACC  FF      		db	0ffh
+0ACD  FF      		db	0ffh
+0ACE  FF      		db	0ffh
+0ACF  FF      		db	0ffh
+0AD0  FF      		db	0ffh
+0AD1  FF      		db	0ffh
+0AD2  FF      		db	0ffh
+0AD3  FF      		db	0ffh
+0AD4  FF      		db	0ffh
+0AD5  FF      		db	0ffh
+0AD6  FF      		db	0ffh
+0AD7  FF      		db	0ffh
+0AD8  FF      		db	0ffh
+0AD9  FF      		db	0ffh
+0ADA  FF      		db	0ffh
+0ADB  FF      		db	0ffh
+0ADC  FF      		db	0ffh
+0ADD  FF      		db	0ffh
+0ADE  FF      		db	0ffh
+0ADF  FF      		db	0ffh
+0AE0  FF      		db	0ffh
+0AE1  FF      		db	0ffh
+0AE2  FF      		db	0ffh
+0AE3  FF      		db	0ffh
+0AE4  FF      		db	0ffh
+0AE5  FF      		db	0ffh
+0AE6  FF      		db	0ffh
+0AE7  FF      		db	0ffh
+0AE8  FF      		db	0ffh
+0AE9  FF      		db	0ffh
+0AEA  FF      		db	0ffh
+0AEB  FF      		db	0ffh
+0AEC  FF      		db	0ffh
+0AED  FF      		db	0ffh
+0AEE  FF      		db	0ffh
+0AEF  FF      		db	0ffh
+0AF0  FF      		db	0ffh
+0AF1  FF      		db	0ffh
+0AF2  FF      		db	0ffh
+0AF3  FF      		db	0ffh
+0AF4  FF      		db	0ffh
+0AF5  FF      		db	0ffh
+0AF6  FF      		db	0ffh
+0AF7  FF      		db	0ffh
+0AF8  FF      		db	0ffh
+0AF9  FF      		db	0ffh
+0AFA  FF      		db	0ffh
+0AFB  FF      		db	0ffh
+0AFC  FF      		db	0ffh
+0AFD  FF      		db	0ffh
+0AFE  FF      		db	0ffh
+0AFF  FF      		db	0ffh
+0B00  FF      		db	0ffh
+0B01  FF      		db	0ffh
+0B02  FF      		db	0ffh
+0B03  FF      		db	0ffh
+0B04  FF      		db	0ffh
+0B05  FF      		db	0ffh
+0B06  FF      		db	0ffh
+0B07  FF      		db	0ffh
+0B08  FF      		db	0ffh
+0B09  FF      		db	0ffh
+0B0A  FF      		db	0ffh
+0B0B  FF      		db	0ffh
+0B0C  FF      		db	0ffh
+0B0D  FF      		db	0ffh
+0B0E  FF      		db	0ffh
+0B0F  FF      		db	0ffh
+0B10  FF      		db	0ffh
+0B11  FF      		db	0ffh
+0B12  FF      		db	0ffh
+0B13  FF      		db	0ffh
+0B14  FF      		db	0ffh
+0B15  FF      		db	0ffh
+0B16  FF      		db	0ffh
+0B17  FF      		db	0ffh
+0B18  FF      		db	0ffh
+0B19  FF      		db	0ffh
+0B1A  FF      		db	0ffh
+0B1B  FF      		db	0ffh
+0B1C  FF      		db	0ffh
+0B1D  FF      		db	0ffh
+0B1E  FF      		db	0ffh
+0B1F  FF      		db	0ffh
+0B20  FF      		db	0ffh
+0B21  FF      		db	0ffh
+0B22  FF      		db	0ffh
+0B23  FF      		db	0ffh
+0B24  FF      		db	0ffh
+0B25  FF      		db	0ffh
+0B26  FF      		db	0ffh
+0B27  FF      		db	0ffh
+0B28  FF      		db	0ffh
+0B29  FF      		db	0ffh
+0B2A  FF      		db	0ffh
+0B2B  FF      		db	0ffh
+0B2C  FF      		db	0ffh
+0B2D  FF      		db	0ffh
+0B2E  FF      		db	0ffh
+0B2F  FF      		db	0ffh
+0B30  FF      		db	0ffh
+0B31  FF      		db	0ffh
+0B32  FF      		db	0ffh
+0B33  FF      		db	0ffh
+0B34  FF      		db	0ffh
+0B35  FF      		db	0ffh
+0B36  FF      		db	0ffh
+0B37  FF      		db	0ffh
+0B38  FF      		db	0ffh
+0B39  FF      		db	0ffh
+0B3A  FF      		db	0ffh
+0B3B  FF      		db	0ffh
+0B3C  FF      		db	0ffh
+0B3D  FF      		db	0ffh
+0B3E  FF      		db	0ffh
+0B3F  FF      		db	0ffh
+0B40  FF      		db	0ffh
+0B41  FF      		db	0ffh
+0B42  FF      		db	0ffh
+0B43  FF      		db	0ffh
+0B44  FF      		db	0ffh
+0B45  FF      		db	0ffh
+0B46  FF      		db	0ffh
+0B47  FF      		db	0ffh
+0B48  FF      		db	0ffh
+0B49  FF      		db	0ffh
+0B4A  FF      		db	0ffh
+0B4B  FF      		db	0ffh
+0B4C  FF      		db	0ffh
+0B4D  FF      		db	0ffh
+0B4E  FF      		db	0ffh
+0B4F  FF      		db	0ffh
+0B50  FF      		db	0ffh
+0B51  FF      		db	0ffh
+0B52  FF      		db	0ffh
+0B53  FF      		db	0ffh
+0B54  FF      		db	0ffh
+0B55  FF      		db	0ffh
+0B56  FF      		db	0ffh
+0B57  FF      		db	0ffh
+0B58  FF      		db	0ffh
+0B59  FF      		db	0ffh
+0B5A  FF      		db	0ffh
+0B5B  FF      		db	0ffh
+0B5C  FF      		db	0ffh
+0B5D  FF      		db	0ffh
+0B5E  FF      		db	0ffh
+0B5F  FF      		db	0ffh
+0B60  FF      		db	0ffh
+0B61  FF      		db	0ffh
+0B62  FF      		db	0ffh
+0B63  FF      		db	0ffh
+0B64  FF      		db	0ffh
+0B65  FF      		db	0ffh
+0B66  FF      		db	0ffh
+0B67  FF      		db	0ffh
+0B68  FF      		db	0ffh
+0B69  FF      		db	0ffh
+0B6A  FF      		db	0ffh
+0B6B  FF      		db	0ffh
+0B6C  FF      		db	0ffh
+0B6D  FF      		db	0ffh
+0B6E  FF      		db	0ffh
+0B6F  FF      		db	0ffh
+0B70  FF      		db	0ffh
+0B71  FF      		db	0ffh
+0B72  FF      		db	0ffh
+0B73  FF      		db	0ffh
+0B74  FF      		db	0ffh
+0B75  FF      		db	0ffh
+0B76  FF      		db	0ffh
+0B77  FF      		db	0ffh
+0B78  FF      		db	0ffh
+0B79  FF      		db	0ffh
+0B7A  FF      		db	0ffh
+0B7B  FF      		db	0ffh
+0B7C  FF      		db	0ffh
+0B7D  FF      		db	0ffh
+0B7E  FF      		db	0ffh
+0B7F  FF      		db	0ffh
+0B80  FF      		db	0ffh
+0B81  FF      		db	0ffh
+0B82  FF      		db	0ffh
+0B83  FF      		db	0ffh
+0B84  FF      		db	0ffh
+0B85  FF      		db	0ffh
+0B86  FF      		db	0ffh
+0B87  FF      		db	0ffh
+0B88  FF      		db	0ffh
+0B89  FF      		db	0ffh
+0B8A  FF      		db	0ffh
+0B8B  FF      		db	0ffh
+0B8C  FF      		db	0ffh
+0B8D  FF      		db	0ffh
+0B8E  FF      		db	0ffh
+0B8F  FF      		db	0ffh
+0B90  FF      		db	0ffh
+0B91  FF      		db	0ffh
+0B92  FF      		db	0ffh
+0B93  FF      		db	0ffh
+0B94  FF      		db	0ffh
+0B95  FF      		db	0ffh
+0B96  FF      		db	0ffh
+0B97  FF      		db	0ffh
+0B98  FF      		db	0ffh
+0B99  FF      		db	0ffh
+0B9A  FF      		db	0ffh
+0B9B  FF      		db	0ffh
+0B9C  FF      		db	0ffh
+0B9D  FF      		db	0ffh
+0B9E  FF      		db	0ffh
+0B9F  FF      		db	0ffh
+0BA0  FF      		db	0ffh
+0BA1  FF      		db	0ffh
+0BA2  FF      		db	0ffh
+0BA3  FF      		db	0ffh
+0BA4  FF      		db	0ffh
+0BA5  FF      		db	0ffh
+0BA6  FF      		db	0ffh
+0BA7  FF      		db	0ffh
+0BA8  FF      		db	0ffh
+0BA9  FF      		db	0ffh
+0BAA  FF      		db	0ffh
+0BAB  FF      		db	0ffh
+0BAC  FF      		db	0ffh
+0BAD  FF      		db	0ffh
+0BAE  FF      		db	0ffh
+0BAF  FF      		db	0ffh
+0BB0  FF      		db	0ffh
+0BB1  FF      		db	0ffh
+0BB2  FF      		db	0ffh
+0BB3  FF      		db	0ffh
+0BB4  FF      		db	0ffh
+0BB5  FF      		db	0ffh
+0BB6  FF      		db	0ffh
+0BB7  FF      		db	0ffh
+0BB8  FF      		db	0ffh
+0BB9  FF      		db	0ffh
+0BBA  FF      		db	0ffh
+0BBB  FF      		db	0ffh
+0BBC  FF      		db	0ffh
+0BBD  FF      		db	0ffh
+0BBE  FF      		db	0ffh
+0BBF  FF      		db	0ffh
+0BC0  FF      		db	0ffh
+0BC1  FF      		db	0ffh
+0BC2  FF      		db	0ffh
+0BC3  FF      		db	0ffh
+0BC4  FF      		db	0ffh
+0BC5  FF      		db	0ffh
+0BC6  FF      		db	0ffh
+0BC7  FF      		db	0ffh
+0BC8  FF      		db	0ffh
+0BC9  FF      		db	0ffh
+0BCA  FF      		db	0ffh
+0BCB  FF      		db	0ffh
+0BCC  FF      		db	0ffh
+0BCD  FF      		db	0ffh
+0BCE  FF      		db	0ffh
+0BCF  FF      		db	0ffh
+0BD0  FF      		db	0ffh
+0BD1  FF      		db	0ffh
+0BD2  FF      		db	0ffh
+0BD3  FF      		db	0ffh
+0BD4  FF      		db	0ffh
+0BD5  FF      		db	0ffh
+0BD6  FF      		db	0ffh
+0BD7  FF      		db	0ffh
+0BD8  FF      		db	0ffh
+0BD9  FF      		db	0ffh
+0BDA  FF      		db	0ffh
+0BDB  FF      		db	0ffh
+0BDC  FF      		db	0ffh
+0BDD  FF      		db	0ffh
+0BDE  FF      		db	0ffh
+0BDF  FF      		db	0ffh
+0BE0  FF      		db	0ffh
+0BE1  FF      		db	0ffh
+0BE2  FF      		db	0ffh
+0BE3  FF      		db	0ffh
+0BE4  FF      		db	0ffh
+0BE5  FF      		db	0ffh
+0BE6  FF      		db	0ffh
+0BE7  FF      		db	0ffh
+0BE8  FF      		db	0ffh
+0BE9  FF      		db	0ffh
+0BEA  FF      		db	0ffh
+0BEB  FF      		db	0ffh
+0BEC  FF      		db	0ffh
+0BED  FF      		db	0ffh
+0BEE  FF      		db	0ffh
+0BEF  FF      		db	0ffh
+0BF0  FF      		db	0ffh
+0BF1  FF      		db	0ffh
+0BF2  FF      		db	0ffh
+0BF3  FF      		db	0ffh
+0BF4  FF      		db	0ffh
+0BF5  FF      		db	0ffh
+0BF6  FF      		db	0ffh
+0BF7  FF      		db	0ffh
+0BF8  FF      		db	0ffh
+0BF9  FF      		db	0ffh
+0BFA  FF      		db	0ffh
+0BFB  FF      		db	0ffh
+0BFC  FF      		db	0ffh
+0BFD  FF      		db	0ffh
+0BFE  FF      		db	0ffh
+0BFF  FF      		db	0ffh
+0C00  FF      		db	0ffh
+0C01  FF      		db	0ffh
+0C02  FF      		db	0ffh
+0C03  FF      		db	0ffh
+0C04  FF      		db	0ffh
+0C05  FF      		db	0ffh
+0C06  FF      		db	0ffh
+0C07  FF      		db	0ffh
+0C08  FF      		db	0ffh
+0C09  FF      		db	0ffh
+0C0A  FF      		db	0ffh
+0C0B  FF      		db	0ffh
+0C0C  FF      		db	0ffh
+0C0D  FF      		db	0ffh
+0C0E  FF      		db	0ffh
+0C0F  FF      		db	0ffh
+0C10  FF      		db	0ffh
+0C11  FF      		db	0ffh
+0C12  FF      		db	0ffh
+0C13  FF      		db	0ffh
+0C14  FF      		db	0ffh
+0C15  FF      		db	0ffh
+0C16  FF      		db	0ffh
+0C17  FF      		db	0ffh
+0C18  FF      		db	0ffh
+0C19  FF      		db	0ffh
+0C1A  FF      		db	0ffh
+0C1B  FF      		db	0ffh
+0C1C  FF      		db	0ffh
+0C1D  FF      		db	0ffh
+0C1E  FF      		db	0ffh
+0C1F  FF      		db	0ffh
+0C20  FF      		db	0ffh
+0C21  FF      		db	0ffh
+0C22  FF      		db	0ffh
+0C23  FF      		db	0ffh
+0C24  FF      		db	0ffh
+0C25  FF      		db	0ffh
+0C26  FF      		db	0ffh
+0C27  FF      		db	0ffh
+0C28  FF      		db	0ffh
+0C29  FF      		db	0ffh
+0C2A  FF      		db	0ffh
+0C2B  FF      		db	0ffh
+0C2C  FF      		db	0ffh
+0C2D  FF      		db	0ffh
+0C2E  FF      		db	0ffh
+0C2F  FF      		db	0ffh
+0C30  FF      		db	0ffh
+0C31  FF      		db	0ffh
+0C32  FF      		db	0ffh
+0C33  FF      		db	0ffh
+0C34  FF      		db	0ffh
+0C35  FF      		db	0ffh
+0C36  FF      		db	0ffh
+0C37  FF      		db	0ffh
+0C38  FF      		db	0ffh
+0C39  FF      		db	0ffh
+0C3A  FF      		db	0ffh
+0C3B  FF      		db	0ffh
+0C3C  FF      		db	0ffh
+0C3D  FF      		db	0ffh
+0C3E  FF      		db	0ffh
+0C3F  FF      		db	0ffh
+0C40  FF      		db	0ffh
+0C41  FF      		db	0ffh
+0C42  FF      		db	0ffh
+0C43  FF      		db	0ffh
+0C44  FF      		db	0ffh
+0C45  FF      		db	0ffh
+0C46  FF      		db	0ffh
+0C47  FF      		db	0ffh
+0C48  FF      		db	0ffh
+0C49  FF      		db	0ffh
+0C4A  FF      		db	0ffh
+0C4B  FF      		db	0ffh
+0C4C  FF      		db	0ffh
+0C4D  FF      		db	0ffh
+0C4E  FF      		db	0ffh
+0C4F  FF      		db	0ffh
+0C50  FF      		db	0ffh
+0C51  FF      		db	0ffh
+0C52  FF      		db	0ffh
+0C53  FF      		db	0ffh
+0C54  FF      		db	0ffh
+0C55  FF      		db	0ffh
+0C56  FF      		db	0ffh
+0C57  FF      		db	0ffh
+0C58  FF      		db	0ffh
+0C59  FF      		db	0ffh
+0C5A  FF      		db	0ffh
+0C5B  FF      		db	0ffh
+0C5C  FF      		db	0ffh
+0C5D  FF      		db	0ffh
+0C5E  FF      		db	0ffh
+0C5F  FF      		db	0ffh
+0C60  FF      		db	0ffh
+0C61  FF      		db	0ffh
+0C62  FF      		db	0ffh
+0C63  FF      		db	0ffh
+0C64  FF      		db	0ffh
+0C65  FF      		db	0ffh
+0C66  FF      		db	0ffh
+0C67  FF      		db	0ffh
+0C68  FF      		db	0ffh
+0C69  FF      		db	0ffh
+0C6A  FF      		db	0ffh
+0C6B  FF      		db	0ffh
+0C6C  FF      		db	0ffh
+0C6D  FF      		db	0ffh
+0C6E  FF      		db	0ffh
+0C6F  FF      		db	0ffh
+0C70  FF      		db	0ffh
+0C71  FF      		db	0ffh
+0C72  FF      		db	0ffh
+0C73  FF      		db	0ffh
+0C74  FF      		db	0ffh
+0C75  FF      		db	0ffh
+0C76  FF      		db	0ffh
+0C77  FF      		db	0ffh
+0C78  FF      		db	0ffh
+0C79  FF      		db	0ffh
+0C7A  FF      		db	0ffh
+0C7B  FF      		db	0ffh
+0C7C  FF      		db	0ffh
+0C7D  FF      		db	0ffh
+0C7E  FF      		db	0ffh
+0C7F  FF      		db	0ffh
+0C80  FF      		db	0ffh
+0C81  FF      		db	0ffh
+0C82  FF      		db	0ffh
+0C83  FF      		db	0ffh
+0C84  FF      		db	0ffh
+0C85  FF      		db	0ffh
+0C86  FF      		db	0ffh
+0C87  FF      		db	0ffh
+0C88  FF      		db	0ffh
+0C89  FF      		db	0ffh
+0C8A  FF      		db	0ffh
+0C8B  FF      		db	0ffh
+0C8C  FF      		db	0ffh
+0C8D  FF      		db	0ffh
+0C8E  FF      		db	0ffh
+0C8F  FF      		db	0ffh
+0C90  FF      		db	0ffh
+0C91  FF      		db	0ffh
+0C92  FF      		db	0ffh
+0C93  FF      		db	0ffh
+0C94  FF      		db	0ffh
+0C95  FF      		db	0ffh
+0C96  FF      		db	0ffh
+0C97  FF      		db	0ffh
+0C98  FF      		db	0ffh
+0C99  FF      		db	0ffh
+0C9A  FF      		db	0ffh
+0C9B  FF      		db	0ffh
+0C9C  FF      		db	0ffh
+0C9D  FF      		db	0ffh
+0C9E  FF      		db	0ffh
+0C9F  FF      		db	0ffh
+0CA0  FF      		db	0ffh
+0CA1  FF      		db	0ffh
+0CA2  FF      		db	0ffh
+0CA3  FF      		db	0ffh
+0CA4  FF      		db	0ffh
+0CA5  FF      		db	0ffh
+0CA6  FF      		db	0ffh
+0CA7  FF      		db	0ffh
+0CA8  FF      		db	0ffh
+0CA9  FF      		db	0ffh
+0CAA  FF      		db	0ffh
+0CAB  FF      		db	0ffh
+0CAC  FF      		db	0ffh
+0CAD  FF      		db	0ffh
+0CAE  FF      		db	0ffh
+0CAF  FF      		db	0ffh
+0CB0  FF      		db	0ffh
+0CB1  FF      		db	0ffh
+0CB2  FF      		db	0ffh
+0CB3  FF      		db	0ffh
+0CB4  FF      		db	0ffh
+0CB5  FF      		db	0ffh
+0CB6  FF      		db	0ffh
+0CB7  FF      		db	0ffh
+0CB8  FF      		db	0ffh
+0CB9  FF      		db	0ffh
+0CBA  FF      		db	0ffh
+0CBB  FF      		db	0ffh
+0CBC  FF      		db	0ffh
+0CBD  FF      		db	0ffh
+0CBE  FF      		db	0ffh
+0CBF  FF      		db	0ffh
+0CC0  FF      		db	0ffh
+0CC1  FF      		db	0ffh
+0CC2  FF      		db	0ffh
+0CC3  FF      		db	0ffh
+0CC4  FF      		db	0ffh
+0CC5  FF      		db	0ffh
+0CC6  FF      		db	0ffh
+0CC7  FF      		db	0ffh
+0CC8  FF      		db	0ffh
+0CC9  FF      		db	0ffh
+0CCA  FF      		db	0ffh
+0CCB  FF      		db	0ffh
+0CCC  FF      		db	0ffh
+0CCD  FF      		db	0ffh
+0CCE  FF      		db	0ffh
+0CCF  FF      		db	0ffh
+0CD0  FF      		db	0ffh
+0CD1  FF      		db	0ffh
+0CD2  FF      		db	0ffh
+0CD3  FF      		db	0ffh
+0CD4  FF      		db	0ffh
+0CD5  FF      		db	0ffh
+0CD6  FF      		db	0ffh
+0CD7  FF      		db	0ffh
+0CD8  FF      		db	0ffh
+0CD9  FF      		db	0ffh
+0CDA  FF      		db	0ffh
+0CDB  FF      		db	0ffh
+0CDC  FF      		db	0ffh
+0CDD  FF      		db	0ffh
+0CDE  FF      		db	0ffh
+0CDF  FF      		db	0ffh
+0CE0  FF      		db	0ffh
+0CE1  FF      		db	0ffh
+0CE2  FF      		db	0ffh
+0CE3  FF      		db	0ffh
+0CE4  FF      		db	0ffh
+0CE5  FF      		db	0ffh
+0CE6  FF      		db	0ffh
+0CE7  FF      		db	0ffh
+0CE8  FF      		db	0ffh
+0CE9  FF      		db	0ffh
+0CEA  FF      		db	0ffh
+0CEB  FF      		db	0ffh
+0CEC  FF      		db	0ffh
+0CED  FF      		db	0ffh
+0CEE  FF      		db	0ffh
+0CEF  FF      		db	0ffh
+0CF0  FF      		db	0ffh
+0CF1  FF      		db	0ffh
+0CF2  FF      		db	0ffh
+0CF3  FF      		db	0ffh
+0CF4  FF      		db	0ffh
+0CF5  FF      		db	0ffh
+0CF6  FF      		db	0ffh
+0CF7  FF      		db	0ffh
+0CF8  FF      		db	0ffh
+0CF9  FF      		db	0ffh
+0CFA  FF      		db	0ffh
+0CFB  FF      		db	0ffh
+0CFC  FF      		db	0ffh
+0CFD  FF      		db	0ffh
+0CFE  FF      		db	0ffh
+0CFF  FF      		db	0ffh
+0D00  FF      		db	0ffh
+0D01  FF      		db	0ffh
+0D02  FF      		db	0ffh
+0D03  FF      		db	0ffh
+0D04  FF      		db	0ffh
+0D05  FF      		db	0ffh
+0D06  FF      		db	0ffh
+0D07  FF      		db	0ffh
+0D08  FF      		db	0ffh
+0D09  FF      		db	0ffh
+0D0A  FF      		db	0ffh
+0D0B  FF      		db	0ffh
+0D0C  FF      		db	0ffh
+0D0D  FF      		db	0ffh
+0D0E  FF      		db	0ffh
+0D0F  FF      		db	0ffh
+0D10  FF      		db	0ffh
+0D11  FF      		db	0ffh
+0D12  FF      		db	0ffh
+0D13  FF      		db	0ffh
+0D14  FF      		db	0ffh
+0D15  FF      		db	0ffh
+0D16  FF      		db	0ffh
+0D17  FF      		db	0ffh
+0D18  FF      		db	0ffh
+0D19  FF      		db	0ffh
+0D1A  FF      		db	0ffh
+0D1B  FF      		db	0ffh
+0D1C  FF      		db	0ffh
+0D1D  FF      		db	0ffh
+0D1E  FF      		db	0ffh
+0D1F  FF      		db	0ffh
+0D20  FF      		db	0ffh
+0D21  FF      		db	0ffh
+0D22  FF      		db	0ffh
+0D23  FF      		db	0ffh
+0D24  FF      		db	0ffh
+0D25  FF      		db	0ffh
+0D26  FF      		db	0ffh
+0D27  FF      		db	0ffh
+0D28  FF      		db	0ffh
+0D29  FF      		db	0ffh
+0D2A  FF      		db	0ffh
+0D2B  FF      		db	0ffh
+0D2C  FF      		db	0ffh
+0D2D  FF      		db	0ffh
+0D2E  FF      		db	0ffh
+0D2F  FF      		db	0ffh
+0D30  FF      		db	0ffh
+0D31  FF      		db	0ffh
+0D32  FF      		db	0ffh
+0D33  FF      		db	0ffh
+0D34  FF      		db	0ffh
+0D35  FF      		db	0ffh
+0D36  FF      		db	0ffh
+0D37  FF      		db	0ffh
+0D38  FF      		db	0ffh
+0D39  FF      		db	0ffh
+0D3A  FF      		db	0ffh
+0D3B  FF      		db	0ffh
+0D3C  FF      		db	0ffh
+0D3D  FF      		db	0ffh
+0D3E  FF      		db	0ffh
+0D3F  FF      		db	0ffh
+0D40  FF      		db	0ffh
+0D41  FF      		db	0ffh
+0D42  FF      		db	0ffh
+0D43  FF      		db	0ffh
+0D44  FF      		db	0ffh
+0D45  FF      		db	0ffh
+0D46  FF      		db	0ffh
+0D47  FF      		db	0ffh
+0D48  FF      		db	0ffh
+0D49  FF      		db	0ffh
+0D4A  FF      		db	0ffh
+0D4B  FF      		db	0ffh
+0D4C  FF      		db	0ffh
+0D4D  FF      		db	0ffh
+0D4E  FF      		db	0ffh
+0D4F  FF      		db	0ffh
+0D50  FF      		db	0ffh
+0D51  FF      		db	0ffh
+0D52  FF      		db	0ffh
+0D53  FF      		db	0ffh
+0D54  FF      		db	0ffh
+0D55  FF      		db	0ffh
+0D56  FF      		db	0ffh
+0D57  FF      		db	0ffh
+0D58  FF      		db	0ffh
+0D59  FF      		db	0ffh
+0D5A  FF      		db	0ffh
+0D5B  FF      		db	0ffh
+0D5C  FF      		db	0ffh
+0D5D  FF      		db	0ffh
+0D5E  FF      		db	0ffh
+0D5F  FF      		db	0ffh
+0D60  FF      		db	0ffh
+0D61  FF      		db	0ffh
+0D62  FF      		db	0ffh
+0D63  FF      		db	0ffh
+0D64  FF      		db	0ffh
+0D65  FF      		db	0ffh
+0D66  FF      		db	0ffh
+0D67  FF      		db	0ffh
+0D68  FF      		db	0ffh
+0D69  FF      		db	0ffh
+0D6A  FF      		db	0ffh
+0D6B  FF      		db	0ffh
+0D6C  FF      		db	0ffh
+0D6D  FF      		db	0ffh
+0D6E  FF      		db	0ffh
+0D6F  FF      		db	0ffh
+0D70  FF      		db	0ffh
+0D71  FF      		db	0ffh
+0D72  FF      		db	0ffh
+0D73  FF      		db	0ffh
+0D74  FF      		db	0ffh
+0D75  FF      		db	0ffh
+0D76  FF      		db	0ffh
+0D77  FF      		db	0ffh
+0D78  FF      		db	0ffh
+0D79  FF      		db	0ffh
+0D7A  FF      		db	0ffh
+0D7B  FF      		db	0ffh
+0D7C  FF      		db	0ffh
+0D7D  FF      		db	0ffh
+0D7E  FF      		db	0ffh
+0D7F  FF      		db	0ffh
+0D80  FF      		db	0ffh
+0D81  FF      		db	0ffh
+0D82  FF      		db	0ffh
+0D83  FF      		db	0ffh
+0D84  FF      		db	0ffh
+0D85  FF      		db	0ffh
+0D86  FF      		db	0ffh
+0D87  FF      		db	0ffh
+0D88  FF      		db	0ffh
+0D89  FF      		db	0ffh
+0D8A  FF      		db	0ffh
+0D8B  FF      		db	0ffh
+0D8C  FF      		db	0ffh
+0D8D  FF      		db	0ffh
+0D8E  FF      		db	0ffh
+0D8F  FF      		db	0ffh
+0D90  FF      		db	0ffh
+0D91  FF      		db	0ffh
+0D92  FF      		db	0ffh
+0D93  FF      		db	0ffh
+0D94  FF      		db	0ffh
+0D95  FF      		db	0ffh
+0D96  FF      		db	0ffh
+0D97  FF      		db	0ffh
+0D98  FF      		db	0ffh
+0D99  FF      		db	0ffh
+0D9A  FF      		db	0ffh
+0D9B  FF      		db	0ffh
+0D9C  FF      		db	0ffh
+0D9D  FF      		db	0ffh
+0D9E  FF      		db	0ffh
+0D9F  FF      		db	0ffh
+0DA0  FF      		db	0ffh
+0DA1  FF      		db	0ffh
+0DA2  FF      		db	0ffh
+0DA3  FF      		db	0ffh
+0DA4  FF      		db	0ffh
+0DA5  FF      		db	0ffh
+0DA6  FF      		db	0ffh
+0DA7  FF      		db	0ffh
+0DA8  FF      		db	0ffh
+0DA9  FF      		db	0ffh
+0DAA  FF      		db	0ffh
+0DAB  FF      		db	0ffh
+0DAC  FF      		db	0ffh
+0DAD  FF      		db	0ffh
+0DAE  FF      		db	0ffh
+0DAF  FF      		db	0ffh
+0DB0  FF      		db	0ffh
+0DB1  FF      		db	0ffh
+0DB2  FF      		db	0ffh
+0DB3  FF      		db	0ffh
+0DB4  FF      		db	0ffh
+0DB5  FF      		db	0ffh
+0DB6  FF      		db	0ffh
+0DB7  FF      		db	0ffh
+0DB8  FF      		db	0ffh
+0DB9  FF      		db	0ffh
+0DBA  FF      		db	0ffh
+0DBB  FF      		db	0ffh
+0DBC  FF      		db	0ffh
+0DBD  FF      		db	0ffh
+0DBE  FF      		db	0ffh
+0DBF  FF      		db	0ffh
+0DC0  FF      		db	0ffh
+0DC1  FF      		db	0ffh
+0DC2  FF      		db	0ffh
+0DC3  FF      		db	0ffh
+0DC4  FF      		db	0ffh
+0DC5  FF      		db	0ffh
+0DC6  FF      		db	0ffh
+0DC7  FF      		db	0ffh
+0DC8  FF      		db	0ffh
+0DC9  FF      		db	0ffh
+0DCA  FF      		db	0ffh
+0DCB  FF      		db	0ffh
+0DCC  FF      		db	0ffh
+0DCD  FF      		db	0ffh
+0DCE  FF      		db	0ffh
+0DCF  FF      		db	0ffh
+0DD0  FF      		db	0ffh
+0DD1  FF      		db	0ffh
+0DD2  FF      		db	0ffh
+0DD3  FF      		db	0ffh
+0DD4  FF      		db	0ffh
+0DD5  FF      		db	0ffh
+0DD6  FF      		db	0ffh
+0DD7  FF      		db	0ffh
+0DD8  FF      		db	0ffh
+0DD9  FF      		db	0ffh
+0DDA  FF      		db	0ffh
+0DDB  FF      		db	0ffh
+0DDC  FF      		db	0ffh
+0DDD  FF      		db	0ffh
+0DDE  FF      		db	0ffh
+0DDF  FF      		db	0ffh
+0DE0  FF      		db	0ffh
+0DE1  FF      		db	0ffh
+0DE2  FF      		db	0ffh
+0DE3  FF      		db	0ffh
+0DE4  FF      		db	0ffh
+0DE5  FF      		db	0ffh
+0DE6  FF      		db	0ffh
+0DE7  FF      		db	0ffh
+0DE8  FF      		db	0ffh
+0DE9  FF      		db	0ffh
+0DEA  FF      		db	0ffh
+0DEB  FF      		db	0ffh
+0DEC  FF      		db	0ffh
+0DED  FF      		db	0ffh
+0DEE  FF      		db	0ffh
+0DEF  FF      		db	0ffh
+0DF0  FF      		db	0ffh
+0DF1  FF      		db	0ffh
+0DF2  FF      		db	0ffh
+0DF3  FF      		db	0ffh
+0DF4  FF      		db	0ffh
+0DF5  FF      		db	0ffh
+0DF6  FF      		db	0ffh
+0DF7  FF      		db	0ffh
+0DF8  FF      		db	0ffh
+0DF9  FF      		db	0ffh
+0DFA  FF      		db	0ffh
+0DFB  FF      		db	0ffh
+0DFC  FF      		db	0ffh
+0DFD  FF      		db	0ffh
+0DFE  FF      		db	0ffh
+0DFF  FF      		db	0ffh
+0E00  FF      		db	0ffh
+0E01  FF      		db	0ffh
+0E02  FF      		db	0ffh
+0E03  FF      		db	0ffh
+0E04  FF      		db	0ffh
+0E05  FF      		db	0ffh
+0E06  FF      		db	0ffh
+0E07  FF      		db	0ffh
+0E08  FF      		db	0ffh
+0E09  FF      		db	0ffh
+0E0A  FF      		db	0ffh
+0E0B  FF      		db	0ffh
+0E0C  FF      		db	0ffh
+0E0D  FF      		db	0ffh
+0E0E  FF      		db	0ffh
+0E0F  FF      		db	0ffh
+0E10  FF      		db	0ffh
+0E11  FF      		db	0ffh
+0E12  FF      		db	0ffh
+0E13  FF      		db	0ffh
+0E14  FF      		db	0ffh
+0E15  FF      		db	0ffh
+0E16  FF      		db	0ffh
+0E17  FF      		db	0ffh
+0E18  FF      		db	0ffh
+0E19  FF      		db	0ffh
+0E1A  FF      		db	0ffh
+0E1B  FF      		db	0ffh
+0E1C  FF      		db	0ffh
+0E1D  FF      		db	0ffh
+0E1E  FF      		db	0ffh
+0E1F  FF      		db	0ffh
+0E20  FF      		db	0ffh
+0E21  FF      		db	0ffh
+0E22  FF      		db	0ffh
+0E23  FF      		db	0ffh
+0E24  FF      		db	0ffh
+0E25  FF      		db	0ffh
+0E26  FF      		db	0ffh
+0E27  FF      		db	0ffh
+0E28  FF      		db	0ffh
+0E29  FF      		db	0ffh
+0E2A  FF      		db	0ffh
+0E2B  FF      		db	0ffh
+0E2C  FF      		db	0ffh
+0E2D  FF      		db	0ffh
+0E2E  FF      		db	0ffh
+0E2F  FF      		db	0ffh
+0E30  FF      		db	0ffh
+0E31  FF      		db	0ffh
+0E32  FF      		db	0ffh
+0E33  FF      		db	0ffh
+0E34  FF      		db	0ffh
+0E35  FF      		db	0ffh
+0E36  FF      		db	0ffh
+0E37  FF      		db	0ffh
+0E38  FF      		db	0ffh
+0E39  FF      		db	0ffh
+0E3A  FF      		db	0ffh
+0E3B  FF      		db	0ffh
+0E3C  FF      		db	0ffh
+0E3D  FF      		db	0ffh
+0E3E  FF      		db	0ffh
+0E3F  FF      		db	0ffh
+0E40  FF      		db	0ffh
+0E41  FF      		db	0ffh
+0E42  FF      		db	0ffh
+0E43  FF      		db	0ffh
+0E44  FF      		db	0ffh
+0E45  FF      		db	0ffh
+0E46  FF      		db	0ffh
+0E47  FF      		db	0ffh
+0E48  FF      		db	0ffh
+0E49  FF      		db	0ffh
+0E4A  FF      		db	0ffh
+0E4B  FF      		db	0ffh
+0E4C  FF      		db	0ffh
+0E4D  FF      		db	0ffh
+0E4E  FF      		db	0ffh
+0E4F  FF      		db	0ffh
+0E50  FF      		db	0ffh
+0E51  FF      		db	0ffh
+0E52  FF      		db	0ffh
+0E53  FF      		db	0ffh
+0E54  FF      		db	0ffh
+0E55  FF      		db	0ffh
+0E56  FF      		db	0ffh
+0E57  FF      		db	0ffh
+0E58  FF      		db	0ffh
+0E59  FF      		db	0ffh
+0E5A  FF      		db	0ffh
+0E5B  FF      		db	0ffh
+0E5C  FF      		db	0ffh
+0E5D  FF      		db	0ffh
+0E5E  FF      		db	0ffh
+0E5F  FF      		db	0ffh
+0E60  FF      		db	0ffh
+0E61  FF      		db	0ffh
+0E62  FF      		db	0ffh
+0E63  FF      		db	0ffh
+0E64  FF      		db	0ffh
+0E65  FF      		db	0ffh
+0E66  FF      		db	0ffh
+0E67  FF      		db	0ffh
+0E68  FF      		db	0ffh
+0E69  FF      		db	0ffh
+0E6A  FF      		db	0ffh
+0E6B  FF      		db	0ffh
+0E6C  FF      		db	0ffh
+0E6D  FF      		db	0ffh
+0E6E  FF      		db	0ffh
+0E6F  FF      		db	0ffh
+0E70  FF      		db	0ffh
+0E71  FF      		db	0ffh
+0E72  FF      		db	0ffh
+0E73  FF      		db	0ffh
+0E74  FF      		db	0ffh
+0E75  FF      		db	0ffh
+0E76  FF      		db	0ffh
+0E77  FF      		db	0ffh
+0E78  FF      		db	0ffh
+0E79  FF      		db	0ffh
+0E7A  FF      		db	0ffh
+0E7B  FF      		db	0ffh
+0E7C  FF      		db	0ffh
+0E7D  FF      		db	0ffh
+0E7E  FF      		db	0ffh
+0E7F  FF      		db	0ffh
+0E80  FF      		db	0ffh
+0E81  FF      		db	0ffh
+0E82  FF      		db	0ffh
+0E83  FF      		db	0ffh
+0E84  FF      		db	0ffh
+0E85  FF      		db	0ffh
+0E86  FF      		db	0ffh
+0E87  FF      		db	0ffh
+0E88  FF      		db	0ffh
+0E89  FF      		db	0ffh
+0E8A  FF      		db	0ffh
+0E8B  FF      		db	0ffh
+0E8C  FF      		db	0ffh
+0E8D  FF      		db	0ffh
+0E8E  FF      		db	0ffh
+0E8F  FF      		db	0ffh
+0E90  FF      		db	0ffh
+0E91  FF      		db	0ffh
+0E92  FF      		db	0ffh
+0E93  FF      		db	0ffh
+0E94  FF      		db	0ffh
+0E95  FF      		db	0ffh
+0E96  FF      		db	0ffh
+0E97  FF      		db	0ffh
+0E98  FF      		db	0ffh
+0E99  FF      		db	0ffh
+0E9A  FF      		db	0ffh
+0E9B  FF      		db	0ffh
+0E9C  FF      		db	0ffh
+0E9D  FF      		db	0ffh
+0E9E  FF      		db	0ffh
+0E9F  FF      		db	0ffh
+0EA0  FF      		db	0ffh
+0EA1  FF      		db	0ffh
+0EA2  FF      		db	0ffh
+0EA3  FF      		db	0ffh
+0EA4  FF      		db	0ffh
+0EA5  FF      		db	0ffh
+0EA6  FF      		db	0ffh
+0EA7  FF      		db	0ffh
+0EA8  FF      		db	0ffh
+0EA9  FF      		db	0ffh
+0EAA  FF      		db	0ffh
+0EAB  FF      		db	0ffh
+0EAC  FF      		db	0ffh
+0EAD  FF      		db	0ffh
+0EAE  FF      		db	0ffh
+0EAF  FF      		db	0ffh
+0EB0  FF      		db	0ffh
+0EB1  FF      		db	0ffh
+0EB2  FF      		db	0ffh
+0EB3  FF      		db	0ffh
+0EB4  FF      		db	0ffh
+0EB5  FF      		db	0ffh
+0EB6  FF      		db	0ffh
+0EB7  FF      		db	0ffh
+0EB8  FF      		db	0ffh
+0EB9  FF      		db	0ffh
+0EBA  FF      		db	0ffh
+0EBB  FF      		db	0ffh
+0EBC  FF      		db	0ffh
+0EBD  FF      		db	0ffh
+0EBE  FF      		db	0ffh
+0EBF  FF      		db	0ffh
+0EC0  FF      		db	0ffh
+0EC1  FF      		db	0ffh
+0EC2  FF      		db	0ffh
+0EC3  FF      		db	0ffh
+0EC4  FF      		db	0ffh
+0EC5  FF      		db	0ffh
+0EC6  FF      		db	0ffh
+0EC7  FF      		db	0ffh
+0EC8  FF      		db	0ffh
+0EC9  FF      		db	0ffh
+0ECA  FF      		db	0ffh
+0ECB  FF      		db	0ffh
+0ECC  FF      		db	0ffh
+0ECD  FF      		db	0ffh
+0ECE  FF      		db	0ffh
+0ECF  FF      		db	0ffh
+0ED0  FF      		db	0ffh
+0ED1  FF      		db	0ffh
+0ED2  FF      		db	0ffh
+0ED3  FF      		db	0ffh
+0ED4  FF      		db	0ffh
+0ED5  FF      		db	0ffh
+0ED6  FF      		db	0ffh
+0ED7  FF      		db	0ffh
+0ED8  FF      		db	0ffh
+0ED9  FF      		db	0ffh
+0EDA  FF      		db	0ffh
+0EDB  FF      		db	0ffh
+0EDC  FF      		db	0ffh
+0EDD  FF      		db	0ffh
+0EDE  FF      		db	0ffh
+0EDF  FF      		db	0ffh
+0EE0  FF      		db	0ffh
+0EE1  FF      		db	0ffh
+0EE2  FF      		db	0ffh
+0EE3  FF      		db	0ffh
+0EE4  FF      		db	0ffh
+0EE5  FF      		db	0ffh
+0EE6  FF      		db	0ffh
+0EE7  FF      		db	0ffh
+0EE8  FF      		db	0ffh
+0EE9  FF      		db	0ffh
+0EEA  FF      		db	0ffh
+0EEB  FF      		db	0ffh
+0EEC  FF      		db	0ffh
+0EED  FF      		db	0ffh
+0EEE  FF      		db	0ffh
+0EEF  FF      		db	0ffh
+0EF0  FF      		db	0ffh
+0EF1  FF      		db	0ffh
+0EF2  FF      		db	0ffh
+0EF3  FF      		db	0ffh
+0EF4  FF      		db	0ffh
+0EF5  FF      		db	0ffh
+0EF6  FF      		db	0ffh
+0EF7  FF      		db	0ffh
+0EF8  FF      		db	0ffh
+0EF9  FF      		db	0ffh
+0EFA  FF      		db	0ffh
+0EFB  FF      		db	0ffh
+0EFC  FF      		db	0ffh
+0EFD  FF      		db	0ffh
+0EFE  FF      		db	0ffh
+0EFF  FF      		db	0ffh
+0F00  FF      		db	0ffh
+0F01  FF      		db	0ffh
+0F02  FF      		db	0ffh
+0F03  FF      		db	0ffh
+0F04  FF      		db	0ffh
+0F05  FF      		db	0ffh
+0F06  FF      		db	0ffh
+0F07  FF      		db	0ffh
+0F08  FF      		db	0ffh
+0F09  FF      		db	0ffh
+0F0A  FF      		db	0ffh
+0F0B  FF      		db	0ffh
+0F0C  FF      		db	0ffh
+0F0D  FF      		db	0ffh
+0F0E  FF      		db	0ffh
+0F0F  FF      		db	0ffh
+0F10  FF      		db	0ffh
+0F11  FF      		db	0ffh
+0F12  FF      		db	0ffh
+0F13  FF      		db	0ffh
+0F14  FF      		db	0ffh
+0F15  FF      		db	0ffh
+0F16  FF      		db	0ffh
+0F17  FF      		db	0ffh
+0F18  FF      		db	0ffh
+0F19  FF      		db	0ffh
+0F1A  FF      		db	0ffh
+0F1B  FF      		db	0ffh
+0F1C  FF      		db	0ffh
+0F1D  FF      		db	0ffh
+0F1E  FF      		db	0ffh
+0F1F  FF      		db	0ffh
+0F20  FF      		db	0ffh
+0F21  FF      		db	0ffh
+0F22  FF      		db	0ffh
+0F23  FF      		db	0ffh
+0F24  FF      		db	0ffh
+0F25  FF      		db	0ffh
+0F26  FF      		db	0ffh
+0F27  FF      		db	0ffh
+0F28  FF      		db	0ffh
+0F29  FF      		db	0ffh
+0F2A  FF      		db	0ffh
+0F2B  FF      		db	0ffh
+0F2C  FF      		db	0ffh
+0F2D  FF      		db	0ffh
+0F2E  FF      		db	0ffh
+0F2F  FF      		db	0ffh
+0F30  FF      		db	0ffh
+0F31  FF      		db	0ffh
+0F32  FF      		db	0ffh
+0F33  FF      		db	0ffh
+0F34  FF      		db	0ffh
+0F35  FF      		db	0ffh
+0F36  FF      		db	0ffh
+0F37  FF      		db	0ffh
+0F38  FF      		db	0ffh
+0F39  FF      		db	0ffh
+0F3A  FF      		db	0ffh
+0F3B  FF      		db	0ffh
+0F3C  FF      		db	0ffh
+0F3D  FF      		db	0ffh
+0F3E  FF      		db	0ffh
+0F3F  FF      		db	0ffh
+0F40  FF      		db	0ffh
+0F41  FF      		db	0ffh
+0F42  FF      		db	0ffh
+0F43  FF      		db	0ffh
+0F44  FF      		db	0ffh
+0F45  FF      		db	0ffh
+0F46  FF      		db	0ffh
+0F47  FF      		db	0ffh
+0F48  FF      		db	0ffh
+0F49  FF      		db	0ffh
+0F4A  FF      		db	0ffh
+0F4B  FF      		db	0ffh
+0F4C  FF      		db	0ffh
+0F4D  FF      		db	0ffh
+0F4E  FF      		db	0ffh
+0F4F  FF      		db	0ffh
+0F50  FF      		db	0ffh
+0F51  FF      		db	0ffh
+0F52  FF      		db	0ffh
+0F53  FF      		db	0ffh
+0F54  FF      		db	0ffh
+0F55  FF      		db	0ffh
+0F56  FF      		db	0ffh
+0F57  FF      		db	0ffh
+0F58  FF      		db	0ffh
+0F59  FF      		db	0ffh
+0F5A  FF      		db	0ffh
+0F5B  FF      		db	0ffh
+0F5C  FF      		db	0ffh
+0F5D  FF      		db	0ffh
+0F5E  FF      		db	0ffh
+0F5F  FF      		db	0ffh
+0F60  FF      		db	0ffh
+0F61  FF      		db	0ffh
+0F62  FF      		db	0ffh
+0F63  FF      		db	0ffh
+0F64  FF      		db	0ffh
+0F65  FF      		db	0ffh
+0F66  FF      		db	0ffh
+0F67  FF      		db	0ffh
+0F68  FF      		db	0ffh
+0F69  FF      		db	0ffh
+0F6A  FF      		db	0ffh
+0F6B  FF      		db	0ffh
+0F6C  FF      		db	0ffh
+0F6D  FF      		db	0ffh
+0F6E  FF      		db	0ffh
+0F6F  FF      		db	0ffh
+0F70  FF      		db	0ffh
+0F71  FF      		db	0ffh
+0F72  FF      		db	0ffh
+0F73  FF      		db	0ffh
+0F74  FF      		db	0ffh
+0F75  FF      		db	0ffh
+0F76  FF      		db	0ffh
+0F77  FF      		db	0ffh
+0F78  FF      		db	0ffh
+0F79  FF      		db	0ffh
+0F7A  FF      		db	0ffh
+0F7B  FF      		db	0ffh
+0F7C  FF      		db	0ffh
+0F7D  FF      		db	0ffh
+0F7E  FF      		db	0ffh
+0F7F  FF      		db	0ffh
+0F80  FF      		db	0ffh
+0F81  FF      		db	0ffh
+0F82  FF      		db	0ffh
+0F83  FF      		db	0ffh
+0F84  FF      		db	0ffh
+0F85  FF      		db	0ffh
+0F86  FF      		db	0ffh
+0F87  FF      		db	0ffh
+0F88  FF      		db	0ffh
+0F89  FF      		db	0ffh
+0F8A  FF      		db	0ffh
+0F8B  FF      		db	0ffh
+0F8C  FF      		db	0ffh
+0F8D  FF      		db	0ffh
+0F8E  FF      		db	0ffh
+0F8F  FF      		db	0ffh
+0F90  FF      		db	0ffh
+0F91  FF      		db	0ffh
+0F92  FF      		db	0ffh
+0F93  FF      		db	0ffh
+0F94  FF      		db	0ffh
+0F95  FF      		db	0ffh
+0F96  FF      		db	0ffh
+0F97  FF      		db	0ffh
+0F98  FF      		db	0ffh
+0F99  FF      		db	0ffh
+0F9A  FF      		db	0ffh
+0F9B  FF      		db	0ffh
+0F9C  FF      		db	0ffh
+0F9D  FF      		db	0ffh
+0F9E  FF      		db	0ffh
+0F9F  FF      		db	0ffh
+0FA0  FF      		db	0ffh
+0FA1  FF      		db	0ffh
+0FA2  FF      		db	0ffh
+0FA3  FF      		db	0ffh
+0FA4  FF      		db	0ffh
+0FA5  FF      		db	0ffh
+0FA6  FF      		db	0ffh
+0FA7  FF      		db	0ffh
+0FA8  FF      		db	0ffh
+0FA9  FF      		db	0ffh
+0FAA  FF      		db	0ffh
+0FAB  FF      		db	0ffh
+0FAC  FF      		db	0ffh
+0FAD  FF      		db	0ffh
+0FAE  FF      		db	0ffh
+0FAF  FF      		db	0ffh
+0FB0  FF      		db	0ffh
+0FB1  FF      		db	0ffh
+0FB2  FF      		db	0ffh
+0FB3  FF      		db	0ffh
+0FB4  FF      		db	0ffh
+0FB5  FF      		db	0ffh
+0FB6  FF      		db	0ffh
+0FB7  FF      		db	0ffh
+0FB8  FF      		db	0ffh
+0FB9  FF      		db	0ffh
+0FBA  FF      		db	0ffh
+0FBB  FF      		db	0ffh
+0FBC  FF      		db	0ffh
+0FBD  FF      		db	0ffh
+0FBE  FF      		db	0ffh
+0FBF  FF      		db	0ffh
+0FC0  FF      		db	0ffh
+0FC1  FF      		db	0ffh
+0FC2  FF      		db	0ffh
+0FC3  FF      		db	0ffh
+0FC4  FF      		db	0ffh
+0FC5  FF      		db	0ffh
+0FC6  FF      		db	0ffh
+0FC7  FF      		db	0ffh
+0FC8  FF      		db	0ffh
+0FC9  FF      		db	0ffh
+0FCA  FF      		db	0ffh
+0FCB  FF      		db	0ffh
+0FCC  FF      		db	0ffh
+0FCD  FF      		db	0ffh
+0FCE  FF      		db	0ffh
+0FCF  FF      		db	0ffh
+0FD0  FF      		db	0ffh
+0FD1  FF      		db	0ffh
+0FD2  FF      		db	0ffh
+0FD3  FF      		db	0ffh
+0FD4  FF      		db	0ffh
+0FD5  FF      		db	0ffh
+0FD6  FF      		db	0ffh
+0FD7  FF      		db	0ffh
+0FD8  FF      		db	0ffh
+0FD9  FF      		db	0ffh
+0FDA  FF      		db	0ffh
+0FDB  FF      		db	0ffh
+0FDC  FF      		db	0ffh
+0FDD  FF      		db	0ffh
+0FDE  FF      		db	0ffh
+0FDF  FF      		db	0ffh
+0FE0  FF      		db	0ffh
+0FE1  FF      		db	0ffh
+0FE2  FF      		db	0ffh
+0FE3  FF      		db	0ffh
+0FE4  FF      		db	0ffh
+0FE5  FF      		db	0ffh
+0FE6  FF      		db	0ffh
+0FE7  FF      		db	0ffh
+0FE8  FF      		db	0ffh
+0FE9  FF      		db	0ffh
+0FEA  FF      		db	0ffh
+0FEB  FF      		db	0ffh
+0FEC  FF      		db	0ffh
+0FED  FF      		db	0ffh
+0FEE  FF      		db	0ffh
+0FEF  FF      		db	0ffh
+0FF0  FF      		db	0ffh
+0FF1  FF      		db	0ffh
+0FF2  FF      		db	0ffh
+0FF3  FF      		db	0ffh
+0FF4  FF      		db	0ffh
+0FF5  FF      		db	0ffh
+0FF6  FF      		db	0ffh
+0FF7  FF      		db	0ffh
+0FF8  FF      		db	0ffh
+0FF9  FF      		db	0ffh
+0FFA  FF      		db	0ffh
+0FFB  FF      		db	0ffh
+0FFC  FF      		db	0ffh
+0FFD  FF      		db	0ffh
+0FFE  FF      		db	0ffh
+0FFF  FF      		db	0ffh
 		
 		; RAM used...
 FF00          		org	0ff00h
@@ -1285,9 +3530,13 @@ Statistics:
 
      4	passes
      0	jr promotions
-   168	symbols
-  2048	bytes
+   169	symbols
+  4096	bytes
 
+<<<<<<< HEAD
    350	macro calls
+=======
+  2401	macro calls
+>>>>>>> 335999a (split rom build for 2716)
   3759	macro bytes
      0	invented symbols

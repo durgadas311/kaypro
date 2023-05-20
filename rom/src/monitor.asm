@@ -3,7 +3,13 @@
 
 VERN	equ	018h	; ROM version
 
-romsiz	equ	0800h	; minimum space for ROM
+rom2k	equ	0
+
+ if rom2k
+romsiz	equ	0800h	; space for 2716 ROM
+ else
+romsiz	equ	1000h	; minimum space for ROM
+ endif
 
 	maclib	z80
 
@@ -178,7 +184,11 @@ conine:
 	pop	psw
 	ret
 
-signon:	db	CR,LF,'Kaypro Monitor v'
+signon:	db	CR,LF,'Kaypro'
+ if rom2k
+	db	'-II'
+ endif
+	db	' Monitor v'
 vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 	db	CR,LF,TRM
 
@@ -241,8 +251,10 @@ comnds:
 	dw	Ncomnd
 	db	'T'
 	dw	Tcomnd
+ if not rom2k
 	db	'X'
 	dw	Xcomnd
+ endif
 	db	'V'
 	dw	Vcomnd
 ncmnds	equ	($-comnds)/3
@@ -260,9 +272,19 @@ menu:
 	db	CR,LF,'M <start> <end> <dest> - Move data'
 	db	CR,LF,'I <port> [num] - Input from port'
 	db	CR,LF,'O <port> <value> [...] - Output to port'
-	db	CR,LF,'N <hw> - iNitialize hardware (KB83, KB84, CRTC)'
-	db	CR,LF,'T <hw> - Test hardware (KBD, CRTC)'
+	db	CR,LF,'N <hw> - iNitialize hardware (KB83'
+ if not rom2k
+	db		', KB84, CRTC'
+ endif
+	db		')'
+	db	CR,LF,'T <hw> - Test hardware (KBD'
+ if not rom2k
+	db		', CRTC'
+ endif
+	db		')'
+ if not rom2k
 	db	CR,LF,'X <hw> - eXtract hardware to 8000H (CRTC)'
+ endif
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -561,17 +583,21 @@ Ncomnd:
 	lxi	h,kb83
 	call	strcmp
 	jrz	nkb83
+ if not rom2k
 	lxi	h,kb84
 	call	strcmp
 	jrz	nkb84
 	lxi	h,crtc
 	call	strcmp
 	jrz	ncrtc
+ endif
 	jmp	error
 
 kb83:	db	'KB83',TRM
+ if not rom2k
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
+ endif
 kbd:	db	'KBD',TRM
 
 nkb83:	mvi	a,B300
@@ -582,6 +608,7 @@ nkb84:	lxi	h,sioini
 	outir
 	ret
 
+ if not rom2k
 ncrtc:	lxi	h,crtini
 	mvi	c,crtdat	; */84 CRTC 6545 data port
 	mvi	b,16
@@ -597,6 +624,7 @@ nc0:	dcr	c
 	ret
 
 crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
+ endif
 
 strcmp:	push	d
 	xra	a
@@ -620,11 +648,14 @@ Tcomnd:
 	lxi	h,kbd
 	call	strcmp
 	jrz	tkbd
+ if not rom2k
 	lxi	h,crtc
 	call	strcmp
 	jrz	tcrtc
+ endif
 	jmp	error
 
+ if not rom2k
 tcrtc:	lxi	h,waitm
 	call	msgprt
 	mvi	b,5	; count
@@ -654,6 +685,7 @@ tc9:	mov	a,e
 tc8:	call	space
 	djnz	tc0
 	ret
+ endif
 
 tkbd:	lxi	h,waitm
 	call	msgprt
@@ -674,6 +706,7 @@ tk1:	in	kbddat
 
 waitm:	db	CR,LF,'Wait... ',TRM
 abrtm:	db	'Abort',TRM
+ if not rom2k
 updtm:	db	'Update',TRM
 
 Xcomnd:
@@ -697,6 +730,7 @@ xc0:	dcr	c
 	ini
 	jrnz	xc0
 	ret
+ endif
 
 Vcomnd:
 	lxi	h,signon
@@ -873,11 +907,13 @@ ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 proginit:
 	xra	a
 	stai
+ if not rom2k
 	in	sysp84
 	ani	not DSNONE
 	ani	not MTRON
 	ori	DS0
 	out	sysp84
+ endif
 	mvi	a,'A'
 	sta	3000h
 	ret
@@ -885,9 +921,11 @@ proginit:
 progoff:
 	mvi	a,0ffh
 	stai
+ if not rom2k
 	in	sysp84
 	ori	DSNONE
 	out	sysp84
+ endif
 	xra	a
 	sta	3000h
 	ret
@@ -895,15 +933,17 @@ progoff:
 progress:
 	ldai
 	rnz
+ if not rom2k
 	in	sysp84
 	xri	DSNONE
 	out	sysp84
+ endif
 	lda	3000h
 	xri	00000011b
 	sta	3000h
 	ret
 
-	rept	0800h-$
+	rept	romsiz-$
 	db	0ffh
 	endm
 

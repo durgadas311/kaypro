@@ -7,8 +7,11 @@
 #	minipro -p "AT28C64B" -r junk
 
 DOCS = ../doc/monitor.pdf
-BINS = ../bin/monitor.bin ../bin/memtest.bin
+BINS = ../bin/monitor.bin ../bin/mon2k.bin ../bin/memtest.bin
 all: $(BINS)
+
+mon2k.asm: monitor.asm
+	sed -e '/^rom2k/s/0/-1/' $< >$@
 
 ../bin/%.bin: %.asm
 	zmac --dri -i -8 -c -s -n --od . --oo cim,lst $*.asm
