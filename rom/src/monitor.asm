@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	016h	; ROM version
+VERN	equ	017h	; ROM version
 
 romsiz	equ	0800h	; minimum space for ROM
 
@@ -46,6 +46,14 @@ sioC	equ	02h
 condat	equ	sio1+sioA+sioD
 conctl	equ	sio1+sioA+sioC
 conbrr	equ	brd1
+
+kbddat	equ	sio1+sioB+sioD
+kbdctl	equ	sio1+sioB+sioC
+kbdbrr	equ	0ch	; */83 uses WD1943, else hardwired to 300 baud
+
+crtctl	equ	1ch	; */84 and 10 only
+crtdat	equ	1dh	; */84 and 10 only
+crtram	equ	1fh	; also accesses CRTC
 
 sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
 
@@ -250,7 +258,7 @@ menu:
 	db	CR,LF,'I <port> [num] - Input from port'
 	db	CR,LF,'O <port> <value> [...] - Output to port'
 	db	CR,LF,'N <hw> - iNitialize hardware (KB83, KB84, CRTC)'
-	db	CR,LF,'T <hw> - Test hardware (CRTC)'
+	db	CR,LF,'T <hw> - Test hardware (KBD, CRTC)'
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -559,17 +567,18 @@ Ncomnd:
 kb83:	db	'KB83',TRM
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
+kbd:	db	'KBD',TRM
 
 nkb83:	mvi	a,B300
-	out	0ch	; */83 baud gen for SIO1 ch B
+	out	kbdbrr	; */83 baud gen for SIO1 ch B
 nkb84:	lxi	h,sioini
-	mvi	c,sio1+sioB+sioC
+	mvi	c,kbdctl
 	mvi	b,siolen
 	outir
 	ret
 
 ncrtc:	lxi	h,crtini
-	mvi	c,1dh	; */84 CRTC 6545 data port
+	mvi	c,crtdat	; */84 CRTC 6545 data port
 	mvi	b,16
 	xra	a	; start with reg 00
 nc0:	dcr	c
@@ -578,8 +587,8 @@ nc0:	dcr	c
 	inr	c	;
 	outi
 	jrnz	nc0
-	mvi	a,1fh	; enable CRTC
-	out	1ch
+	mvi	a,31	; R31 enables CRTC
+	out	crtctl
 	ret
 
 crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
@@ -603,6 +612,9 @@ Tcomnd:
 	jz	error	; required param
 	; this may need refinement
 	dcx	d
+	lxi	h,kbd
+	call	strcmp
+	jrz	tkbd
 	lxi	h,crtc
 	call	strcmp
 	jrz	tcrtc
@@ -612,9 +624,9 @@ tcrtc:	lxi	h,waitm
 	call	msgprt
 	mvi	b,5	; count
 	mvi	e,80h	; compare
-	mvi	a,1fh
-	out	1ch	; select reg
-tc0:	in	1ch
+	mvi	a,31
+	out	crtctl	; select reg
+tc0:	in	crtctl
 	ani	80h
 	cmp	e
 	jrz	tc9
@@ -631,12 +643,29 @@ tc9:	mov	a,e
 	jrnz	tc8
 	lxi	h,updtm
 	call	msgprt
-	in	1fh	; clear Update
+	in	crtram	; clear Update
 	djnz	tc0
 	ret
 tc8:	call	space
 	djnz	tc0
 	ret
+
+tkbd:	lxi	h,waitm
+	call	msgprt
+tk0:	in	kbdctl
+	ani	00000001b
+	jrnz	tk1
+	in	conctl
+	ani	00000001b
+	jrz	tk0
+	in	condat
+	lxi	h,abrtm
+	call	msgprt
+	ret
+tk1:	in	kbddat
+	call	hexout
+	call	space
+	jr	tk0
 
 waitm:	db	CR,LF,'Wait... ',TRM
 abrtm:	db	'Abort',TRM
