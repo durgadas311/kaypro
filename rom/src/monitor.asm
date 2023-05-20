@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	017h	; ROM version
+VERN	equ	018h	; ROM version
 
 romsiz	equ	0800h	; minimum space for ROM
 
@@ -195,6 +195,7 @@ cilp:	lxi	sp,stack
 	lxi	h,prompt	;prompt for a command
 	call	msgprt
 	call	linein		;wait for command line to be entered
+	call	progoff		; turn off progress indicators
 	lxi	d,line
 	call	char		;get first character
 	rz			;ignore line if it is empty
@@ -240,6 +241,8 @@ comnds:
 	dw	Ncomnd
 	db	'T'
 	dw	Tcomnd
+	db	'X'
+	dw	Xcomnd
 	db	'V'
 	dw	Vcomnd
 ncmnds	equ	($-comnds)/3
@@ -259,6 +262,7 @@ menu:
 	db	CR,LF,'O <port> <value> [...] - Output to port'
 	db	CR,LF,'N <hw> - iNitialize hardware (KB83, KB84, CRTC)'
 	db	CR,LF,'T <hw> - Test hardware (KBD, CRTC)'
+	db	CR,LF,'X <hw> - eXtract hardware to 8000H (CRTC)'
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -671,6 +675,28 @@ waitm:	db	CR,LF,'Wait... ',TRM
 abrtm:	db	'Abort',TRM
 updtm:	db	'Update',TRM
 
+Xcomnd:
+	call	skb	; skip blanks
+	jz	error	; required param
+	; this may need refinement
+	dcx	d
+	lxi	h,crtc
+	call	strcmp
+	jrz	xcrtc
+	jmp	error
+
+xcrtc:	lxi	h,8000h
+	mvi	c,crtdat	; */84 CRTC 6545 data port
+	mvi	b,20
+	xra	a	; start with reg 00
+xc0:	dcr	c
+	outp	a	; select reg
+	inr	a	; ++reg
+	inr	c	;
+	ini
+	jrnz	xc0
+	ret
+
 Vcomnd:
 	lxi	h,signon
 	jmp	msgprt
@@ -844,6 +870,8 @@ ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
 ; These only work on */84 (and 10) models.
 ; Have no effect (and does nothing) on */83 models.
 proginit:
+	xra	a
+	stai
 	in	sysp84
 	ani	not DSNONE
 	ani	not MTRON
@@ -853,7 +881,19 @@ proginit:
 	sta	3000h
 	ret
 
+progoff:
+	mvi	a,0ffh
+	stai
+	in	sysp84
+	ori	DSNONE
+	out	sysp84
+	xra	a
+	sta	3000h
+	ret
+
 progress:
+	ldai
+	rnz
 	in	sysp84
 	xri	DSNONE
 	out	sysp84
