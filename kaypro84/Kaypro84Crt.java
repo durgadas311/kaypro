@@ -195,14 +195,15 @@ public class Kaypro84Crt extends KayproCrt
 		case vcstat:
 			// TODO: determine proper handling of Update bit
 			val = status;
-			// alternate sts_Update each time,
+			// show !Update just once, max.
 			// could be more sophisticated.
-			status ^= sts_Update;
+			status |= sts_Update;
 			break;
 		case vcrdat:
 			val = get_vcrdat();
 			break;
 		case vcdata:
+			get_vcrdat(); // for side-effects
 			val = data;
 			break;
 		}
@@ -254,7 +255,7 @@ public class Kaypro84Crt extends KayproCrt
 				repaint();
 			} else {
 			}
-			status |= sts_Update;
+			//status |= sts_Update;
 			int adr = (regs[18] << 8) | regs[19];
 			if (adr > 0x7ff) {
 				--adr;
@@ -293,6 +294,9 @@ public class Kaypro84Crt extends KayproCrt
 			curs_y = d / regs[1];
 			curs_x = d % regs[1];
 			break;
+		case 31:
+			status &= ~sts_Update;
+			break;
 		}
 		// TODO: repaint?
 	}
@@ -301,6 +305,9 @@ public class Kaypro84Crt extends KayproCrt
 		int val = regs[curReg];
 		if (curReg == 16 || curReg == 17) {
 			status &= ~sts_LtPen;
+		}
+		if (curReg == 31) {
+			status &= ~sts_Update;
 		}
 		return val;
 	}
@@ -353,8 +360,8 @@ public class Kaypro84Crt extends KayproCrt
 
 	private void do_vcdata(int value) {
 		// hack? this also honors 'curReg'... it seems...
+		do_vcrdat(value);
 		if (curReg < 0x1f) {
-			do_vcrdat(value);
 			return;
 		}
 		value &= 0xff;
