@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	015h	; ROM version
+VERN	equ	016h	; ROM version
 
 romsiz	equ	0800h	; minimum space for ROM
 
@@ -631,6 +631,7 @@ tc9:	mov	a,e
 	jrnz	tc8
 	lxi	h,updtm
 	call	msgprt
+	in	1fh	; clear Update
 	djnz	tc0
 	ret
 tc8:	call	space
