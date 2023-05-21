@@ -470,6 +470,7 @@ Gcomnd: 		;jump to address given by user
 	call	conine	;wait for user to type "Y" to
 	cpi	'Y'	;indicate that we should jump.
 	rnz		;abort if response was not "Y"
+	call	crlf	; visual feedback
 	xchg
 	pchl		;else jump to address
 
