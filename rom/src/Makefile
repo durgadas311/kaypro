@@ -1,5 +1,10 @@
 # Makefile for Kaypro custom ROMs.
 # "monitor" is a simple, serial-port-based, debug monitor
+#
+# To flash 28C64B using minipro:
+#	minipro -p "AT28C64B" -s -w monitor.bin 
+# read-back for verify, etc.
+#	minipro -p "AT28C64B" -r junk
 
 DOCS = ../doc/monitor.pdf
 BINS = ../bin/monitor.bin ../bin/memtest.bin
