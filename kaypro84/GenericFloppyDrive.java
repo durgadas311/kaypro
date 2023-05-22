@@ -43,7 +43,7 @@ public class GenericFloppyDrive implements GenericDiskDrive {
 		this.name = name;
 		disk_m = null;
 		// Can this change on-the-fly?
-		ticksPerSec_m = 2048000; // TODO: abstract this
+		ticksPerSec_m = Kaypro.clockSpeed();
 
 		if (type == DriveType.FDD_5_25_DS_ST ||
 				type == DriveType.FDD_5_25_DS_DT ||

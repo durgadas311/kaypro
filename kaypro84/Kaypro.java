@@ -38,7 +38,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private KayproKeyboard kbd; // to prevent erasure...
 
 	// Relationship between virtual CPU clock and real time
-	private long intervalTicks = 4000;	// 1ms
+	private static long intervalTicks = 4000;	// 1ms
 	private long intervalNs = 1000000;	// 1ms
 	private long backlogTime = 10000000;	// 10ms backlog limit
 	private long backlogNs;
@@ -712,6 +712,10 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	public void breakpoint() {
 	}
 	public void execDone() {
+	}
+
+	static public long clockSpeed() {
+		return intervalTicks * 1000; // convert to ticks/second
 	}
 
 	//////// Runnable /////////
