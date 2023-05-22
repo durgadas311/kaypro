@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	018h	; ROM version
+VERN	equ	019h	; ROM version
 
 rom2k	equ	0
 
@@ -35,7 +35,10 @@ B300	equ	05h
 DS0	equ	0010b
 DS1	equ	0001b
 DSNONE	equ	0011b	; also mask
-MTRON	equ	10000b	; MOTOR control
+K84MTR	equ	00010000b	; */84 (10) MOTOR control, 1=ON
+K83PPS	equ	00010000b	; */83 ParPrt strobe (normally 0)
+K84CCG	equ	01000000b	; */84 (10) CharGen A12
+K83MTR	equ	01000000b	; */83 MOTOR control, 1=OFF
 
 sio1	equ	04h	; "serial data", "keyboard"
 sio2	equ	0ch	; "serial printer", "modem"
@@ -62,6 +65,12 @@ crtdat	equ	1dh	; */84 and 10 only
 crtram	equ	1fh	; also accesses CRTC
 
 sysp84	equ	14h	; sysport on */84 (and 10). */83 have nothing here.
+
+fpysts	equ	10h
+fpycmd	equ	10h
+fpytrk	equ	11h
+fpysec	equ	12h
+fpydat	equ	13h
 
 stack	equ	00000h	; stack at top of memory (wrapped)
 
@@ -279,7 +288,7 @@ menu:
 	db		')'
 	db	CR,LF,'T <hw> - Test hardware (KBD'
  if not rom2k
-	db		', CRTC'
+	db		', CRTC, FLPY'
  endif
 	db		')'
  if not rom2k
@@ -598,6 +607,7 @@ kb83:	db	'KB83',TRM
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
  endif
+flpy:	db	'FLPY',TRM
 kbd:	db	'KBD',TRM
 
 nkb83:	mvi	a,B300
@@ -626,17 +636,23 @@ nc0:	dcr	c
 crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
  endif
 
+; if match, return DE after last match.
+; if no match, return original DE.
 strcmp:	push	d
 	xra	a
 sc0:	cmp	m	; TRM?
 	jrz	sc9	; A = 0
 	ldax	d
 	sub	m
-	jrnz	sc9	; A is NZ
+	jrnz	sc8	; A is NZ
 	inx	h
 	inx	d
 	jr	sc0
-sc9:	pop	d
+sc9:	inx	sp	; non-destructive POP
+	inx	sp
+	xra	a	; A=0 and ZR
+	ret
+sc8:	pop	d	; restore orig location
 	ora	a
 	ret
 
@@ -653,6 +669,9 @@ Tcomnd:
 	call	strcmp
 	jrz	tcrtc
  endif
+	lxi	h,flpy
+	call	strcmp
+	jz	tflpy
 	jmp	error
 
  if not rom2k
@@ -731,6 +750,84 @@ xc0:	dcr	c
 	jrnz	xc0
 	ret
  endif
+
+tflpy:	; user must motor on and select drive (and side)
+	mvi	a,0d0h
+	sta	addr0	; default: force intr
+	xra	a
+	sta	addr1	; default: 256 samples
+	; TODO: parse optional args
+	call	getaddr ;get optional command
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jrnz	tfX
+	mov	a,h
+	ora	a
+	jnz	error
+	shld	addr0	;save command
+	call	getaddr ;get fill data
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jnz	tfX
+	mov	a,h
+	ora	a
+	jnz	error
+	shld	addr1	;save count
+tfX:
+	call	crlf
+	in	fpysts
+	mov	c,a
+	lda	addr0	; FDC command
+	out	fpycmd
+	lxi	h,0
+	lxi	d,8000h
+
+tf0:	in	fpysts	; 11
+	cmp	c	;  4
+	jrnz	tf4	;  7
+	inx	h	;  6
+	mov	a,h	;  4
+	ora	l	;  4
+	jrnz	tf0	; 12 = 48 = 12uS
+tf1:	; dump 8000h..DE
+	lxi	h,8000h
+tf2:
+	mov	a,h
+	cmp	d
+	jrnz	tf3
+	mov	a,l
+	cmp	e
+	rz	; user must motor off...
+tf3:
+	mov	a,m
+	inx	h
+	call	hexout
+	call	space
+	mov	b,m
+	inx	h
+	mov	a,m
+	inx	h
+	call	hexout
+	mov	a,b
+	call	hexout
+	call	crlf
+	jr	tf2
+
+; save sample, check for done.
+tf4:	xchg
+	mov	m,a
+	inx	h
+	mov	m,e
+	inx	h
+	mov	m,d
+	inx	h
+	xchg
+	mov	c,a
+	lda	addr1
+	dcr	a
+	sta	addr1
+	jrz	tf1
+	jr	tf0
 
 Vcomnd:
 	lxi	h,signon
@@ -910,7 +1007,7 @@ proginit:
  if not rom2k
 	in	sysp84
 	ani	not DSNONE
-	ani	not MTRON
+	ani	not K84MTR
 	ori	DS0
 	out	sysp84
  endif
@@ -919,7 +1016,9 @@ proginit:
 	ret
 
 progoff:
-	mvi	a,0ffh
+	ldai
+	rnz
+	cma
 	stai
  if not rom2k
 	in	sysp84
