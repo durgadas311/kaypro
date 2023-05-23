@@ -136,9 +136,9 @@ FFFF          	true	equ	not false
 005E  C3DF00  		jmp	debug
 		
 0061  18      	sioini:	db	18h	; reset
-0062  0444    		db	4,044h	;
-0064  03C1    		db	3,0c1h	;
-0066  05E8    		db	5,0e8h	;
+0062  0444    		db	4,044h	; 16x, 1s, Np
+0064  03C1    		db	3,0c1h	; 8b, RxEn
+0066  05EA    		db	5,0eah	; DTR, 8b, TxEn, RTS
 0068  0100    		db	1,000h	;
 0009          	siolen	equ	$-sioini
 		

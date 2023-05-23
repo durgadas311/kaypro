@@ -125,9 +125,9 @@ swtrap:	di		; try to recover return address...
 	jmp	debug
 
 sioini:	db	18h	; reset
-	db	4,044h	;
-	db	3,0c1h	;
-	db	5,0e8h	;
+	db	4,044h	; 16x, 1s, Np
+	db	3,0c1h	; 8b, RxEn
+	db	5,0eah	; DTR, 8b, TxEn, RTS
 	db	1,000h	;
 siolen	equ	$-sioini
 
