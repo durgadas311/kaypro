@@ -260,10 +260,6 @@ comnds:
 	dw	Ncomnd
 	db	'T'
 	dw	Tcomnd
- if not rom2k
-	db	'X'
-	dw	Xcomnd
- endif
 	db	'V'
 	dw	Vcomnd
 ncmnds	equ	($-comnds)/3
@@ -288,12 +284,9 @@ menu:
 	db		')'
 	db	CR,LF,'T <hw> - Test hardware (KBD'
  if not rom2k
-	db		', CRTC, FLPY'
+	db		', CRTC, VRT'
  endif
-	db		')'
- if not rom2k
-	db	CR,LF,'X <hw> - eXtract hardware to 8000H (CRTC)'
- endif
+	db		', FLPY)'
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -606,6 +599,7 @@ kb83:	db	'KB83',TRM
  if not rom2k
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
+vrt:	db	'VRT',TRM
  endif
 flpy:	db	'FLPY',TRM
 kbd:	db	'KBD',TRM
@@ -668,6 +662,9 @@ Tcomnd:
 	lxi	h,crtc
 	call	strcmp
 	jrz	tcrtc
+	lxi	h,vrt
+	call	strcmp
+	jz	tvrt
  endif
 	lxi	h,flpy
 	call	strcmp
@@ -728,27 +725,36 @@ abrtm:	db	'Abort',TRM
  if not rom2k
 updtm:	db	'Update',TRM
 
-Xcomnd:
-	call	skb	; skip blanks
-	jz	error	; required param
-	; this may need refinement
-	dcx	d
-	lxi	h,crtc
-	call	strcmp
-	jrz	xcrtc
-	jmp	error
-
-xcrtc:	lxi	h,8000h
-	mvi	c,crtdat	; */84 CRTC 6545 data port
-	mvi	b,20
-	xra	a	; start with reg 00
-xc0:	dcr	c
-	outp	a	; select reg
-	inr	a	; ++reg
-	inr	c	;
-	ini
-	jrnz	xc0
-	ret
+tvrt:	mvi	a,10	; we don't need many samples
+	sta	addr1
+	call	crlf
+	in	crtctl
+	mov	c,a
+	; TODO: reset Update bit? optionally?
+	lxi	h,0
+	lxi	d,8000h
+tv0:	in	crtctl	; 11
+	cmp	c	;  4
+	jrnz	tv4	;  7
+	inx	h	;  6
+	mov	a,h	;  4
+	ora	l	;  4
+	jrnz	tv0	; 12 = 48 = 12uS
+	jr	tf1	; display results
+tv4:	xchg
+	mov	m,a
+	inx	h
+	mov	m,e
+	inx	h
+	mov	m,d
+	inx	h
+	xchg
+	mov	c,a
+	lda	addr1
+	dcr	a
+	sta	addr1
+	jrz	tf1
+	jr	tv0
  endif
 
 tflpy:	; user must motor on and select drive (and side)
