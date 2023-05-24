@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	019h	; ROM version
+VERN	equ	020h	; ROM version
 
 rom2k	equ	0
 
@@ -284,7 +284,7 @@ menu:
 	db		')'
 	db	CR,LF,'T <hw> - Test hardware (KBD'
  if not rom2k
-	db		', CRTC, VRT'
+	db		', CRTC, VRT, CRTR'
  endif
 	db		', FLPY)'
 	db	CR,LF,'V - Show ROM version'
@@ -599,6 +599,7 @@ kb83:	db	'KB83',TRM
  if not rom2k
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
+crtr:	db	'CRTR',TRM
 vrt:	db	'VRT',TRM
  endif
 flpy:	db	'FLPY',TRM
@@ -665,6 +666,9 @@ Tcomnd:
 	lxi	h,vrt
 	call	strcmp
 	jz	tvrt
+	lxi	h,crtr
+	call	strcmp
+	jz	tcrtr
  endif
 	lxi	h,flpy
 	call	strcmp
@@ -736,11 +740,11 @@ tvrt:	mvi	a,10	; we don't need many samples
 tv0:	in	crtctl	; 11
 	cmp	c	;  4
 	jrnz	tv4	;  7
-	inx	h	;  6
+tv5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
 	jrnz	tv0	; 12 = 48 = 12uS
-	jr	tf1	; display results
+	jmp	tf1	; display results
 tv4:	xchg
 	mov	m,a
 	inx	h
@@ -753,8 +757,54 @@ tv4:	xchg
 	lda	addr1
 	dcr	a
 	sta	addr1
-	jrz	tf1
-	jr	tv0
+	jz	tf1
+	jr	tv5
+
+pass:	db	'Passed',TRM
+fail:	db	'Failed ',TRM
+
+tcrtr:	; test read/write of CRTC cursor register pair
+	call	crlf
+	lxi	h,0
+	mvi	c,crtdat
+tr0:	mvi	a,14	; R14 = cursor hi
+	out	crtctl
+	outp	h
+	inr	a
+	out	crtctl
+	outp	l
+	dcr	a
+	out	crtctl
+	inp	d
+	inr	a
+	out	crtctl
+	inp	e
+	; now compare HL:DE
+	mov	a,l
+	cmp	e
+	jrnz	tr9
+	mov	a,h
+	cmp	d
+	jrnz	tr9
+	inx	h
+	mov	a,h
+	ani	3fh
+	mov	h,a
+	ora	l
+	jrnz	tr0
+	lxi	h,pass
+	call	msgprt
+	ret
+tr9:	push	d
+	push	h
+	lxi	h,fail
+	call	msgprt
+	pop	d
+	call	taddr
+	call	space
+	pop	d
+	call	taddr
+	ret
  endif
 
 tflpy:	; user must motor on and select drive (and side)
@@ -791,7 +841,7 @@ tfX:
 tf0:	in	fpysts	; 11
 	cmp	c	;  4
 	jrnz	tf4	;  7
-	inx	h	;  6
+tf5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
 	jrnz	tf0	; 12 = 48 = 12uS
@@ -833,7 +883,7 @@ tf4:	xchg
 	dcr	a
 	sta	addr1
 	jrz	tf1
-	jr	tf0
+	jr	tf5
 
 Vcomnd:
 	lxi	h,signon
