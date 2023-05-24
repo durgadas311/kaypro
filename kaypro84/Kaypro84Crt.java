@@ -176,8 +176,10 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	public void reset() {
-		crt_en = false;
-		Arrays.fill(regs, 0);
+		// RESET does not disable CRT or alter programming.
+		// crt_en = false;
+		// Arrays.fill(regs, 0);
+		// TODO: this needs to toggle at 50Hz...
 		status = sts_VBlnk;	// always on is OK?
 		repaint();
 	}
@@ -292,8 +294,10 @@ public class Kaypro84Crt extends KayproCrt
 			}
 			d -= (regs[12] << 8) | regs[13];
 			d &= 0x07ff;
-			curs_y = d / regs[1];
-			curs_x = d % regs[1];
+			if (regs[1] != 0) {
+				curs_y = d / regs[1];
+				curs_x = d % regs[1];
+			}
 			break;
 		case 31:
 			status &= ~sts_Update;
@@ -303,7 +307,10 @@ public class Kaypro84Crt extends KayproCrt
 	}
 
 	private int get_vcrdat() {
-		int val = regs[curReg];
+		int val = 0;
+		if (curReg >= 14 && curReg <= 17) {
+			val = regs[curReg];
+		}
 		if (curReg == 16 || curReg == 17) {
 			status &= ~sts_LtPen;
 		}
