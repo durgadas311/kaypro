@@ -8,6 +8,7 @@ import javax.swing.*;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
+import java.util.Random; // for register error inject
 
 public class Kaypro84Crt extends KayproCrt
 		implements ActionListener, MouseListener, MouseMotionListener {
@@ -53,6 +54,8 @@ public class Kaypro84Crt extends KayproCrt
 	static final Color highlight = new Color(100, 100, 120);
 	Color halfIntensity;
 	PasteListener paster = null;
+	boolean errinjct = false;	// inject errors reading R14-R17
+	Random random;
 
 	private int curReg;
 	private int data;
@@ -92,6 +95,9 @@ public class Kaypro84Crt extends KayproCrt
 		Arrays.fill(blinks, ' ');
 		Arrays.fill(halfint, ' ');
 		Arrays.fill(halfblnk, ' ');
+		if (errinjct) {
+			random = new Random();
+		}
 		String f = "Kaypro84.ttf";
 		float fz = 16f;
 		Color fc = Color.green;
@@ -310,6 +316,12 @@ public class Kaypro84Crt extends KayproCrt
 		int val = 0;
 		if (curReg >= 14 && curReg <= 17) {
 			val = regs[curReg];
+			if (errinjct) {
+				int r = random.nextInt();
+				if ((r & 0xff8) == 0) {
+					val ^= (1 << (r & 7));
+				}
+			}
 		}
 		if (curReg == 16 || curReg == 17) {
 			status &= ~sts_LtPen;
