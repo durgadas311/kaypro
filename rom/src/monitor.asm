@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	020h	; ROM version
+VERN	equ	021h	; ROM version
 
 rom2k	equ	0
 
@@ -123,6 +123,11 @@ swtrap:	di		; try to recover return address...
 	call	crlf
 	; TODO: print address, etc...
 	jmp	debug
+
+	rept	0066h-$
+	db	0ffh
+	endm
+nmi:	ret
 
 sioini:	db	18h	; reset
 	db	4,044h	; 16x, 1s, Np
@@ -282,11 +287,12 @@ menu:
 	db		', KB84, CRTC'
  endif
 	db		')'
-	db	CR,LF,'T <hw> - Test hardware (KBD'
+	db	CR,LF,'T <hw> - Test hardware'
+	db	CR,LF,'  (KBD'
  if not rom2k
 	db		', CRTC, VRT, CRTR'
  endif
-	db		', FLPY)'
+	db		', FDRD, FLPY)'
 	db	CR,LF,'V - Show ROM version'
 	db	CR,LF,'^C aborts command entry'
 	db	TRM
@@ -602,6 +608,7 @@ crtc:	db	'CRTC',TRM
 crtr:	db	'CRTR',TRM
 vrt:	db	'VRT',TRM
  endif
+fdrd:	db	'FDRD',TRM
 flpy:	db	'FLPY',TRM
 kbd:	db	'KBD',TRM
 
@@ -670,6 +677,9 @@ Tcomnd:
 	call	strcmp
 	jz	tcrtr
  endif
+	lxi	h,fdrd
+	call	strcmp
+	jz	tfdrd
 	lxi	h,flpy
 	call	strcmp
 	jz	tflpy
@@ -806,6 +816,39 @@ tr9:	push	d
 	call	taddr
 	ret
  endif
+
+; read a sector from the floppy.
+; user must turn on motors, select drive,
+; set side, set DDEN, and step to track.
+; data stored in 8000h
+tfdrd:	xra	a
+	sta	addr0
+	call	getaddr ;get optional sector
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jrnz	tfrX
+	mov	a,h
+	ora	a
+	jnz	error
+	shld	addr0	; allow some rediculous values
+tfrX:			; (also, side 1 uses: 0A..13)
+	call	crlf
+	lda	addr0
+	out	fpysec
+	lxi	h,8000h
+	lxi	b,fpydat	; B=0
+	mvi	a,88h	; read sector, side compare(?)
+	out	fpycmd
+tfr0:	hlt
+	ini
+	jrnz	tfr0
+tfr1:	hlt
+	ini
+	jrnz	tfr1
+	hlt	; wait for done
+	in	fpysts
+	call	hexout
+	ret
 
 tflpy:	; user must motor on and select drive (and side)
 	mvi	a,0d0h
