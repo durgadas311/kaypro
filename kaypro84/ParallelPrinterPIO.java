@@ -109,7 +109,7 @@ public class ParallelPrinterPIO
 
 	public int gppInputs() {
 		// "0" indicates BUSY, so only if we're certain...
-		return ((attObj != null && !attObj.ready()) ? 0 : ctrl_PRRDY_c);
+		return ((attObj == null || !attObj.ready()) ? 0 : ctrl_PRRDY_c);
 	}
 
 	public int interestedBits() {

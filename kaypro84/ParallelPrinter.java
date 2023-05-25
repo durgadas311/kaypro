@@ -120,7 +120,7 @@ public class ParallelPrinter
 	}
 
 	public int gppInputs() {
-		return (attObj != null && !attObj.ready() ? ctrl_PRBSY_c : 0);
+		return (attObj == null || !attObj.ready() ? ctrl_PRBSY_c : 0);
 	}
 
 	public int interestedBits() {
