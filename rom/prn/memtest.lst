@@ -3,9 +3,20 @@
 		; no RAM (no stack). Uses drive A LED (*/84 and 10) or
 		; video ram (*/83) for indicating progress and failure.
 		
-0011          	VERN	equ	011h	; ROM version
+0012          	VERN	equ	012h	; ROM version
 		
 0000          	TEST	equ	0
+		
+0004          	sio1	equ	04h	; "serial data", "keyboard"
+0000          	brd1	equ	00h
+		
+0000          	sioA	equ	00h	;
+0000          	sioD	equ	00h	; data
+0002          	sioC	equ	02h	; control
+0004          	condat	equ	sio1+sioA+sioD
+0006          	conctl	equ	sio1+sioA+sioC
+0000          	conbrr	equ	brd1
+000E          	B9600	equ	0eh
 		
 0800          	romsiz	equ	0800h	; minimum space for ROM
 3000          	vidram	equ	3000h	; video RAM start in */83 models
@@ -17,6 +28,20 @@
 		
 0000          	false	equ	0
 FFFF          	true	equ	not false
+		
+		const	macro
+			local	co0
+		
+		space	macro
+		
+		crlf	macro
+		
+		; A contains byte value - uses I register for temp
+		hexout	macro
+		
+		; HL points to NUL-term message
+		msgprt	macro
+			local	sg0,sg1
 		
 			$*macro
 		
@@ -42,84 +67,288 @@ FFFF          	true	equ	not false
 0000          		org	00000h
 0000  F3      		di	; redundant, really
 		
-0001  DB14    		in	sysp84
-0003  E6FC    		ani	not DSNONE
-0005  E6EF    		ani	not MTRON
-0007  F602    		ori	DS0	; drive A LED on
-0009  D314    		out	sysp84
-000B  3E30    		mvi	a,'0'
-000D  320030  		sta	vidram
-0010  57      		mov	d,a	; pass indicator
-0011  AF      		xra	a	; 00 - initial test seed
+			; init serial port
+0001  3E0E    		mvi	a,B9600
+0003  D300    		out	conbrr
+0005  21DC01  		lxi	h,sioini
+0008  0E06    		mvi	c,conctl
+000A  0609    		mvi	b,siolen
+000C          		outir
+000C  EDB3    		DB	0EDH,0B3H
+		
+000E  21AF01  		lxi	h,signon
+0011          		msgprt
+0011  7E      	?a0001:	mov	a,m
+0012  B7      		ora	a
+0013  280C    		DB	28H,?b0001-$-1
+0015  DB06    	?a0005:	in	conctl
+0017  E604    		ani	00000100b
+0019  28FA    		DB	28H,?a0005-$-1
+001B  7E      		mov	a,m
+001C  23      		inx	h
+001D  D304    		out	condat
+001F  18F0    		DB	18H,?a0001-$-1
+		
+0021  DB14    		in	sysp84
+0023  E6FC    		ani	not DSNONE
+0025  E6EF    		ani	not MTRON
+0027  F602    		ori	DS0	; drive A LED on
+0029  D314    		out	sysp84
+002B  3E30    		mvi	a,'0'
+002D  320030  		sta	vidram
+0030  57      		mov	d,a	; pass indicator
+0031  AF      		xra	a	; 00 - initial test seed
 			; test memory... 8000-FFFF
-0012  210080  	mt0:	lxi	h,ramsta
-0015  4F      		mov	c,a
-0016  77      	mt1:	mov	m,a
-0017  C601    		adi	1
-0019  27      		daa
-001A  23      		inx	h
-001B  47      		mov	b,a
-001C  7C      		mov	a,h
-001D  B5      		ora	l
-001E  78      		mov	a,b
-001F          		jrnz	mt1
-001F  20F5    		DB	20H,mt1-$-1
-0021  210080  		lxi	h,ramsta
-0024  79      		mov	a,c
-0025  BE      	mt2:	cmp	m
-0026          		jrnz	error
-0026  2023    		DB	20H,error-$-1
-0028  C601    		adi	1
-002A  27      		daa
-002B  23      		inx	h
-002C  47      		mov	b,a
-002D  7C      		mov	a,h
-002E  B5      		ora	l
-002F  78      		mov	a,b
-0030          		jrnz	mt2
-0030  20F3    		DB	20H,mt2-$-1
+		; A=seed for this pass
+0032  210080  	mt0:	lxi	h,ramsta
+0035  4F      		mov	c,a
+0036          		const
+0036  DB06    	?a0012:	in	conctl
+0038  E604    		ani	00000100b
+003A  28FA    		DB	28H,?a0012-$-1
+003C  3E0D    		mvi	a,CR
+003E  D304    		out	condat
+0040  79      		mov	a,c
+0041          		hexout
+0041  ED47    		DB	0EDH,47H
+0043  DB06    	?a0018:	in	conctl
+0045  E604    		ani	00000100b
+0047  28FA    		DB	28H,?a0018-$-1
+0049  ED57    		DB	0EDH,57H
+004B  07      		rlc
+004C  07      		rlc
+004D  07      		rlc
+004E  07      		rlc
+004F  E60F    		ani	0fh
+0051  C690    		adi	90h
+0053  27      		daa
+0054  CE40    		aci	40h
+0056  27      		daa
+0057  D304    		out	condat
+0059  DB06    	?a0023:	in	conctl
+005B  E604    		ani	00000100b
+005D  28FA    		DB	28H,?a0023-$-1
+005F  ED57    		DB	0EDH,57H
+0061  E60F    		ani	0fh
+0063  C690    		adi	90h
+0065  27      		daa
+0066  CE40    		aci	40h
+0068  27      		daa
+0069  D304    		out	condat
+006B  79      		mov	a,c	; restore current seed
+006C  77      	mt1:	mov	m,a
+006D  C601    		adi	1
+006F  27      		daa
+0070  23      		inx	h
+0071  47      		mov	b,a
+0072  7C      		mov	a,h
+0073  B5      		ora	l
+0074  78      		mov	a,b
+0075          		jrnz	mt1
+0075  20F5    		DB	20H,mt1-$-1
+0077  210080  		lxi	h,ramsta
+007A  79      		mov	a,c
+007B  BE      	mt2:	cmp	m
+007C          		jrnz	error
+007C  2023    		DB	20H,error-$-1
+007E  C601    		adi	1
+0080  27      		daa
+0081  23      		inx	h
+0082  47      		mov	b,a
+0083  7C      		mov	a,h
+0084  B5      		ora	l
+0085  78      		mov	a,b
+0086          		jrnz	mt2
+0086  20F3    		DB	20H,mt2-$-1
 			; end of pass - no errors
-0032  DB14    		in	sysp84
-0034  EE03    		xri	DSNONE
-0036  D314    		out	sysp84	; switch to other drive LED on
-0038  7A      		mov	a,d
-0039  C601    		adi	1
-003B  FE3A    		cpi	'9'+1
-003D          		jrc	pp0
-003D  3802    		DB	38H,pp0-$-1
+0088  DB14    		in	sysp84
+008A  EE03    		xri	DSNONE
+008C  D314    		out	sysp84	; switch to other drive LED on
+008E  7A      		mov	a,d
+008F  C601    		adi	1
+0091  FE3A    		cpi	'9'+1
+0093          		jrc	pp0
+0093  3802    		DB	38H,pp0-$-1
 0000          	 if TEST
 		 endif
-003F  3E30    		mvi	a,'0'
-0041  320030  	pp0:	sta	vidram
-0044  57      		mov	d,a
-0045  79      		mov	a,c
-0046  C601    		adi	1
-0048  27      		daa
-0049          		jr	mt0
-0049  18C7    		DB	18H,mt0-$-1
+0095  3E30    		mvi	a,'0'
+0097  320030  	pp0:	sta	vidram
+009A  57      		mov	d,a
+009B  79      		mov	a,c
+009C  C601    		adi	1
+009E  27      		daa
+009F          		jr	mt0
+009F  1891    		DB	18H,mt0-$-1
 		
-004B  3E45    	error:	mvi	a,'E'
-004D  320030  		sta	vidram
-0050  DB14    		in	sysp84
-0052  E6FC    		ani	not DSNONE
-0054  F602    		ori	DS0	; drive A LED on
-0056  D314    		out	sysp84
-0058  2150C3  	er0:	lxi	h,50000
-005B  2B      	er1:	dcx	h
-005C  7C      		mov	a,h
-005D  B5      		ora	l
-005E          		jrnz	er1
-005E  20FB    		DB	20H,er1-$-1
-0060  DB14    		in	sysp84
-0062  EE01    		xri	1
-0064  D314    		out	sysp84	; flash drive A LED
-0066  3A0030  		lda	vidram
-0069  EE17    		xri	17h	; 'E' / 'R'
-006B  320030  		sta	vidram
-006E          		jr	er0
-006E  18E8    		DB	18H,er0-$-1
+		; HL=error addr, C=seed
+00A1  5E      	error:	mov	e,m	; error value
+00A2  57      		mov	d,a	; expected value
+00A3          		crlf
+00A3  DB06    	?a0044:	in	conctl
+00A5  E604    		ani	00000100b
+00A7  28FA    		DB	28H,?a0044-$-1
+00A9  3E0D    		mvi	a,CR
+00AB  D304    		out	condat
+00AD  DB06    	?a0048:	in	conctl
+00AF  E604    		ani	00000100b
+00B1  28FA    		DB	28H,?a0048-$-1
+00B3  3E0A    		mvi	a,LF
+00B5  D304    		out	condat
+00B7  7C      		mov	a,h
+00B8          		hexout
+00B8  ED47    		DB	0EDH,47H
+00BA  DB06    	?a0054:	in	conctl
+00BC  E604    		ani	00000100b
+00BE  28FA    		DB	28H,?a0054-$-1
+00C0  ED57    		DB	0EDH,57H
+00C2  07      		rlc
+00C3  07      		rlc
+00C4  07      		rlc
+00C5  07      		rlc
+00C6  E60F    		ani	0fh
+00C8  C690    		adi	90h
+00CA  27      		daa
+00CB  CE40    		aci	40h
+00CD  27      		daa
+00CE  D304    		out	condat
+00D0  DB06    	?a0059:	in	conctl
+00D2  E604    		ani	00000100b
+00D4  28FA    		DB	28H,?a0059-$-1
+00D6  ED57    		DB	0EDH,57H
+00D8  E60F    		ani	0fh
+00DA  C690    		adi	90h
+00DC  27      		daa
+00DD  CE40    		aci	40h
+00DF  27      		daa
+00E0  D304    		out	condat
+00E2  7D      		mov	a,l
+00E3          		hexout
+00E3  ED47    		DB	0EDH,47H
+00E5  DB06    	?a0066:	in	conctl
+00E7  E604    		ani	00000100b
+00E9  28FA    		DB	28H,?a0066-$-1
+00EB  ED57    		DB	0EDH,57H
+00ED  07      		rlc
+00EE  07      		rlc
+00EF  07      		rlc
+00F0  07      		rlc
+00F1  E60F    		ani	0fh
+00F3  C690    		adi	90h
+00F5  27      		daa
+00F6  CE40    		aci	40h
+00F8  27      		daa
+00F9  D304    		out	condat
+00FB  DB06    	?a0071:	in	conctl
+00FD  E604    		ani	00000100b
+00FF  28FA    		DB	28H,?a0071-$-1
+0101  ED57    		DB	0EDH,57H
+0103  E60F    		ani	0fh
+0105  C690    		adi	90h
+0107  27      		daa
+0108  CE40    		aci	40h
+010A  27      		daa
+010B  D304    		out	condat
+010D          		space
+010D  DB06    	?a0077:	in	conctl
+010F  E604    		ani	00000100b
+0111  28FA    		DB	28H,?a0077-$-1
+0113  3E20    		mvi	a,' '
+0115  D304    		out	condat
+0117  7A      		mov	a,d
+0118          		hexout
+0118  ED47    		DB	0EDH,47H
+011A  DB06    	?a0083:	in	conctl
+011C  E604    		ani	00000100b
+011E  28FA    		DB	28H,?a0083-$-1
+0120  ED57    		DB	0EDH,57H
+0122  07      		rlc
+0123  07      		rlc
+0124  07      		rlc
+0125  07      		rlc
+0126  E60F    		ani	0fh
+0128  C690    		adi	90h
+012A  27      		daa
+012B  CE40    		aci	40h
+012D  27      		daa
+012E  D304    		out	condat
+0130  DB06    	?a0088:	in	conctl
+0132  E604    		ani	00000100b
+0134  28FA    		DB	28H,?a0088-$-1
+0136  ED57    		DB	0EDH,57H
+0138  E60F    		ani	0fh
+013A  C690    		adi	90h
+013C  27      		daa
+013D  CE40    		aci	40h
+013F  27      		daa
+0140  D304    		out	condat
+0142          		space
+0142  DB06    	?a0094:	in	conctl
+0144  E604    		ani	00000100b
+0146  28FA    		DB	28H,?a0094-$-1
+0148  3E20    		mvi	a,' '
+014A  D304    		out	condat
+014C  7B      		mov	a,e
+014D          		hexout
+014D  ED47    		DB	0EDH,47H
+014F  DB06    	?a0100:	in	conctl
+0151  E604    		ani	00000100b
+0153  28FA    		DB	28H,?a0100-$-1
+0155  ED57    		DB	0EDH,57H
+0157  07      		rlc
+0158  07      		rlc
+0159  07      		rlc
+015A  07      		rlc
+015B  E60F    		ani	0fh
+015D  C690    		adi	90h
+015F  27      		daa
+0160  CE40    		aci	40h
+0162  27      		daa
+0163  D304    		out	condat
+0165  DB06    	?a0105:	in	conctl
+0167  E604    		ani	00000100b
+0169  28FA    		DB	28H,?a0105-$-1
+016B  ED57    		DB	0EDH,57H
+016D  E60F    		ani	0fh
+016F  C690    		adi	90h
+0171  27      		daa
+0172  CE40    		aci	40h
+0174  27      		daa
+0175  D304    		out	condat
+0177  21D301  		lxi	h,errm
+017A          		msgprt
+017A  7E      	?a0110:	mov	a,m
+017B  B7      		ora	a
+017C  280C    		DB	28H,?b0110-$-1
+017E  DB06    	?a0114:	in	conctl
+0180  E604    		ani	00000100b
+0182  28FA    		DB	28H,?a0114-$-1
+0184  7E      		mov	a,m
+0185  23      		inx	h
+0186  D304    		out	condat
+0188  18F0    		DB	18H,?a0110-$-1
 		
-0070  4B617970		db	'Kaypro Emergency Memory Test v'
+018A  3E45    		mvi	a,'E'
+018C  320030  		sta	vidram
+018F  DB14    		in	sysp84
+0191  E6FC    		ani	not DSNONE
+0193  F602    		ori	DS0	; drive A LED on
+0195  D314    		out	sysp84
+0197  2150C3  	er0:	lxi	h,50000
+019A  2B      	er1:	dcx	h	;  6
+019B  7C      		mov	a,h	;  4
+019C  B5      		ora	l	;  4
+019D          		jrnz	er1	; 12 = 26 (6.5uS) 325mS
+019D  20FB    		DB	20H,er1-$-1
+019F  DB14    		in	sysp84
+01A1  EE01    		xri	1
+01A3  D314    		out	sysp84	; flash drive A LED
+01A5  3A0030  		lda	vidram
+01A8  EE17    		xri	17h	; 'E' / 'R'
+01AA  320030  		sta	vidram
+01AD          		jr	er0
+01AD  18E8    		DB	18H,er0-$-1
+		
+01AF  4B617970	signon:	db	'Kaypro Emergency Memory Test v'
       726F2045
       6D657267
       656E6379
@@ -127,351 +356,23 @@ FFFF          	true	equ	not false
       6F727920
       54657374
       2076
-008E  312E31  		db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+01CD  312E32  		db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 0000          	 if TEST
 		 endif
+01D0  0D0A00  		db	CR,LF,TRM
+		
+01D3  20457272	errm:	db	' Error',CR,LF,TRM
+      6F720D0A
+      00
+		
+01DC  18      	sioini:	db	18h	; reset
+01DD  0444    		db	4,044h	; 16x, 1s, Np
+01DF  03C1    		db	3,0c1h	; 8b, RxEn
+01E1  05EA    		db	5,0eah	; DTR, 8b, TxEn, RTS
+01E3  0100    		db	1,000h	;
+0009          	siolen	equ	$-sioini
 		
 			rept	romsiz-$
-0091  FF      		db	0ffh
-0092  FF      		db	0ffh
-0093  FF      		db	0ffh
-0094  FF      		db	0ffh
-0095  FF      		db	0ffh
-0096  FF      		db	0ffh
-0097  FF      		db	0ffh
-0098  FF      		db	0ffh
-0099  FF      		db	0ffh
-009A  FF      		db	0ffh
-009B  FF      		db	0ffh
-009C  FF      		db	0ffh
-009D  FF      		db	0ffh
-009E  FF      		db	0ffh
-009F  FF      		db	0ffh
-00A0  FF      		db	0ffh
-00A1  FF      		db	0ffh
-00A2  FF      		db	0ffh
-00A3  FF      		db	0ffh
-00A4  FF      		db	0ffh
-00A5  FF      		db	0ffh
-00A6  FF      		db	0ffh
-00A7  FF      		db	0ffh
-00A8  FF      		db	0ffh
-00A9  FF      		db	0ffh
-00AA  FF      		db	0ffh
-00AB  FF      		db	0ffh
-00AC  FF      		db	0ffh
-00AD  FF      		db	0ffh
-00AE  FF      		db	0ffh
-00AF  FF      		db	0ffh
-00B0  FF      		db	0ffh
-00B1  FF      		db	0ffh
-00B2  FF      		db	0ffh
-00B3  FF      		db	0ffh
-00B4  FF      		db	0ffh
-00B5  FF      		db	0ffh
-00B6  FF      		db	0ffh
-00B7  FF      		db	0ffh
-00B8  FF      		db	0ffh
-00B9  FF      		db	0ffh
-00BA  FF      		db	0ffh
-00BB  FF      		db	0ffh
-00BC  FF      		db	0ffh
-00BD  FF      		db	0ffh
-00BE  FF      		db	0ffh
-00BF  FF      		db	0ffh
-00C0  FF      		db	0ffh
-00C1  FF      		db	0ffh
-00C2  FF      		db	0ffh
-00C3  FF      		db	0ffh
-00C4  FF      		db	0ffh
-00C5  FF      		db	0ffh
-00C6  FF      		db	0ffh
-00C7  FF      		db	0ffh
-00C8  FF      		db	0ffh
-00C9  FF      		db	0ffh
-00CA  FF      		db	0ffh
-00CB  FF      		db	0ffh
-00CC  FF      		db	0ffh
-00CD  FF      		db	0ffh
-00CE  FF      		db	0ffh
-00CF  FF      		db	0ffh
-00D0  FF      		db	0ffh
-00D1  FF      		db	0ffh
-00D2  FF      		db	0ffh
-00D3  FF      		db	0ffh
-00D4  FF      		db	0ffh
-00D5  FF      		db	0ffh
-00D6  FF      		db	0ffh
-00D7  FF      		db	0ffh
-00D8  FF      		db	0ffh
-00D9  FF      		db	0ffh
-00DA  FF      		db	0ffh
-00DB  FF      		db	0ffh
-00DC  FF      		db	0ffh
-00DD  FF      		db	0ffh
-00DE  FF      		db	0ffh
-00DF  FF      		db	0ffh
-00E0  FF      		db	0ffh
-00E1  FF      		db	0ffh
-00E2  FF      		db	0ffh
-00E3  FF      		db	0ffh
-00E4  FF      		db	0ffh
-00E5  FF      		db	0ffh
-00E6  FF      		db	0ffh
-00E7  FF      		db	0ffh
-00E8  FF      		db	0ffh
-00E9  FF      		db	0ffh
-00EA  FF      		db	0ffh
-00EB  FF      		db	0ffh
-00EC  FF      		db	0ffh
-00ED  FF      		db	0ffh
-00EE  FF      		db	0ffh
-00EF  FF      		db	0ffh
-00F0  FF      		db	0ffh
-00F1  FF      		db	0ffh
-00F2  FF      		db	0ffh
-00F3  FF      		db	0ffh
-00F4  FF      		db	0ffh
-00F5  FF      		db	0ffh
-00F6  FF      		db	0ffh
-00F7  FF      		db	0ffh
-00F8  FF      		db	0ffh
-00F9  FF      		db	0ffh
-00FA  FF      		db	0ffh
-00FB  FF      		db	0ffh
-00FC  FF      		db	0ffh
-00FD  FF      		db	0ffh
-00FE  FF      		db	0ffh
-00FF  FF      		db	0ffh
-0100  FF      		db	0ffh
-0101  FF      		db	0ffh
-0102  FF      		db	0ffh
-0103  FF      		db	0ffh
-0104  FF      		db	0ffh
-0105  FF      		db	0ffh
-0106  FF      		db	0ffh
-0107  FF      		db	0ffh
-0108  FF      		db	0ffh
-0109  FF      		db	0ffh
-010A  FF      		db	0ffh
-010B  FF      		db	0ffh
-010C  FF      		db	0ffh
-010D  FF      		db	0ffh
-010E  FF      		db	0ffh
-010F  FF      		db	0ffh
-0110  FF      		db	0ffh
-0111  FF      		db	0ffh
-0112  FF      		db	0ffh
-0113  FF      		db	0ffh
-0114  FF      		db	0ffh
-0115  FF      		db	0ffh
-0116  FF      		db	0ffh
-0117  FF      		db	0ffh
-0118  FF      		db	0ffh
-0119  FF      		db	0ffh
-011A  FF      		db	0ffh
-011B  FF      		db	0ffh
-011C  FF      		db	0ffh
-011D  FF      		db	0ffh
-011E  FF      		db	0ffh
-011F  FF      		db	0ffh
-0120  FF      		db	0ffh
-0121  FF      		db	0ffh
-0122  FF      		db	0ffh
-0123  FF      		db	0ffh
-0124  FF      		db	0ffh
-0125  FF      		db	0ffh
-0126  FF      		db	0ffh
-0127  FF      		db	0ffh
-0128  FF      		db	0ffh
-0129  FF      		db	0ffh
-012A  FF      		db	0ffh
-012B  FF      		db	0ffh
-012C  FF      		db	0ffh
-012D  FF      		db	0ffh
-012E  FF      		db	0ffh
-012F  FF      		db	0ffh
-0130  FF      		db	0ffh
-0131  FF      		db	0ffh
-0132  FF      		db	0ffh
-0133  FF      		db	0ffh
-0134  FF      		db	0ffh
-0135  FF      		db	0ffh
-0136  FF      		db	0ffh
-0137  FF      		db	0ffh
-0138  FF      		db	0ffh
-0139  FF      		db	0ffh
-013A  FF      		db	0ffh
-013B  FF      		db	0ffh
-013C  FF      		db	0ffh
-013D  FF      		db	0ffh
-013E  FF      		db	0ffh
-013F  FF      		db	0ffh
-0140  FF      		db	0ffh
-0141  FF      		db	0ffh
-0142  FF      		db	0ffh
-0143  FF      		db	0ffh
-0144  FF      		db	0ffh
-0145  FF      		db	0ffh
-0146  FF      		db	0ffh
-0147  FF      		db	0ffh
-0148  FF      		db	0ffh
-0149  FF      		db	0ffh
-014A  FF      		db	0ffh
-014B  FF      		db	0ffh
-014C  FF      		db	0ffh
-014D  FF      		db	0ffh
-014E  FF      		db	0ffh
-014F  FF      		db	0ffh
-0150  FF      		db	0ffh
-0151  FF      		db	0ffh
-0152  FF      		db	0ffh
-0153  FF      		db	0ffh
-0154  FF      		db	0ffh
-0155  FF      		db	0ffh
-0156  FF      		db	0ffh
-0157  FF      		db	0ffh
-0158  FF      		db	0ffh
-0159  FF      		db	0ffh
-015A  FF      		db	0ffh
-015B  FF      		db	0ffh
-015C  FF      		db	0ffh
-015D  FF      		db	0ffh
-015E  FF      		db	0ffh
-015F  FF      		db	0ffh
-0160  FF      		db	0ffh
-0161  FF      		db	0ffh
-0162  FF      		db	0ffh
-0163  FF      		db	0ffh
-0164  FF      		db	0ffh
-0165  FF      		db	0ffh
-0166  FF      		db	0ffh
-0167  FF      		db	0ffh
-0168  FF      		db	0ffh
-0169  FF      		db	0ffh
-016A  FF      		db	0ffh
-016B  FF      		db	0ffh
-016C  FF      		db	0ffh
-016D  FF      		db	0ffh
-016E  FF      		db	0ffh
-016F  FF      		db	0ffh
-0170  FF      		db	0ffh
-0171  FF      		db	0ffh
-0172  FF      		db	0ffh
-0173  FF      		db	0ffh
-0174  FF      		db	0ffh
-0175  FF      		db	0ffh
-0176  FF      		db	0ffh
-0177  FF      		db	0ffh
-0178  FF      		db	0ffh
-0179  FF      		db	0ffh
-017A  FF      		db	0ffh
-017B  FF      		db	0ffh
-017C  FF      		db	0ffh
-017D  FF      		db	0ffh
-017E  FF      		db	0ffh
-017F  FF      		db	0ffh
-0180  FF      		db	0ffh
-0181  FF      		db	0ffh
-0182  FF      		db	0ffh
-0183  FF      		db	0ffh
-0184  FF      		db	0ffh
-0185  FF      		db	0ffh
-0186  FF      		db	0ffh
-0187  FF      		db	0ffh
-0188  FF      		db	0ffh
-0189  FF      		db	0ffh
-018A  FF      		db	0ffh
-018B  FF      		db	0ffh
-018C  FF      		db	0ffh
-018D  FF      		db	0ffh
-018E  FF      		db	0ffh
-018F  FF      		db	0ffh
-0190  FF      		db	0ffh
-0191  FF      		db	0ffh
-0192  FF      		db	0ffh
-0193  FF      		db	0ffh
-0194  FF      		db	0ffh
-0195  FF      		db	0ffh
-0196  FF      		db	0ffh
-0197  FF      		db	0ffh
-0198  FF      		db	0ffh
-0199  FF      		db	0ffh
-019A  FF      		db	0ffh
-019B  FF      		db	0ffh
-019C  FF      		db	0ffh
-019D  FF      		db	0ffh
-019E  FF      		db	0ffh
-019F  FF      		db	0ffh
-01A0  FF      		db	0ffh
-01A1  FF      		db	0ffh
-01A2  FF      		db	0ffh
-01A3  FF      		db	0ffh
-01A4  FF      		db	0ffh
-01A5  FF      		db	0ffh
-01A6  FF      		db	0ffh
-01A7  FF      		db	0ffh
-01A8  FF      		db	0ffh
-01A9  FF      		db	0ffh
-01AA  FF      		db	0ffh
-01AB  FF      		db	0ffh
-01AC  FF      		db	0ffh
-01AD  FF      		db	0ffh
-01AE  FF      		db	0ffh
-01AF  FF      		db	0ffh
-01B0  FF      		db	0ffh
-01B1  FF      		db	0ffh
-01B2  FF      		db	0ffh
-01B3  FF      		db	0ffh
-01B4  FF      		db	0ffh
-01B5  FF      		db	0ffh
-01B6  FF      		db	0ffh
-01B7  FF      		db	0ffh
-01B8  FF      		db	0ffh
-01B9  FF      		db	0ffh
-01BA  FF      		db	0ffh
-01BB  FF      		db	0ffh
-01BC  FF      		db	0ffh
-01BD  FF      		db	0ffh
-01BE  FF      		db	0ffh
-01BF  FF      		db	0ffh
-01C0  FF      		db	0ffh
-01C1  FF      		db	0ffh
-01C2  FF      		db	0ffh
-01C3  FF      		db	0ffh
-01C4  FF      		db	0ffh
-01C5  FF      		db	0ffh
-01C6  FF      		db	0ffh
-01C7  FF      		db	0ffh
-01C8  FF      		db	0ffh
-01C9  FF      		db	0ffh
-01CA  FF      		db	0ffh
-01CB  FF      		db	0ffh
-01CC  FF      		db	0ffh
-01CD  FF      		db	0ffh
-01CE  FF      		db	0ffh
-01CF  FF      		db	0ffh
-01D0  FF      		db	0ffh
-01D1  FF      		db	0ffh
-01D2  FF      		db	0ffh
-01D3  FF      		db	0ffh
-01D4  FF      		db	0ffh
-01D5  FF      		db	0ffh
-01D6  FF      		db	0ffh
-01D7  FF      		db	0ffh
-01D8  FF      		db	0ffh
-01D9  FF      		db	0ffh
-01DA  FF      		db	0ffh
-01DB  FF      		db	0ffh
-01DC  FF      		db	0ffh
-01DD  FF      		db	0ffh
-01DE  FF      		db	0ffh
-01DF  FF      		db	0ffh
-01E0  FF      		db	0ffh
-01E1  FF      		db	0ffh
-01E2  FF      		db	0ffh
-01E3  FF      		db	0ffh
-01E4  FF      		db	0ffh
 01E5  FF      		db	0ffh
 01E6  FF      		db	0ffh
 01E7  FF      		db	0ffh
@@ -2044,9 +1945,9 @@ Statistics:
 
      4	passes
      0	jr promotions
-    33	symbols
+    67	symbols
   2048	bytes
 
-  1924	macro calls
-  3759	macro bytes
-     0	invented symbols
+  1690	macro calls
+  4142	macro bytes
+    84	invented symbols
