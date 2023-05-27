@@ -67,6 +67,7 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	static final byte cmd_Read_c = 0x20;
 	static final byte cmd_Write_c = 0x30;
 	static final byte cmd_FormatTrack_c = 0x50;
+	static final byte cmd_SelfTest_c = (byte)0x90;
 
 	// Command augment bits
 	static final byte cmd_Intr_c = 0x08;		// READ
@@ -452,6 +453,15 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		case adr_Status_c:
 			// TODO: reset bits?
 			//cmdBuf[adr_Status_c] &= ~sts_Error_c;
+			if (curCmd == cmd_SelfTest_c) {
+				// fake something interesting
+				if (cmdBuf[adr_Error_c] > dia_WD2797_err_c) {
+					--cmdBuf[adr_Error_c];
+				}
+				if (cmdBuf[adr_Error_c] <= dia_WD2797_err_c) {
+					setDone();
+				}
+			}
 			break;
 		}
 		//System.err.format("WD1002_05 in %02x %02x\n", port, val);
@@ -492,7 +502,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	public void reset() {
 		dataIx = 0;
 		Arrays.fill(cmdBuf, (byte)0);
-		curCmd = 0;
 		if (driveFd != null) {
 			cmdBuf[adr_Status_c] |= sts_Ready_c;
 			cmdBuf[adr_Status_c] |= sts_SeekDone_c;
@@ -501,7 +510,9 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		// Results are reported in error register, w/o status err bit.
 		// Kaypro software (HDFMT) expects this error,
 		// As the model of controller used has no floppy chip.
-		cmdBuf[adr_Error_c] = dia_WD2797_err_c;
+		curCmd = cmd_SelfTest_c;
+		cmdBuf[adr_Status_c] |= sts_Busy_c;
+		cmdBuf[adr_Error_c] = dia_WD1015_err_c;
 	}
 
 	private void putData(int val) {
@@ -561,6 +572,12 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 	private void processCmd() {
 		long off;
 		long e;
+
+		if ((curCmd & 0xf0) == (cmd_SelfTest_c & 0xff)) {
+			cmdBuf[adr_Status_c] |= sts_Busy_c;
+			cmdBuf[adr_Error_c] = dia_WD1015_err_c;
+			return;
+		}
 
 		if (driveFd == null) {
 			setError();
@@ -657,7 +674,6 @@ public class WD1002_05 implements IODevice, GppListener, GenericDiskDrive,
 		default:
 			break;
 		}
-
 	}
 
 	private void processData() {
