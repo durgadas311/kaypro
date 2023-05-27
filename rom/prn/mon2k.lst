@@ -1,7 +1,7 @@
 		; serial-port ROM monitor/boot for debugging Kaypro.
 		; Uses "aux serial" a.k.a "Serial Printer" port.
 		
-0021          	VERN	equ	021h	; ROM version
+0022          	VERN	equ	022h	; ROM version
 		
 FFFF          	rom2k	equ	-1
 		
@@ -72,6 +72,15 @@ FFFF          	true	equ	not false
 0011          	fpytrk	equ	11h
 0012          	fpysec	equ	12h
 0013          	fpydat	equ	13h
+		
+0080          	hdddat	equ	80h
+0081          	hdderr	equ	81h
+0082          	hddcnt	equ	82h
+0083          	hddsec	equ	83h
+0084          	hddclo	equ	84h
+0085          	hddchi	equ	85h
+0086          	hddsdh	equ	86h
+0087          	hddcmd	equ	87h
 		
 0000          	stack	equ	00000h	; stack at top of memory (wrapped)
 		
@@ -226,7 +235,7 @@ FFFF          	 if rom2k
 00D0  204D6F6E		db	' Monitor v'
       69746F72
       2076
-00DA  322E31  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+00DA  322E32  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 00DD  0D0A00  		db	CR,LF,TRM
 		
 00E0  0D0A073F	errm:	db	CR,LF,BEL,'?',TRM
@@ -920,7 +929,6 @@ FFFF          	 if rom2k
 05F8  3200FF  		sta	addr0	; default: force intr
 05FB  AF      		xra	a
 05FC  3202FF  		sta	addr1	; default: 256 samples
-			; TODO: parse optional args
 05FF  CD2207  		call	getaddr ;get optional command
 0602  DA0C01  		jc	error	;error if non-hex character
 0605          		bit	7,b	;test for no entry
@@ -931,7 +939,7 @@ FFFF          	 if rom2k
 060A  B7      		ora	a
 060B  C20C01  		jnz	error
 060E  2200FF  		shld	addr0	;save command
-0611  CD2207  		call	getaddr ;get fill data
+0611  CD2207  		call	getaddr ;get sample count
 0614  DA0C01  		jc	error	;error if non-hex character
 0617          		bit	7,b	;test for no entry
 0617  CB78    		DB	0CBH,7*8+b+40H
@@ -958,8 +966,8 @@ FFFF          	 if rom2k
 063C  B5      		ora	l	;  4
 063D          		jrnz	tf0	; 12 = 48 = 12uS
 063D  20F6    		DB	20H,tf0-$-1
-063F          	tf1:	; dump 8000h..DE
-063F  210080  		lxi	h,8000h
+			; dump 8000h..DE and return
+063F  210080  	tf1:	lxi	h,8000h
 0642          	tf2:
 0642  7C      		mov	a,h
 0643  BA      		cmp	d
@@ -1372,7 +1380,7 @@ Statistics:
 
      4	passes
      0	jr promotions
-   180	symbols
+   188	symbols
   2048	bytes
 
    372	macro calls

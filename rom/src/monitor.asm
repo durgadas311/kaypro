@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	021h	; ROM version
+VERN	equ	022h	; ROM version
 
 rom2k	equ	0
 
@@ -71,6 +71,15 @@ fpycmd	equ	10h
 fpytrk	equ	11h
 fpysec	equ	12h
 fpydat	equ	13h
+
+hdddat	equ	80h
+hdderr	equ	81h
+hddcnt	equ	82h
+hddsec	equ	83h
+hddclo	equ	84h
+hddchi	equ	85h
+hddsdh	equ	86h
+hddcmd	equ	87h
 
 stack	equ	00000h	; stack at top of memory (wrapped)
 
@@ -284,13 +293,13 @@ menu:
 	db	CR,LF,'O <port> <value> [...] - Output to port'
 	db	CR,LF,'N <hw> - iNitialize hardware (KB83'
  if not rom2k
-	db		', KB84, CRTC'
+	db		', KB84, CRTC, HDD'
  endif
 	db		')'
 	db	CR,LF,'T <hw> - Test hardware'
 	db	CR,LF,'  (KBD'
  if not rom2k
-	db		', CRTC, VRT, CRTR'
+	db		', CRTC, VRT, CRTR, HDD'
  endif
 	db		', FDRD, FLPY)'
 	db	CR,LF,'V - Show ROM version'
@@ -598,6 +607,9 @@ Ncomnd:
 	lxi	h,crtc
 	call	strcmp
 	jrz	ncrtc
+	lxi	h,hdd
+	call	strcmp
+	jrz	nhdd
  endif
 	jmp	error
 
@@ -607,6 +619,8 @@ kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
 crtr:	db	'CRTR',TRM
 vrt:	db	'VRT',TRM
+hdd:	db	'HDD',TRM
+hdrd:	db	'HDRD',TRM
  endif
 fdrd:	db	'FDRD',TRM
 flpy:	db	'FLPY',TRM
@@ -636,6 +650,20 @@ nc0:	dcr	c
 	ret
 
 crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
+
+nhdd:	in	sysp84
+	setb	1,a
+	out	sysp84	; MR on (if not already)
+	; need 50mS... 200000 cycles or 7693 loops
+	lxi	h,10000
+nh0:	dcx	h	;  6
+	mov	a,h	;  4
+	ora	a	;  4
+	jrnz	nh0	; 12 = 26 cycles
+	in	sysp84
+	res	1,a
+	out	sysp84	; MR off
+	jmp	thdd1
  endif
 
 ; if match, return DE after last match.
@@ -676,6 +704,12 @@ Tcomnd:
 	lxi	h,crtr
 	call	strcmp
 	jz	tcrtr
+	lxi	h,hdd
+	call	strcmp
+	jz	thdd
+	lxi	h,hdrd
+	call	strcmp
+	jz	thdrd
  endif
 	lxi	h,fdrd
 	call	strcmp
@@ -815,6 +849,77 @@ tr9:	push	d
 	pop	d
 	call	taddr
 	ret
+
+; user must have set other registers as needed
+thdd:	; issue command, wait...
+	mvi	a,90h
+	sta	addr0	; default: self test
+	xra	a
+	sta	addr1	; default: 256 samples
+	call	getaddr ;get optional command
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jrnz	thY
+	mov	a,h
+	ora	a
+	jnz	error
+	shld	addr0	;save command
+	call	getaddr ;get sample count
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jnz	thY
+	mov	a,h
+	ora	a
+	jnz	error
+	shld	addr1	;save count
+thY:	call	crlf
+	in	hddcmd
+	mov	c,a
+	lda	addr0
+	out	hddcmd
+	jr	thX
+thdd1:	; RESET already issued
+	call	crlf
+	in	hddcmd
+	mvi	c,0
+thX:	lxi	h,0
+	lxi	d,8000h
+th0:	in	hddcmd
+	cmp	c
+	jrnz	th4
+th5:	inx	h
+	mov	a,h
+	ora	l
+	jrnz	th0
+th1:	call	tf1	; dump results from 8000h..DE
+	in	hdderr	; also print final error status
+	jmp	hexout
+th4:	xchg
+	mov	m,a
+	inx	h
+	mov	m,e
+	inx	h
+	mov	m,d
+	inx	h
+	xchg
+	mov	c,a
+	lda	addr1
+	dcr	a
+	sta	addr1
+	jrz	th1
+	jr	th5
+
+; user setup registers and issue READ command
+thdrd:	call	crlf
+	lxi	h,8000h
+	lxi	b,hdddat	; B=0 (256)
+	in	hddcmd
+	ani	00001000b	; DRQ
+	jrz	thr9
+	inir
+	inir
+thr9:	xchg
+	jmp	taddr
  endif
 
 ; read a sector from the floppy.
@@ -855,7 +960,6 @@ tflpy:	; user must motor on and select drive (and side)
 	sta	addr0	; default: force intr
 	xra	a
 	sta	addr1	; default: 256 samples
-	; TODO: parse optional args
 	call	getaddr ;get optional command
 	jc	error	;error if non-hex character
 	bit	7,b	;test for no entry
@@ -864,7 +968,7 @@ tflpy:	; user must motor on and select drive (and side)
 	ora	a
 	jnz	error
 	shld	addr0	;save command
-	call	getaddr ;get fill data
+	call	getaddr ;get sample count
 	jc	error	;error if non-hex character
 	bit	7,b	;test for no entry
 	jnz	tfX
@@ -888,8 +992,8 @@ tf5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
 	jrnz	tf0	; 12 = 48 = 12uS
-tf1:	; dump 8000h..DE
-	lxi	h,8000h
+	; dump 8000h..DE and return
+tf1:	lxi	h,8000h
 tf2:
 	mov	a,h
 	cmp	d
