@@ -299,7 +299,7 @@ menu:
 	db	CR,LF,'T <hw> - Test hardware'
 	db	CR,LF,'  (KBD'
  if not rom2k
-	db		', CRTC, VRT, CRTR, HDD'
+	db		', CRTC, VRT, CRTR, HDD, HDRD'
  endif
 	db		', FDRD, FLPY)'
 	db	CR,LF,'V - Show ROM version'

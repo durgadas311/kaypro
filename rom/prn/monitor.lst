@@ -137,10 +137,10 @@ FFFF          	true	equ	not false
 004D  310000  		lxi	sp,stack
 0050  D5      		push	d	; not needed?
 0051  214000  		lxi	h,swt
-0054  CDB608  		call	msgprt
+0054  CDBC08  		call	msgprt
 0057  D1      		pop	d
-0058  CD8D08  		call	taddr
-005B  CDAC08  		call	crlf
+0058  CD9308  		call	taddr
+005B  CDB208  		call	crlf
 			; TODO: print address, etc...
 005E  C3E200  		jmp	debug
 		
@@ -174,9 +174,9 @@ FFFF          	true	equ	not false
 007F  EDB3    		DB	0EDH,0B3H
 		
 0081  21C500  		lxi	h,signon
-0084  CDB608  		call	msgprt
+0084  CDBC08  		call	msgprt
 		
-0087  CD6E09  		call	proginit
+0087  CD7409  		call	proginit
 			; save registers on stack, for debugger access...
 008A  C3E200  		jmp	debug
 		
@@ -209,7 +209,7 @@ FFFF          	true	equ	not false
 00AA  B4      		ora	h		;  4
 00AB          		jrnz	ci0		; 12 = 51 (12.75uS) (~0.8 sec)
 00AB  20F5    		DB	20H,ci0-$-1
-00AD  CD9209  		call	progress	; on */83 (20.4uS or ~1.3 sec)
+00AD  CD9809  		call	progress	; on */83 (20.4uS or ~1.3 sec)
 00B0          		jr	ci2
 00B0  18ED    		DB	18H,ci2-$-1
 00B2  DB04    	ci1:	in	condat
@@ -220,7 +220,7 @@ FFFF          	true	equ	not false
 		; Get char from console, toupper and echo
 00B8          	conine:
 00B8  CD9E00  		call	conin
-00BB  CDD108  		call	toupper
+00BB  CDD708  		call	toupper
 00BE  F5      		push	psw
 00BF  4F      		mov	c,a
 00C0  CD8F00  		call	conout
@@ -249,11 +249,11 @@ FFFF          	true	equ	not false
 00E5  21E200  		lxi	h,cilp		;setup return address
 00E8  E5      		push	h
 00E9  219900  		lxi	h,prompt	;prompt for a command
-00EC  CDB608  		call	msgprt
-00EF  CDDA08  		call	linein		;wait for command line to be entered
-00F2  CD8109  		call	progoff		; turn off progress indicators
+00EC  CDBC08  		call	msgprt
+00EF  CDE008  		call	linein		;wait for command line to be entered
+00F2  CD8709  		call	progoff		; turn off progress indicators
 00F5  1104FF  		lxi	d,line
-00F8  CD2809  		call	char		;get first character
+00F8  CD2E09  		call	char		;get first character
 00FB  C8      		rz			;ignore line if it is empty
 00FC  211601  		lxi	h,comnds	;search table for command character
 00FF  060B    		mvi	b,ncmnds	;(number of commands)
@@ -266,7 +266,7 @@ FFFF          	true	equ	not false
 0107          		djnz	cci0		;loop untill all valid commands are checked
 0107  10F8    		DB	10H,cci0-$-1
 0109  21DD00  	error:	lxi	h,errm		;if command unknown, beep and re-prompt
-010C  C3B608  		jmp	msgprt
+010C  C3BC08  		jmp	msgprt
 		
 010F          	gotocmd:
 010F  D5      		push	d		;save command line buffer pointer
@@ -280,27 +280,27 @@ FFFF          	true	equ	not false
 		; All commands are started with DE=next char in line buffer
 0116          	comnds:
 0116  3F      		db	'?'
-0117  0803    		dw	Qcomnd
+0117  0E03    		dw	Qcomnd
 0119  44      		db	'D'
-011A  B003    		dw	Dcomnd
+011A  B603    		dw	Dcomnd
 011C  53      		db	'S'
-011D  1604    		dw	Scomnd
+011D  1C04    		dw	Scomnd
 011F  47      		db	'G'
-0120  7E04    		dw	Gcomnd
+0120  8404    		dw	Gcomnd
 0122  4D      		db	'M'
-0123  0F03    		dw	Mcomnd
+0123  1503    		dw	Mcomnd
 0125  46      		db	'F'
-0126  7003    		dw	Fcomnd
+0126  7603    		dw	Fcomnd
 0128  49      		db	'I'
-0129  B904    		dw	Icomnd
+0129  BF04    		dw	Icomnd
 012B  4F      		db	'O'
-012C  0B05    		dw	Ocomnd
+012C  1105    		dw	Ocomnd
 012E  4E      		db	'N'
-012F  4005    		dw	Ncomnd
+012F  4605    		dw	Ncomnd
 0131  54      		db	'T'
-0132  F805    		dw	Tcomnd
+0132  FE05    		dw	Tcomnd
 0134  56      		db	'V'
-0135  8708    		dw	Vcomnd
+0135  8D08    		dw	Vcomnd
 000B          	ncmnds	equ	($-comnds)/3
 		
 		*********************************************************
@@ -412,1137 +412,1132 @@ FFFF          	 if not rom2k
 02AD  0D0A2020		db	CR,LF,'  (KBD'
       284B4244
 FFFF          	 if not rom2k
-02B5  2C204352		db		', CRTC, VRT, CRTR, HDD'
+02B5  2C204352		db		', CRTC, VRT, CRTR, HDD, HDRD'
       54432C20
       5652542C
       20435254
       522C2048
-      4444
+      44442C20
+      48445244
 		 endif
-02CB  2C204644		db		', FDRD, FLPY)'
+02D1  2C204644		db		', FDRD, FLPY)'
       52442C20
       464C5059
       29
-02D8  0D0A5620		db	CR,LF,'V - Show ROM version'
+02DE  0D0A5620		db	CR,LF,'V - Show ROM version'
       2D205368
       6F772052
       4F4D2076
       65727369
       6F6E
-02EE  0D0A5E43		db	CR,LF,'^C aborts command entry'
+02F4  0D0A5E43		db	CR,LF,'^C aborts command entry'
       2061626F
       72747320
       636F6D6D
       616E6420
       656E7472
       79
-0307  00      		db	TRM
+030D  00      		db	TRM
 		
-0308          	Qcomnd:
-0308  213701  		lxi	h,menu
-030B  CDB608  		call	msgprt
-030E  C9      		ret
+030E          	Qcomnd:
+030E  213701  		lxi	h,menu
+0311  CDBC08  		call	msgprt
+0314  C9      		ret
 		
-030F  CD3409  	Mcomnd:	call	getaddr
-0312  DA0901  		jc	error
-0315          		bit	7,b
-0315  CB78    		DB	0CBH,7*8+b+40H
-0317  C20901  		jnz	error
-031A  2200FF  		shld	addr0
-031D  CD3409  		call	getaddr
-0320  DA0901  		jc	error
-0323          		bit	7,b
-0323  CB78    		DB	0CBH,7*8+b+40H
-0325  C20901  		jnz	error
-0328  2202FF  		shld	addr1
-032B  CD3409  		call	getaddr
-032E  DA0901  		jc	error
-0331          		bit	7,b
-0331  CB78    		DB	0CBH,7*8+b+40H
-0333  C20901  		jnz	error
-0336  EB      		xchg
-0337          		lbcd	addr0
-0337  ED4B    		DB	0EDH,4BH
-0339  00FF    		DW	addr0
-033B  2A02FF  		lhld	addr1
-033E  B7      		ora	a
-033F          		dsbc	b
-033F  ED42    		DB	0EDH,b*8+42H
-0341  DA0901  		jc	error
-0344  23      		inx	h
-0345  4D      		mov	c,l
-0346  44      		mov	b,h
-0347  D5      		push	d
-0348  EB      		xchg
-0349  09      		dad	b
-034A  D1      		pop	d
-034B  DA0901  		jc	error
-034E  2A02FF  		lhld	addr1
-0351  CDCB08  		call	check
-0354  DA6A03  		jc	mc0
-0357  2A00FF  		lhld	addr0
-035A  CDCB08  		call	check
-035D  D26A03  		jnc	mc0
-0360  2A02FF  		lhld	addr1
-0363  EB      		xchg
-0364  09      		dad	b
-0365  2B      		dcx	h
-0366  EB      		xchg
-0367          		lddr
-0367  EDB8    		DB	0EDH,0B8H
-0369  C9      		ret
-036A  2A00FF  	mc0:	lhld	addr0
-036D          		ldir
-036D  EDB0    		DB	0EDH,0B0H
+0315  CD3A09  	Mcomnd:	call	getaddr
+0318  DA0901  		jc	error
+031B          		bit	7,b
+031B  CB78    		DB	0CBH,7*8+b+40H
+031D  C20901  		jnz	error
+0320  2200FF  		shld	addr0
+0323  CD3A09  		call	getaddr
+0326  DA0901  		jc	error
+0329          		bit	7,b
+0329  CB78    		DB	0CBH,7*8+b+40H
+032B  C20901  		jnz	error
+032E  2202FF  		shld	addr1
+0331  CD3A09  		call	getaddr
+0334  DA0901  		jc	error
+0337          		bit	7,b
+0337  CB78    		DB	0CBH,7*8+b+40H
+0339  C20901  		jnz	error
+033C  EB      		xchg
+033D          		lbcd	addr0
+033D  ED4B    		DB	0EDH,4BH
+033F  00FF    		DW	addr0
+0341  2A02FF  		lhld	addr1
+0344  B7      		ora	a
+0345          		dsbc	b
+0345  ED42    		DB	0EDH,b*8+42H
+0347  DA0901  		jc	error
+034A  23      		inx	h
+034B  4D      		mov	c,l
+034C  44      		mov	b,h
+034D  D5      		push	d
+034E  EB      		xchg
+034F  09      		dad	b
+0350  D1      		pop	d
+0351  DA0901  		jc	error
+0354  2A02FF  		lhld	addr1
+0357  CDD108  		call	check
+035A  DA7003  		jc	mc0
+035D  2A00FF  		lhld	addr0
+0360  CDD108  		call	check
+0363  D27003  		jnc	mc0
+0366  2A02FF  		lhld	addr1
+0369  EB      		xchg
+036A  09      		dad	b
+036B  2B      		dcx	h
+036C  EB      		xchg
+036D          		lddr
+036D  EDB8    		DB	0EDH,0B8H
 036F  C9      		ret
-0370          	Fcomnd:
-0370  CD3409  		call	getaddr ;get address to start at
-0373  DA0901  		jc	error	;error if non-hex character
-0376          		bit	7,b	;test for no address (different from 0000)
-0376  CB78    		DB	0CBH,7*8+b+40H
-0378  C20901  		jnz	error	;error if no address was entered
-037B  2200FF  		shld	addr0	;save starting address
-037E  CD3409  		call	getaddr ;get stop address
-0381  DA0901  		jc	error	;error if non-hex character
-0384          		bit	7,b	;test for no entry
-0384  CB78    		DB	0CBH,7*8+b+40H
-0386  C20901  		jnz	error	;error if no stop address
-0389  2202FF  		shld	addr1	;save stop address
-038C  CD3409  		call	getaddr ;get fill data
-038F  DA0901  		jc	error	;error if non-hex character
-0392          		bit	7,b	;test for no entry
-0392  CB78    		DB	0CBH,7*8+b+40H
-0394  C20901  		jnz	error	;error if no fill data
-0397  7C      		mov	a,h
-0398  B7      		ora	a
-0399  C20901  		jnz	error
-039C  4D      		mov	c,l	;(C)=fill data
-039D  2A02FF  		lhld	addr1	;get stop address
-03A0          		lded	addr0	;get start address
-03A0  ED5B    		DB	0EDH,5BH
-03A2  00FF    		DW	addr0
-03A4  79      	fc0:	mov	a,c	;
-03A5  12      		stax	d	;put byte in memory
-03A6  13      		inx	d	;step to next byte
-03A7  7A      		mov	a,d	;
-03A8  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
-03A9  C8      		rz		;
-03AA  CDCB08  		call	check	;test for past stop address
-03AD  D8      		rc	;quit if past stop address
-03AE          		jr	fc0
-03AE  18F4    		DB	18H,fc0-$-1
+0370  2A00FF  	mc0:	lhld	addr0
+0373          		ldir
+0373  EDB0    		DB	0EDH,0B0H
+0375  C9      		ret
+0376          	Fcomnd:
+0376  CD3A09  		call	getaddr ;get address to start at
+0379  DA0901  		jc	error	;error if non-hex character
+037C          		bit	7,b	;test for no address (different from 0000)
+037C  CB78    		DB	0CBH,7*8+b+40H
+037E  C20901  		jnz	error	;error if no address was entered
+0381  2200FF  		shld	addr0	;save starting address
+0384  CD3A09  		call	getaddr ;get stop address
+0387  DA0901  		jc	error	;error if non-hex character
+038A          		bit	7,b	;test for no entry
+038A  CB78    		DB	0CBH,7*8+b+40H
+038C  C20901  		jnz	error	;error if no stop address
+038F  2202FF  		shld	addr1	;save stop address
+0392  CD3A09  		call	getaddr ;get fill data
+0395  DA0901  		jc	error	;error if non-hex character
+0398          		bit	7,b	;test for no entry
+0398  CB78    		DB	0CBH,7*8+b+40H
+039A  C20901  		jnz	error	;error if no fill data
+039D  7C      		mov	a,h
+039E  B7      		ora	a
+039F  C20901  		jnz	error
+03A2  4D      		mov	c,l	;(C)=fill data
+03A3  2A02FF  		lhld	addr1	;get stop address
+03A6          		lded	addr0	;get start address
+03A6  ED5B    		DB	0EDH,5BH
+03A8  00FF    		DW	addr0
+03AA  79      	fc0:	mov	a,c	;
+03AB  12      		stax	d	;put byte in memory
+03AC  13      		inx	d	;step to next byte
+03AD  7A      		mov	a,d	;
+03AE  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
+03AF  C8      		rz		;
+03B0  CDD108  		call	check	;test for past stop address
+03B3  D8      		rc	;quit if past stop address
+03B4          		jr	fc0
+03B4  18F4    		DB	18H,fc0-$-1
 		
-03B0          	Dcomnd:		;display memory
-03B0  CD3409  		call	getaddr ;get address to start at
-03B3  DA0901  		jc	error	;error if non-hex character
-03B6          		bit	7,b	;test for no address (different from 0000)
-03B6  CB78    		DB	0CBH,7*8+b+40H
-03B8  C20901  		jnz	error	;error if no address was entered
-03BB  2200FF  		shld	addr0	;save starting address
-03BE  CD3409  		call	getaddr ;get stop address
-03C1  DA0901  		jc	error	;error if non-hex character
-03C4          		bit	7,b	;test for no entry
-03C4  CB78    		DB	0CBH,7*8+b+40H
-03C6  C20901  		jnz	error	;error if no stop address
-03C9          		lded	addr0	;get start address into (DE)
-03C9  ED5B    		DB	0EDH,5BH
-03CB  00FF    		DW	addr0
-03CD  CDAC08  	dis0:	call	crlf	;start on new line
-03D0  CD8D08  		call	taddr	;print current address
-03D3  CDA708  		call	space	;delimit it from data
-03D6  0610    		mvi	b,16	;display 16 bytes on each line
-03D8  1A      	dis1:	ldax	d	;get byte to display
-03D9  13      		inx	d	;step to next byte
-03DA  CD9208  		call	hexout	;display this byte in HEX
-03DD  CDA708  		call	space	;delimit it from others
-03E0  7A      		mov	a,d
-03E1  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
-03E2          		jrz	dis2
-03E2  2807    		DB	28H,dis2-$-1
-03E4  CDCB08  		call	check	;test for past stop address
-03E7          		jrc	dis2	;quit if past stop address
-03E7  3802    		DB	38H,dis2-$-1
-03E9          		djnz	dis1	;else do next byte on this line
-03E9  10ED    		DB	10H,dis1-$-1
-03EB  CDA708  	dis2:	call	space	;delimit it from data
-03EE  CDA708  		call	space
-03F1          		lded	addr0
-03F1  ED5B    		DB	0EDH,5BH
-03F3  00FF    		DW	addr0
-03F5  0610    		mvi	b,16	;display 16 bytes on each line
-03F7  1A      	dis3:	ldax	d	;get byte to display
-03F8  13      		inx	d	;step to next byte
-03F9  0E2E    		mvi	c,'.'
-03FB  FE20    		cpi	' '
-03FD          		jrc	dis4
-03FD  3805    		DB	38H,dis4-$-1
-03FF  FE7F    		cpi	'~'+1
-0401          		jrnc	dis4
-0401  3001    		DB	30H,dis4-$-1
-0403  4F      		mov	c,a
-0404  CD8F00  	dis4:	call	conout
-0407  7A      		mov	a,d
-0408  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
-0409  C8      		rz
-040A  CDCB08  		call	check	;test for past stop address
-040D  D8      		rc	;quit if past stop address
-040E          		djnz	dis3	;else do next byte on this line
-040E  10E7    		DB	10H,dis3-$-1
-0410          		sded	addr0
-0410  ED53    		DB	0EDH,53H
-0412  00FF    		DW	addr0
-0414          		jr	dis0	;when line is finished, start another
-0414  18B7    		DB	18H,dis0-$-1
+03B6          	Dcomnd:		;display memory
+03B6  CD3A09  		call	getaddr ;get address to start at
+03B9  DA0901  		jc	error	;error if non-hex character
+03BC          		bit	7,b	;test for no address (different from 0000)
+03BC  CB78    		DB	0CBH,7*8+b+40H
+03BE  C20901  		jnz	error	;error if no address was entered
+03C1  2200FF  		shld	addr0	;save starting address
+03C4  CD3A09  		call	getaddr ;get stop address
+03C7  DA0901  		jc	error	;error if non-hex character
+03CA          		bit	7,b	;test for no entry
+03CA  CB78    		DB	0CBH,7*8+b+40H
+03CC  C20901  		jnz	error	;error if no stop address
+03CF          		lded	addr0	;get start address into (DE)
+03CF  ED5B    		DB	0EDH,5BH
+03D1  00FF    		DW	addr0
+03D3  CDB208  	dis0:	call	crlf	;start on new line
+03D6  CD9308  		call	taddr	;print current address
+03D9  CDAD08  		call	space	;delimit it from data
+03DC  0610    		mvi	b,16	;display 16 bytes on each line
+03DE  1A      	dis1:	ldax	d	;get byte to display
+03DF  13      		inx	d	;step to next byte
+03E0  CD9808  		call	hexout	;display this byte in HEX
+03E3  CDAD08  		call	space	;delimit it from others
+03E6  7A      		mov	a,d
+03E7  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
+03E8          		jrz	dis2
+03E8  2807    		DB	28H,dis2-$-1
+03EA  CDD108  		call	check	;test for past stop address
+03ED          		jrc	dis2	;quit if past stop address
+03ED  3802    		DB	38H,dis2-$-1
+03EF          		djnz	dis1	;else do next byte on this line
+03EF  10ED    		DB	10H,dis1-$-1
+03F1  CDAD08  	dis2:	call	space	;delimit it from data
+03F4  CDAD08  		call	space
+03F7          		lded	addr0
+03F7  ED5B    		DB	0EDH,5BH
+03F9  00FF    		DW	addr0
+03FB  0610    		mvi	b,16	;display 16 bytes on each line
+03FD  1A      	dis3:	ldax	d	;get byte to display
+03FE  13      		inx	d	;step to next byte
+03FF  0E2E    		mvi	c,'.'
+0401  FE20    		cpi	' '
+0403          		jrc	dis4
+0403  3805    		DB	38H,dis4-$-1
+0405  FE7F    		cpi	'~'+1
+0407          		jrnc	dis4
+0407  3001    		DB	30H,dis4-$-1
+0409  4F      		mov	c,a
+040A  CD8F00  	dis4:	call	conout
+040D  7A      		mov	a,d
+040E  B3      		ora	e	;if we reach 0000, stop. (don't wrap around)
+040F  C8      		rz
+0410  CDD108  		call	check	;test for past stop address
+0413  D8      		rc	;quit if past stop address
+0414          		djnz	dis3	;else do next byte on this line
+0414  10E7    		DB	10H,dis3-$-1
+0416          		sded	addr0
+0416  ED53    		DB	0EDH,53H
+0418  00FF    		DW	addr0
+041A          		jr	dis0	;when line is finished, start another
+041A  18B7    		DB	18H,dis0-$-1
 		
-0416          	Scomnd: 		;substitute (set) memory
-0416  CD3409  		call	getaddr ;get address to start substitution at
-0419  DA0901  		jc	error	;error if non-hex character
-041C          		bit	7,b	;test for no entry
-041C  CB78    		DB	0CBH,7*8+b+40H
-041E  C20901  		jnz	error	;error if no address
-0421  EB      		xchg		;put address in (DE)
-0422  CDAC08  	sb1:	call	crlf	;start on new line
-0425  CD8D08  		call	taddr	;print address
-0428  CDA708  		call	space	;and delimit it
-042B  1A      		ldax	d	;get current value of byte
-042C  CD9208  		call	hexout	;and display it
-042F  CDA708  		call	space	;delimit it from user's (posible) entry
-0432  0600    		mvi	b,0	;zero accumilator for user's entry
-0434  CDB800  	sb2:	call	conine	;get user's first character
-0437  FE0D    		cpi	CR	;if CR then skip to next byte
-0439          		jrz	foward
-0439  2833    		DB	28H,foward-$-1
-043B  FE20    		cpi	' '	;or if Space then skip to next
-043D          		jrz	foward
-043D  282F    		DB	28H,foward-$-1
-043F  FE2D    		cpi	'-'	;if Minus then step back to previous address
-0441          		jrz	bakwrd
-0441  282E    		DB	28H,bakwrd-$-1
-0443  FE2E    		cpi	'.'	;if Period then stop substitution
-0445  C8      		rz
-0446  CD5B09  		call	hexcon	;if none of the above, should be HEX digit
-0449          		jrc	error0	;error if not
-0449  3829    		DB	38H,error0-$-1
-044B          		jr	sb3	;start accumilating HEX digits
-044B  1805    		DB	18H,sb3-$-1
-044D  CD5B09  	sb0:	call	hexcon	;test for HEX digit
-0450          		jrc	error1	;error if not HEX
-0450  3827    		DB	38H,error1-$-1
-0452          	sb3:	slar	b	;roll accumilator to receive new digit
-0452  CB20    		DB	0CBH, 20H + b
-0454          		slar	b
-0454  CB20    		DB	0CBH, 20H + b
-0456          		slar	b
-0456  CB20    		DB	0CBH, 20H + b
-0458          		slar	b
+041C          	Scomnd: 		;substitute (set) memory
+041C  CD3A09  		call	getaddr ;get address to start substitution at
+041F  DA0901  		jc	error	;error if non-hex character
+0422          		bit	7,b	;test for no entry
+0422  CB78    		DB	0CBH,7*8+b+40H
+0424  C20901  		jnz	error	;error if no address
+0427  EB      		xchg		;put address in (DE)
+0428  CDB208  	sb1:	call	crlf	;start on new line
+042B  CD9308  		call	taddr	;print address
+042E  CDAD08  		call	space	;and delimit it
+0431  1A      		ldax	d	;get current value of byte
+0432  CD9808  		call	hexout	;and display it
+0435  CDAD08  		call	space	;delimit it from user's (posible) entry
+0438  0600    		mvi	b,0	;zero accumilator for user's entry
+043A  CDB800  	sb2:	call	conine	;get user's first character
+043D  FE0D    		cpi	CR	;if CR then skip to next byte
+043F          		jrz	foward
+043F  2833    		DB	28H,foward-$-1
+0441  FE20    		cpi	' '	;or if Space then skip to next
+0443          		jrz	foward
+0443  282F    		DB	28H,foward-$-1
+0445  FE2D    		cpi	'-'	;if Minus then step back to previous address
+0447          		jrz	bakwrd
+0447  282E    		DB	28H,bakwrd-$-1
+0449  FE2E    		cpi	'.'	;if Period then stop substitution
+044B  C8      		rz
+044C  CD6109  		call	hexcon	;if none of the above, should be HEX digit
+044F          		jrc	error0	;error if not
+044F  3829    		DB	38H,error0-$-1
+0451          		jr	sb3	;start accumilating HEX digits
+0451  1805    		DB	18H,sb3-$-1
+0453  CD6109  	sb0:	call	hexcon	;test for HEX digit
+0456          		jrc	error1	;error if not HEX
+0456  3827    		DB	38H,error1-$-1
+0458          	sb3:	slar	b	;roll accumilator to receive new digit
 0458  CB20    		DB	0CBH, 20H + b
-045A  B0      		ora	b	;merge in new digit
-045B  47      		mov	b,a
-045C  CDB800  	sb4:	call	conine	;get next character
-045F  FE0D    		cpi	CR	;if CR then put existing byte into memory
-0461          		jrz	putbyte ;  and step to next.
-0461  2809    		DB	28H,putbyte-$-1
-0463  FE2E    		cpi	'.'
-0465  C8      		rz
-0466  FE7F    		cpi	del	;if DEL then restart at same address
-0468          		jrz	sb1
-0468  28B8    		DB	28H,sb1-$-1
-046A          		jr	sb0	;else continue entering hex digits
-046A  18E1    		DB	18H,sb0-$-1
-046C          	putbyte:
-046C  78      		mov	a,b	;store accumilated byte in memory
-046D  12      		stax	d
-046E          	foward:
-046E  13      		inx	d	;step to next location
-046F          		jr	sb1	;and allow substitution there
-046F  18B1    		DB	18H,sb1-$-1
+045A          		slar	b
+045A  CB20    		DB	0CBH, 20H + b
+045C          		slar	b
+045C  CB20    		DB	0CBH, 20H + b
+045E          		slar	b
+045E  CB20    		DB	0CBH, 20H + b
+0460  B0      		ora	b	;merge in new digit
+0461  47      		mov	b,a
+0462  CDB800  	sb4:	call	conine	;get next character
+0465  FE0D    		cpi	CR	;if CR then put existing byte into memory
+0467          		jrz	putbyte ;  and step to next.
+0467  2809    		DB	28H,putbyte-$-1
+0469  FE2E    		cpi	'.'
+046B  C8      		rz
+046C  FE7F    		cpi	del	;if DEL then restart at same address
+046E          		jrz	sb1
+046E  28B8    		DB	28H,sb1-$-1
+0470          		jr	sb0	;else continue entering hex digits
+0470  18E1    		DB	18H,sb0-$-1
+0472          	putbyte:
+0472  78      		mov	a,b	;store accumilated byte in memory
+0473  12      		stax	d
+0474          	foward:
+0474  13      		inx	d	;step to next location
+0475          		jr	sb1	;and allow substitution there
+0475  18B1    		DB	18H,sb1-$-1
 		
-0471          	bakwrd:
-0471  1B      		dcx	d	;move address backward one location
-0472          		jr	sb1
-0472  18AE    		DB	18H,sb1-$-1
+0477          	bakwrd:
+0477  1B      		dcx	d	;move address backward one location
+0478          		jr	sb1
+0478  18AE    		DB	18H,sb1-$-1
 		
-0474  CD8D00  	error0:	call	belout	;user's entry was not valid, beep and continue
-0477          		jr	sb2
-0477  18BB    		DB	18H,sb2-$-1
-0479  CD8D00  	error1:	call	belout	;same as above but for different section of routine
-047C          		jr	sb4
-047C  18DE    		DB	18H,sb4-$-1
+047A  CD8D00  	error0:	call	belout	;user's entry was not valid, beep and continue
+047D          		jr	sb2
+047D  18BB    		DB	18H,sb2-$-1
+047F  CD8D00  	error1:	call	belout	;same as above but for different section of routine
+0482          		jr	sb4
+0482  18DE    		DB	18H,sb4-$-1
 		
-047E          	Gcomnd: 		;jump to address given by user
-047E  CD3409  		call	getaddr ;get address to jump to
-0481  DA0901  		jc	error	;error if non-hex character
-0484          		bit	7,b	;test for no entry
-0484  CB78    		DB	0CBH,7*8+b+40H
-0486  C20901  		jnz	error	;error if no address entered
-0489  CDAC08  		call	crlf	;on new line,
-048C  0E47    		mvi	c,'G'	;display "GO aaaa?" to ask
-048E  CD8F00  		call	conout	;user to verify that we should
-0491  0E4F    		mvi	c,'O'	;jump to this address (in case user
-0493  CD8F00  		call	conout	;made a mistake we should not blindly
-0496  CDA708  		call	space	;commit suicide)
-0499  EB      		xchg
-049A  CD8D08  		call	taddr
-049D  CDA708  		call	space
-04A0  0E3F    		mvi	c,'?'
-04A2  CD8F00  		call	conout
-04A5  CDB800  		call	conine	;wait for user to type "Y" to
-04A8  FE59    		cpi	'Y'	;indicate that we should jump.
-04AA  C0      		rnz		;abort if response was not "Y"
-04AB  CDAC08  		call	crlf	; visual feedback
-04AE  EB      		xchg
-04AF  E9      		pchl		;else jump to address
+0484          	Gcomnd: 		;jump to address given by user
+0484  CD3A09  		call	getaddr ;get address to jump to
+0487  DA0901  		jc	error	;error if non-hex character
+048A          		bit	7,b	;test for no entry
+048A  CB78    		DB	0CBH,7*8+b+40H
+048C  C20901  		jnz	error	;error if no address entered
+048F  CDB208  		call	crlf	;on new line,
+0492  0E47    		mvi	c,'G'	;display "GO aaaa?" to ask
+0494  CD8F00  		call	conout	;user to verify that we should
+0497  0E4F    		mvi	c,'O'	;jump to this address (in case user
+0499  CD8F00  		call	conout	;made a mistake we should not blindly
+049C  CDAD08  		call	space	;commit suicide)
+049F  EB      		xchg
+04A0  CD9308  		call	taddr
+04A3  CDAD08  		call	space
+04A6  0E3F    		mvi	c,'?'
+04A8  CD8F00  		call	conout
+04AB  CDB800  		call	conine	;wait for user to type "Y" to
+04AE  FE59    		cpi	'Y'	;indicate that we should jump.
+04B0  C0      		rnz		;abort if response was not "Y"
+04B1  CDB208  		call	crlf	; visual feedback
+04B4  EB      		xchg
+04B5  E9      		pchl		;else jump to address
 		
-04B0  0D0A496E	inpms:	db	CR,LF,'Input ',TRM
+04B6  0D0A496E	inpms:	db	CR,LF,'Input ',TRM
       70757420
       00
-04B9          	Icomnd:
-04B9  CD3409  		call	getaddr ;get port address, ignore extra MSDs
-04BC  DA0901  		jc	error	;error if non-hex character
-04BF          		bit	7,b	;test for no entry
-04BF  CB78    		DB	0CBH,7*8+b+40H
-04C1  C20901  		jnz	error	;error if no address entered
-04C4  E5      		push	h	; save port
-04C5  CD3409  		call	getaddr	; hex number of inputs to do
-04C8  DA0901  		jc	error
-04CB          		bit	7,b
-04CB  CB78    		DB	0CBH,7*8+b+40H
-04CD          		jrz	ic0
-04CD  2803    		DB	28H,ic0-$-1
-04CF  210100  		lxi	h,1
-04D2          	ic0:
-04D2  E3      		xthl		; save count
-04D3  E5      		push	h	; re-save port
-04D4  21B004  		lxi	h,inpms
-04D7  CDB608  		call	msgprt
-04DA  E1      		pop	h
-04DB  E5      		push	h
-04DC  7D      		mov	a,l
-04DD  CD9208  		call	hexout
-04E0  CDA708  		call	space
-04E3  0E3D    		mvi	c,'='
-04E5  CD8F00  		call	conout
+04BF          	Icomnd:
+04BF  CD3A09  		call	getaddr ;get port address, ignore extra MSDs
+04C2  DA0901  		jc	error	;error if non-hex character
+04C5          		bit	7,b	;test for no entry
+04C5  CB78    		DB	0CBH,7*8+b+40H
+04C7  C20901  		jnz	error	;error if no address entered
+04CA  E5      		push	h	; save port
+04CB  CD3A09  		call	getaddr	; hex number of inputs to do
+04CE  DA0901  		jc	error
+04D1          		bit	7,b
+04D1  CB78    		DB	0CBH,7*8+b+40H
+04D3          		jrz	ic0
+04D3  2803    		DB	28H,ic0-$-1
+04D5  210100  		lxi	h,1
+04D8          	ic0:
+04D8  E3      		xthl		; save count
+04D9  E5      		push	h	; re-save port
+04DA  21B604  		lxi	h,inpms
+04DD  CDBC08  		call	msgprt
+04E0  E1      		pop	h
+04E1  E5      		push	h
+04E2  7D      		mov	a,l
+04E3  CD9808  		call	hexout
+04E6  CDAD08  		call	space
+04E9  0E3D    		mvi	c,'='
+04EB  CD8F00  		call	conout
 			; "Input XX ="
-04E8  C1      		pop	b	; port to BC
-04E9  E1      		pop	h	; count to HL (L)
-04EA  260D    		mvi	h,16-3
-04EC  0600    		mvi	b,0	; safety
-04EE  C5      		push	b	; C gets trashed by conout
-04EF          	ic1:
-04EF  CDA708  		call	space
-04F2  C1      		pop	b
-04F3  C5      		push	b
-04F4          		inp	a
-04F4  ED78    		DB	0EDH,a*8+40H
-04F6  CD9208  		call	hexout
-04F9  2D      		dcr	l	; assume <= 256
-04FA          		jrz	ic2
-04FA  280A    		DB	28H,ic2-$-1
-04FC  25      		dcr	h	; col count
-04FD          		jrnz	ic1
-04FD  20F0    		DB	20H,ic1-$-1
-04FF  CDAC08  		call	crlf
-0502  2610    		mvi	h,16
-0504          		jr	ic1
-0504  18E9    		DB	18H,ic1-$-1
-0506          	ic2:
-0506  C1      		pop	b	; fix stack
-0507  CDAC08  		call	crlf
-050A  C9      		ret
+04EE  C1      		pop	b	; port to BC
+04EF  E1      		pop	h	; count to HL (L)
+04F0  260D    		mvi	h,16-3
+04F2  0600    		mvi	b,0	; safety
+04F4  C5      		push	b	; C gets trashed by conout
+04F5          	ic1:
+04F5  CDAD08  		call	space
+04F8  C1      		pop	b
+04F9  C5      		push	b
+04FA          		inp	a
+04FA  ED78    		DB	0EDH,a*8+40H
+04FC  CD9808  		call	hexout
+04FF  2D      		dcr	l	; assume <= 256
+0500          		jrz	ic2
+0500  280A    		DB	28H,ic2-$-1
+0502  25      		dcr	h	; col count
+0503          		jrnz	ic1
+0503  20F0    		DB	20H,ic1-$-1
+0505  CDB208  		call	crlf
+0508  2610    		mvi	h,16
+050A          		jr	ic1
+050A  18E9    		DB	18H,ic1-$-1
+050C          	ic2:
+050C  C1      		pop	b	; fix stack
+050D  CDB208  		call	crlf
+0510  C9      		ret
 		
 		; TODO: no feedback?
-050B          	Ocomnd:
-050B  CD3409  		call	getaddr ;get port address, ignore extra MSDs
-050E  DA0901  		jc	error	;error if non-hex character
-0511          		bit	7,b	;test for no entry
-0511  CB78    		DB	0CBH,7*8+b+40H
-0513  C20901  		jnz	error	;error if no address entered
-0516  2600    		mvi	h,0	; safety
-0518  E5      		push	h	; save port
-0519  CD3409  		call	getaddr ;get value, ignore extra MSDs
-051C  DA0901  		jc	error	;error if non-hex character
-051F          		bit	7,b	;test for no entry
-051F  CB78    		DB	0CBH,7*8+b+40H
-0521  C20901  		jnz	error	;error if no value entered
-0524  CDAC08  		call	crlf
-0527          	oc0:		; L has byte to output...
-0527  C1      		pop	b	; port
-0528  C5      		push	b
-0529          		outp	l
-0529  ED69    		DB	0EDH,l*8+41H
-052B  CD3409  		call	getaddr ;get value, ignore extra MSDs
-052E  DA0901  		jc	error	;error if non-hex character
+0511          	Ocomnd:
+0511  CD3A09  		call	getaddr ;get port address, ignore extra MSDs
+0514  DA0901  		jc	error	;error if non-hex character
+0517          		bit	7,b	;test for no entry
+0517  CB78    		DB	0CBH,7*8+b+40H
+0519  C20901  		jnz	error	;error if no address entered
+051C  2600    		mvi	h,0	; safety
+051E  E5      		push	h	; save port
+051F  CD3A09  		call	getaddr ;get value, ignore extra MSDs
+0522  DA0901  		jc	error	;error if non-hex character
+0525          		bit	7,b	;test for no entry
+0525  CB78    		DB	0CBH,7*8+b+40H
+0527  C20901  		jnz	error	;error if no value entered
+052A  CDB208  		call	crlf
+052D          	oc0:		; L has byte to output...
+052D  C1      		pop	b	; port
+052E  C5      		push	b
+052F          		outp	l
+052F  ED69    		DB	0EDH,l*8+41H
+0531  CD3A09  		call	getaddr ;get value, ignore extra MSDs
+0534  DA0901  		jc	error	;error if non-hex character
 					;NOTE: some output has been sent
-0531          		bit	7,b	;test for no entry
-0531  CB78    		DB	0CBH,7*8+b+40H
-0533          		jrz	oc0	;still more to send
-0533  28F2    		DB	28H,oc0-$-1
-0535  E1      		pop	h	; discard port
-0536  C9      		ret
+0537          		bit	7,b	;test for no entry
+0537  CB78    		DB	0CBH,7*8+b+40H
+0539          		jrz	oc0	;still more to send
+0539  28F2    		DB	28H,oc0-$-1
+053B  E1      		pop	h	; discard port
+053C  C9      		ret
 		
-0537  CD2809  	skb:	call	char
-053A  C8      		rz		;end of buffer/line before a character was found (ZR)
-053B  FE20    		cpi	' '	;skip all leading spaces
-053D  C0      		rnz		;if not space, then done (NZ)
-053E          		jr	skb	;else if space, loop untill not space
-053E  18F7    		DB	18H,skb-$-1
+053D  CD2E09  	skb:	call	char
+0540  C8      		rz		;end of buffer/line before a character was found (ZR)
+0541  FE20    		cpi	' '	;skip all leading spaces
+0543  C0      		rnz		;if not space, then done (NZ)
+0544          		jr	skb	;else if space, loop untill not space
+0544  18F7    		DB	18H,skb-$-1
 		
-0540          	Ncomnd:
-0540  CD3705  		call	skb	; skip blanks
-0543  CA0901  		jz	error	; required param
+0546          	Ncomnd:
+0546  CD3D05  		call	skb	; skip blanks
+0549  CA0901  		jz	error	; required param
 			; this may need refinement
-0546  1B      		dcx	d
-0547  216A05  		lxi	h,kb83
-054A  CDE405  		call	strcmp
-054D          		jrz	nkb83
-054D  284A    		DB	28H,nkb83-$-1
+054C  1B      		dcx	d
+054D  217005  		lxi	h,kb83
+0550  CDEA05  		call	strcmp
+0553          		jrz	nkb83
+0553  284A    		DB	28H,nkb83-$-1
 FFFF          	 if not rom2k
-054F  216F05  		lxi	h,kb84
-0552  CDE405  		call	strcmp
-0555          		jrz	nkb84
-0555  2846    		DB	28H,nkb84-$-1
-0557  217405  		lxi	h,crtc
-055A  CDE405  		call	strcmp
-055D          		jrz	ncrtc
-055D  2848    		DB	28H,ncrtc-$-1
-055F  218205  		lxi	h,hdd
-0562  CDE405  		call	strcmp
-0565          		jrz	nhdd
-0565  2866    		DB	28H,nhdd-$-1
+0555  217505  		lxi	h,kb84
+0558  CDEA05  		call	strcmp
+055B          		jrz	nkb84
+055B  2846    		DB	28H,nkb84-$-1
+055D  217A05  		lxi	h,crtc
+0560  CDEA05  		call	strcmp
+0563          		jrz	ncrtc
+0563  2848    		DB	28H,ncrtc-$-1
+0565  218805  		lxi	h,hdd
+0568  CDEA05  		call	strcmp
+056B          		jrz	nhdd
+056B  2866    		DB	28H,nhdd-$-1
 		 endif
-0567  C30901  		jmp	error
+056D  C30901  		jmp	error
 		
-056A  4B423833	kb83:	db	'KB83',TRM
+0570  4B423833	kb83:	db	'KB83',TRM
       00
 FFFF          	 if not rom2k
-056F  4B423834	kb84:	db	'KB84',TRM
+0575  4B423834	kb84:	db	'KB84',TRM
       00
-0574  43525443	crtc:	db	'CRTC',TRM
+057A  43525443	crtc:	db	'CRTC',TRM
       00
-0579  43525452	crtr:	db	'CRTR',TRM
+057F  43525452	crtr:	db	'CRTR',TRM
       00
-057E  56525400	vrt:	db	'VRT',TRM
-0582  48444400	hdd:	db	'HDD',TRM
-0586  48445244	hdrd:	db	'HDRD',TRM
+0584  56525400	vrt:	db	'VRT',TRM
+0588  48444400	hdd:	db	'HDD',TRM
+058C  48445244	hdrd:	db	'HDRD',TRM
       00
 		 endif
-058B  46445244	fdrd:	db	'FDRD',TRM
+0591  46445244	fdrd:	db	'FDRD',TRM
       00
-0590  464C5059	flpy:	db	'FLPY',TRM
+0596  464C5059	flpy:	db	'FLPY',TRM
       00
-0595  4B424400	kbd:	db	'KBD',TRM
+059B  4B424400	kbd:	db	'KBD',TRM
 		
-0599  3E05    	nkb83:	mvi	a,B300
-059B  D30C    		out	kbdbrr	; */83 baud gen for SIO1 ch B
-059D  216700  	nkb84:	lxi	h,sioini
-05A0  0E07    		mvi	c,kbdctl
-05A2  0609    		mvi	b,siolen
-05A4          		outir
-05A4  EDB3    		DB	0EDH,0B3H
-05A6  C9      		ret
+059F  3E05    	nkb83:	mvi	a,B300
+05A1  D30C    		out	kbdbrr	; */83 baud gen for SIO1 ch B
+05A3  216700  	nkb84:	lxi	h,sioini
+05A6  0E07    		mvi	c,kbdctl
+05A8  0609    		mvi	b,siolen
+05AA          		outir
+05AA  EDB3    		DB	0EDH,0B3H
+05AC  C9      		ret
 		
 FFFF          	 if not rom2k
-05A7  21BD05  	ncrtc:	lxi	h,crtini
-05AA  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
-05AC  0610    		mvi	b,16
-05AE  AF      		xra	a	; start with reg 00
-05AF  0D      	nc0:	dcr	c
-05B0          		outp	a	; select reg
-05B0  ED79    		DB	0EDH,a*8+41H
-05B2  3C      		inr	a	; ++reg
-05B3  0C      		inr	c	;
-05B4          		outi
-05B4  EDA3    		DB	0EDH,0A3H
-05B6          		jrnz	nc0
-05B6  20F7    		DB	20H,nc0-$-1
-05B8  3E1F    		mvi	a,31	; R31 enables CRTC
-05BA  D31C    		out	crtctl
-05BC  C9      		ret
+05AD  21C305  	ncrtc:	lxi	h,crtini
+05B0  0E1D    		mvi	c,crtdat	; */84 CRTC 6545 data port
+05B2  0610    		mvi	b,16
+05B4  AF      		xra	a	; start with reg 00
+05B5  0D      	nc0:	dcr	c
+05B6          		outp	a	; select reg
+05B6  ED79    		DB	0EDH,a*8+41H
+05B8  3C      		inr	a	; ++reg
+05B9  0C      		inr	c	;
+05BA          		outi
+05BA  EDA3    		DB	0EDH,0A3H
+05BC          		jrnz	nc0
+05BC  20F7    		DB	20H,nc0-$-1
+05BE  3E1F    		mvi	a,31	; R31 enables CRTC
+05C0  D31C    		out	crtctl
+05C2  C9      		ret
 		
-05BD  6A505699	crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
+05C3  6A505699	crtini:	db	6ah,50h,56h,99h,19h,0ah,19h,19h,78h,0fh,60h,0fh,00h,00h,00h,00h
       190A1919
       780F600F
       00000000
 		
-05CD  DB14    	nhdd:	in	sysp84
-05CF          		setb	1,a
-05CF  CBCF    		DB	0CBH,1*8+a+0C0H
-05D1  D314    		out	sysp84	; MR on (if not already)
+05D3  DB14    	nhdd:	in	sysp84
+05D5          		setb	1,a
+05D5  CBCF    		DB	0CBH,1*8+a+0C0H
+05D7  D314    		out	sysp84	; MR on (if not already)
 			; need 50mS... 200000 cycles or 7693 loops
-05D3  211027  		lxi	h,10000
-05D6  2B      	nh0:	dcx	h	;  6
-05D7  7C      		mov	a,h	;  4
-05D8  B7      		ora	a	;  4
-05D9          		jrnz	nh0	; 12 = 26 cycles
-05D9  20FB    		DB	20H,nh0-$-1
-05DB  DB14    		in	sysp84
-05DD          		res	1,a
-05DD  CB8F    		DB	0CBH,1*8+a+80H
-05DF  D314    		out	sysp84	; MR off
-05E1  C38507  		jmp	thdd1
+05D9  211027  		lxi	h,10000
+05DC  2B      	nh0:	dcx	h	;  6
+05DD  7C      		mov	a,h	;  4
+05DE  B7      		ora	a	;  4
+05DF          		jrnz	nh0	; 12 = 26 cycles
+05DF  20FB    		DB	20H,nh0-$-1
+05E1  DB14    		in	sysp84
+05E3          		res	1,a
+05E3  CB8F    		DB	0CBH,1*8+a+80H
+05E5  D314    		out	sysp84	; MR off
+05E7  C38B07  		jmp	thdd1
 		 endif
 		
 		; if match, return DE after last match.
 		; if no match, return original DE.
-05E4  D5      	strcmp:	push	d
-05E5  AF      		xra	a
-05E6  BE      	sc0:	cmp	m	; TRM?
-05E7          		jrz	sc9	; A = 0
-05E7  2808    		DB	28H,sc9-$-1
-05E9  1A      		ldax	d
-05EA  96      		sub	m
-05EB          		jrnz	sc8	; A is NZ
-05EB  2008    		DB	20H,sc8-$-1
-05ED  23      		inx	h
-05EE  13      		inx	d
-05EF          		jr	sc0
-05EF  18F5    		DB	18H,sc0-$-1
-05F1  33      	sc9:	inx	sp	; non-destructive POP
-05F2  33      		inx	sp
-05F3  AF      		xra	a	; A=0 and ZR
-05F4  C9      		ret
-05F5  D1      	sc8:	pop	d	; restore orig location
-05F6  B7      		ora	a
-05F7  C9      		ret
+05EA  D5      	strcmp:	push	d
+05EB  AF      		xra	a
+05EC  BE      	sc0:	cmp	m	; TRM?
+05ED          		jrz	sc9	; A = 0
+05ED  2808    		DB	28H,sc9-$-1
+05EF  1A      		ldax	d
+05F0  96      		sub	m
+05F1          		jrnz	sc8	; A is NZ
+05F1  2008    		DB	20H,sc8-$-1
+05F3  23      		inx	h
+05F4  13      		inx	d
+05F5          		jr	sc0
+05F5  18F5    		DB	18H,sc0-$-1
+05F7  33      	sc9:	inx	sp	; non-destructive POP
+05F8  33      		inx	sp
+05F9  AF      		xra	a	; A=0 and ZR
+05FA  C9      		ret
+05FB  D1      	sc8:	pop	d	; restore orig location
+05FC  B7      		ora	a
+05FD  C9      		ret
 		
-05F8          	Tcomnd:
-05F8  CD3705  		call	skb	; skip blanks
-05FB  CA0901  		jz	error	; required param
+05FE          	Tcomnd:
+05FE  CD3D05  		call	skb	; skip blanks
+0601  CA0901  		jz	error	; required param
 			; this may need refinement
-05FE  1B      		dcx	d
-05FF  219505  		lxi	h,kbd
-0602  CDE405  		call	strcmp
-0605          		jrz	tkbd
-0605  287C    		DB	28H,tkbd-$-1
+0604  1B      		dcx	d
+0605  219B05  		lxi	h,kbd
+0608  CDEA05  		call	strcmp
+060B          		jrz	tkbd
+060B  287C    		DB	28H,tkbd-$-1
 FFFF          	 if not rom2k
-0607  217405  		lxi	h,crtc
-060A  CDE405  		call	strcmp
-060D          		jrz	tcrtc
-060D  2839    		DB	28H,tcrtc-$-1
-060F  217E05  		lxi	h,vrt
-0612  CDE405  		call	strcmp
-0615  CAC006  		jz	tvrt
-0618  217905  		lxi	h,crtr
-061B  CDE405  		call	strcmp
-061E  CA0207  		jz	tcrtr
-0621  218205  		lxi	h,hdd
-0624  CDE405  		call	strcmp
-0627  CA4A07  		jz	thdd
-062A  218605  		lxi	h,hdrd
-062D  CDE405  		call	strcmp
-0630  CAB807  		jz	thdrd
+060D  217A05  		lxi	h,crtc
+0610  CDEA05  		call	strcmp
+0613          		jrz	tcrtc
+0613  2839    		DB	28H,tcrtc-$-1
+0615  218405  		lxi	h,vrt
+0618  CDEA05  		call	strcmp
+061B  CAC606  		jz	tvrt
+061E  217F05  		lxi	h,crtr
+0621  CDEA05  		call	strcmp
+0624  CA0807  		jz	tcrtr
+0627  218805  		lxi	h,hdd
+062A  CDEA05  		call	strcmp
+062D  CA5007  		jz	thdd
+0630  218C05  		lxi	h,hdrd
+0633  CDEA05  		call	strcmp
+0636  CABE07  		jz	thdrd
 		 endif
-0633  218B05  		lxi	h,fdrd
-0636  CDE405  		call	strcmp
-0639  CACF07  		jz	tfdrd
-063C  219005  		lxi	h,flpy
-063F  CDE405  		call	strcmp
-0642  CA0808  		jz	tflpy
-0645  C30901  		jmp	error
+0639  219105  		lxi	h,fdrd
+063C  CDEA05  		call	strcmp
+063F  CAD507  		jz	tfdrd
+0642  219605  		lxi	h,flpy
+0645  CDEA05  		call	strcmp
+0648  CA0E08  		jz	tflpy
+064B  C30901  		jmp	error
 		
 FFFF          	 if not rom2k
-0648  21A806  	tcrtc:	lxi	h,waitm
-064B  CDB608  		call	msgprt
-064E  0605    		mvi	b,5	; count
-0650  1E80    		mvi	e,80h	; compare
-0652  3E1F    		mvi	a,31
-0654  D31C    		out	crtctl	; select reg
-0656  DB1C    	tc0:	in	crtctl
-0658  E680    		ani	80h
-065A  BB      		cmp	e
-065B          		jrz	tc9
-065B  280F    		DB	28H,tc9-$-1
-065D  DB06    		in	conctl
-065F  E601    		ani	00000001b
-0661          		jrz	tc0
-0661  28F3    		DB	28H,tc0-$-1
-0663  DB04    		in	condat
-0665  21B306  		lxi	h,abrtm
-0668  CDB608  		call	msgprt
-066B  C9      		ret
-066C  7B      	tc9:	mov	a,e
-066D  EE80    		xri	80h
-066F  5F      		mov	e,a
-0670          		jrnz	tc8
-0670  200B    		DB	20H,tc8-$-1
-0672  21B906  		lxi	h,updtm
-0675  CDB608  		call	msgprt
-0678  DB1F    		in	crtram	; clear Update
-067A          		djnz	tc0
-067A  10DA    		DB	10H,tc0-$-1
-067C  C9      		ret
-067D  CDA708  	tc8:	call	space
+064E  21AE06  	tcrtc:	lxi	h,waitm
+0651  CDBC08  		call	msgprt
+0654  0605    		mvi	b,5	; count
+0656  1E80    		mvi	e,80h	; compare
+0658  3E1F    		mvi	a,31
+065A  D31C    		out	crtctl	; select reg
+065C  DB1C    	tc0:	in	crtctl
+065E  E680    		ani	80h
+0660  BB      		cmp	e
+0661          		jrz	tc9
+0661  280F    		DB	28H,tc9-$-1
+0663  DB06    		in	conctl
+0665  E601    		ani	00000001b
+0667          		jrz	tc0
+0667  28F3    		DB	28H,tc0-$-1
+0669  DB04    		in	condat
+066B  21B906  		lxi	h,abrtm
+066E  CDBC08  		call	msgprt
+0671  C9      		ret
+0672  7B      	tc9:	mov	a,e
+0673  EE80    		xri	80h
+0675  5F      		mov	e,a
+0676          		jrnz	tc8
+0676  200B    		DB	20H,tc8-$-1
+0678  21BF06  		lxi	h,updtm
+067B  CDBC08  		call	msgprt
+067E  DB1F    		in	crtram	; clear Update
 0680          		djnz	tc0
-0680  10D4    		DB	10H,tc0-$-1
+0680  10DA    		DB	10H,tc0-$-1
 0682  C9      		ret
+0683  CDAD08  	tc8:	call	space
+0686          		djnz	tc0
+0686  10D4    		DB	10H,tc0-$-1
+0688  C9      		ret
 		 endif
 		
-0683  21A806  	tkbd:	lxi	h,waitm
-0686  CDB608  		call	msgprt
-0689  DB07    	tk0:	in	kbdctl
-068B  E601    		ani	00000001b
-068D          		jrnz	tk1
-068D  200F    		DB	20H,tk1-$-1
-068F  DB06    		in	conctl
+0689  21AE06  	tkbd:	lxi	h,waitm
+068C  CDBC08  		call	msgprt
+068F  DB07    	tk0:	in	kbdctl
 0691  E601    		ani	00000001b
-0693          		jrz	tk0
-0693  28F4    		DB	28H,tk0-$-1
-0695  DB04    		in	condat
-0697  21B306  		lxi	h,abrtm
-069A  CDB608  		call	msgprt
-069D  C9      		ret
-069E  DB05    	tk1:	in	kbddat
-06A0  CD9208  		call	hexout
-06A3  CDA708  		call	space
-06A6          		jr	tk0
-06A6  18E1    		DB	18H,tk0-$-1
+0693          		jrnz	tk1
+0693  200F    		DB	20H,tk1-$-1
+0695  DB06    		in	conctl
+0697  E601    		ani	00000001b
+0699          		jrz	tk0
+0699  28F4    		DB	28H,tk0-$-1
+069B  DB04    		in	condat
+069D  21B906  		lxi	h,abrtm
+06A0  CDBC08  		call	msgprt
+06A3  C9      		ret
+06A4  DB05    	tk1:	in	kbddat
+06A6  CD9808  		call	hexout
+06A9  CDAD08  		call	space
+06AC          		jr	tk0
+06AC  18E1    		DB	18H,tk0-$-1
 		
-06A8  0D0A5761	waitm:	db	CR,LF,'Wait... ',TRM
+06AE  0D0A5761	waitm:	db	CR,LF,'Wait... ',TRM
       69742E2E
       2E2000
-06B3  41626F72	abrtm:	db	'Abort',TRM
+06B9  41626F72	abrtm:	db	'Abort',TRM
       7400
 FFFF          	 if not rom2k
-06B9  55706461	updtm:	db	'Update',TRM
+06BF  55706461	updtm:	db	'Update',TRM
       746500
 		
-06C0  3E0A    	tvrt:	mvi	a,10	; we don't need many samples
-06C2  3202FF  		sta	addr1
-06C5  CDAC08  		call	crlf
-06C8  DB1C    		in	crtctl
-06CA  4F      		mov	c,a
+06C6  3E0A    	tvrt:	mvi	a,10	; we don't need many samples
+06C8  3202FF  		sta	addr1
+06CB  CDB208  		call	crlf
+06CE  DB1C    		in	crtctl
+06D0  4F      		mov	c,a
 			; TODO: reset Update bit? optionally?
-06CB  210000  		lxi	h,0
-06CE  110080  		lxi	d,8000h
-06D1  DB1C    	tv0:	in	crtctl	; 11
-06D3  B9      		cmp	c	;  4
-06D4          		jrnz	tv4	;  7
-06D4  2008    		DB	20H,tv4-$-1
-06D6  23      	tv5:	inx	h	;  6
-06D7  7C      		mov	a,h	;  4
-06D8  B5      		ora	l	;  4
-06D9          		jrnz	tv0	; 12 = 48 = 12uS
-06D9  20F6    		DB	20H,tv0-$-1
-06DB  C35108  		jmp	tf1	; display results
-06DE  EB      	tv4:	xchg
-06DF  77      		mov	m,a
-06E0  23      		inx	h
-06E1  73      		mov	m,e
-06E2  23      		inx	h
-06E3  72      		mov	m,d
-06E4  23      		inx	h
-06E5  EB      		xchg
-06E6  4F      		mov	c,a
-06E7  3A02FF  		lda	addr1
-06EA  3D      		dcr	a
-06EB  3202FF  		sta	addr1
-06EE  CA5108  		jz	tf1
-06F1          		jr	tv5
-06F1  18E3    		DB	18H,tv5-$-1
+06D1  210000  		lxi	h,0
+06D4  110080  		lxi	d,8000h
+06D7  DB1C    	tv0:	in	crtctl	; 11
+06D9  B9      		cmp	c	;  4
+06DA          		jrnz	tv4	;  7
+06DA  2008    		DB	20H,tv4-$-1
+06DC  23      	tv5:	inx	h	;  6
+06DD  7C      		mov	a,h	;  4
+06DE  B5      		ora	l	;  4
+06DF          		jrnz	tv0	; 12 = 48 = 12uS
+06DF  20F6    		DB	20H,tv0-$-1
+06E1  C35708  		jmp	tf1	; display results
+06E4  EB      	tv4:	xchg
+06E5  77      		mov	m,a
+06E6  23      		inx	h
+06E7  73      		mov	m,e
+06E8  23      		inx	h
+06E9  72      		mov	m,d
+06EA  23      		inx	h
+06EB  EB      		xchg
+06EC  4F      		mov	c,a
+06ED  3A02FF  		lda	addr1
+06F0  3D      		dcr	a
+06F1  3202FF  		sta	addr1
+06F4  CA5708  		jz	tf1
+06F7          		jr	tv5
+06F7  18E3    		DB	18H,tv5-$-1
 		
-06F3  50617373	pass:	db	'Passed',TRM
+06F9  50617373	pass:	db	'Passed',TRM
       656400
-06FA  4661696C	fail:	db	'Failed ',TRM
+0700  4661696C	fail:	db	'Failed ',TRM
       65642000
 		
-0702          	tcrtr:	; test read/write of CRTC cursor register pair
-0702  CDAC08  		call	crlf
-0705  210000  		lxi	h,0
-0708  0E1D    		mvi	c,crtdat
-070A  3E0E    	tr0:	mvi	a,14	; R14 = cursor hi
-070C  D31C    		out	crtctl
-070E          		outp	h
-070E  ED61    		DB	0EDH,h*8+41H
-0710  3C      		inr	a
-0711  D31C    		out	crtctl
-0713          		outp	l
-0713  ED69    		DB	0EDH,l*8+41H
-0715  3D      		dcr	a
-0716  D31C    		out	crtctl
-0718          		inp	d
-0718  ED50    		DB	0EDH,d*8+40H
-071A  3C      		inr	a
-071B  D31C    		out	crtctl
-071D          		inp	e
-071D  ED58    		DB	0EDH,e*8+40H
+0708          	tcrtr:	; test read/write of CRTC cursor register pair
+0708  CDB208  		call	crlf
+070B  210000  		lxi	h,0
+070E  0E1D    		mvi	c,crtdat
+0710  3E0E    	tr0:	mvi	a,14	; R14 = cursor hi
+0712  D31C    		out	crtctl
+0714          		outp	h
+0714  ED61    		DB	0EDH,h*8+41H
+0716  3C      		inr	a
+0717  D31C    		out	crtctl
+0719          		outp	l
+0719  ED69    		DB	0EDH,l*8+41H
+071B  3D      		dcr	a
+071C  D31C    		out	crtctl
+071E          		inp	d
+071E  ED50    		DB	0EDH,d*8+40H
+0720  3C      		inr	a
+0721  D31C    		out	crtctl
+0723          		inp	e
+0723  ED58    		DB	0EDH,e*8+40H
 			; now compare HL:DE
-071F  7D      		mov	a,l
-0720  BB      		cmp	e
-0721          		jrnz	tr9
-0721  2013    		DB	20H,tr9-$-1
-0723  7C      		mov	a,h
-0724  BA      		cmp	d
-0725          		jrnz	tr9
-0725  200F    		DB	20H,tr9-$-1
-0727  23      		inx	h
-0728  7C      		mov	a,h
-0729  E63F    		ani	3fh
-072B  67      		mov	h,a
-072C  B5      		ora	l
-072D          		jrnz	tr0
-072D  20DB    		DB	20H,tr0-$-1
-072F  21F306  		lxi	h,pass
-0732  CDB608  		call	msgprt
-0735  C9      		ret
-0736  D5      	tr9:	push	d
-0737  E5      		push	h
-0738  21FA06  		lxi	h,fail
-073B  CDB608  		call	msgprt
-073E  D1      		pop	d
-073F  CD8D08  		call	taddr
-0742  CDA708  		call	space
-0745  D1      		pop	d
-0746  CD8D08  		call	taddr
-0749  C9      		ret
+0725  7D      		mov	a,l
+0726  BB      		cmp	e
+0727          		jrnz	tr9
+0727  2013    		DB	20H,tr9-$-1
+0729  7C      		mov	a,h
+072A  BA      		cmp	d
+072B          		jrnz	tr9
+072B  200F    		DB	20H,tr9-$-1
+072D  23      		inx	h
+072E  7C      		mov	a,h
+072F  E63F    		ani	3fh
+0731  67      		mov	h,a
+0732  B5      		ora	l
+0733          		jrnz	tr0
+0733  20DB    		DB	20H,tr0-$-1
+0735  21F906  		lxi	h,pass
+0738  CDBC08  		call	msgprt
+073B  C9      		ret
+073C  D5      	tr9:	push	d
+073D  E5      		push	h
+073E  210007  		lxi	h,fail
+0741  CDBC08  		call	msgprt
+0744  D1      		pop	d
+0745  CD9308  		call	taddr
+0748  CDAD08  		call	space
+074B  D1      		pop	d
+074C  CD9308  		call	taddr
+074F  C9      		ret
 		
 		; user must have set other registers as needed
-074A          	thdd:	; issue command, wait...
-074A  3E90    		mvi	a,90h
-074C  3200FF  		sta	addr0	; default: self test
-074F  AF      		xra	a
-0750  3202FF  		sta	addr1	; default: 256 samples
-0753  CD3409  		call	getaddr ;get optional command
-0756  DA0901  		jc	error	;error if non-hex character
-0759          		bit	7,b	;test for no entry
-0759  CB78    		DB	0CBH,7*8+b+40H
-075B          		jrnz	thY
-075B  201B    		DB	20H,thY-$-1
-075D  7C      		mov	a,h
-075E  B7      		ora	a
-075F  C20901  		jnz	error
-0762  2200FF  		shld	addr0	;save command
-0765  CD3409  		call	getaddr ;get sample count
-0768  DA0901  		jc	error	;error if non-hex character
-076B          		bit	7,b	;test for no entry
-076B  CB78    		DB	0CBH,7*8+b+40H
-076D  C27807  		jnz	thY
-0770  7C      		mov	a,h
-0771  B7      		ora	a
-0772  C20901  		jnz	error
-0775  2202FF  		shld	addr1	;save count
-0778  CDAC08  	thY:	call	crlf
-077B  DB87    		in	hddcmd
-077D  4F      		mov	c,a
-077E  3A00FF  		lda	addr0
-0781  D387    		out	hddcmd
-0783          		jr	thX
-0783  1807    		DB	18H,thX-$-1
-0785          	thdd1:	; RESET already issued
-0785  CDAC08  		call	crlf
-0788  DB87    		in	hddcmd
-078A  0E00    		mvi	c,0
-078C  210000  	thX:	lxi	h,0
-078F  110080  		lxi	d,8000h
-0792  DB87    	th0:	in	hddcmd
-0794  B9      		cmp	c
-0795          		jrnz	th4
-0795  200D    		DB	20H,th4-$-1
-0797  23      	th5:	inx	h
-0798  7C      		mov	a,h
-0799  B5      		ora	l
-079A          		jrnz	th0
-079A  20F6    		DB	20H,th0-$-1
-079C  CD5108  	th1:	call	tf1	; dump results from 8000h..DE
-079F  DB81    		in	hdderr	; also print final error status
-07A1  C39208  		jmp	hexout
-07A4  EB      	th4:	xchg
-07A5  77      		mov	m,a
-07A6  23      		inx	h
-07A7  73      		mov	m,e
-07A8  23      		inx	h
-07A9  72      		mov	m,d
-07AA  23      		inx	h
-07AB  EB      		xchg
-07AC  4F      		mov	c,a
-07AD  3A02FF  		lda	addr1
-07B0  3D      		dcr	a
-07B1  3202FF  		sta	addr1
-07B4          		jrz	th1
-07B4  28E6    		DB	28H,th1-$-1
-07B6          		jr	th5
-07B6  18DF    		DB	18H,th5-$-1
+0750          	thdd:	; issue command, wait...
+0750  3E90    		mvi	a,90h
+0752  3200FF  		sta	addr0	; default: self test
+0755  AF      		xra	a
+0756  3202FF  		sta	addr1	; default: 256 samples
+0759  CD3A09  		call	getaddr ;get optional command
+075C  DA0901  		jc	error	;error if non-hex character
+075F          		bit	7,b	;test for no entry
+075F  CB78    		DB	0CBH,7*8+b+40H
+0761          		jrnz	thY
+0761  201B    		DB	20H,thY-$-1
+0763  7C      		mov	a,h
+0764  B7      		ora	a
+0765  C20901  		jnz	error
+0768  2200FF  		shld	addr0	;save command
+076B  CD3A09  		call	getaddr ;get sample count
+076E  DA0901  		jc	error	;error if non-hex character
+0771          		bit	7,b	;test for no entry
+0771  CB78    		DB	0CBH,7*8+b+40H
+0773  C27E07  		jnz	thY
+0776  7C      		mov	a,h
+0777  B7      		ora	a
+0778  C20901  		jnz	error
+077B  2202FF  		shld	addr1	;save count
+077E  CDB208  	thY:	call	crlf
+0781  DB87    		in	hddcmd
+0783  4F      		mov	c,a
+0784  3A00FF  		lda	addr0
+0787  D387    		out	hddcmd
+0789          		jr	thX
+0789  1807    		DB	18H,thX-$-1
+078B          	thdd1:	; RESET already issued
+078B  CDB208  		call	crlf
+078E  DB87    		in	hddcmd
+0790  0E00    		mvi	c,0
+0792  210000  	thX:	lxi	h,0
+0795  110080  		lxi	d,8000h
+0798  DB87    	th0:	in	hddcmd
+079A  B9      		cmp	c
+079B          		jrnz	th4
+079B  200D    		DB	20H,th4-$-1
+079D  23      	th5:	inx	h
+079E  7C      		mov	a,h
+079F  B5      		ora	l
+07A0          		jrnz	th0
+07A0  20F6    		DB	20H,th0-$-1
+07A2  CD5708  	th1:	call	tf1	; dump results from 8000h..DE
+07A5  DB81    		in	hdderr	; also print final error status
+07A7  C39808  		jmp	hexout
+07AA  EB      	th4:	xchg
+07AB  77      		mov	m,a
+07AC  23      		inx	h
+07AD  73      		mov	m,e
+07AE  23      		inx	h
+07AF  72      		mov	m,d
+07B0  23      		inx	h
+07B1  EB      		xchg
+07B2  4F      		mov	c,a
+07B3  3A02FF  		lda	addr1
+07B6  3D      		dcr	a
+07B7  3202FF  		sta	addr1
+07BA          		jrz	th1
+07BA  28E6    		DB	28H,th1-$-1
+07BC          		jr	th5
+07BC  18DF    		DB	18H,th5-$-1
 		
 		; user setup registers and issue READ command
-07B8  CDAC08  	thdrd:	call	crlf
-07BB  210080  		lxi	h,8000h
-07BE  018000  		lxi	b,hdddat	; B=0 (256)
-07C1  DB87    		in	hddcmd
-07C3  E608    		ani	00001000b	; DRQ
-07C5          		jrz	thr9
-07C5  2804    		DB	28H,thr9-$-1
-07C7          		inir
-07C7  EDB2    		DB	0EDH,0B2H
-07C9          		inir
-07C9  EDB2    		DB	0EDH,0B2H
-07CB  EB      	thr9:	xchg
-07CC  C38D08  		jmp	taddr
+07BE  CDB208  	thdrd:	call	crlf
+07C1  210080  		lxi	h,8000h
+07C4  018000  		lxi	b,hdddat	; B=0 (256)
+07C7  DB87    		in	hddcmd
+07C9  E608    		ani	00001000b	; DRQ
+07CB          		jrz	thr9
+07CB  2804    		DB	28H,thr9-$-1
+07CD          		inir
+07CD  EDB2    		DB	0EDH,0B2H
+07CF          		inir
+07CF  EDB2    		DB	0EDH,0B2H
+07D1  EB      	thr9:	xchg
+07D2  C39308  		jmp	taddr
 		 endif
 		
 		; read a sector from the floppy.
 		; user must turn on motors, select drive,
 		; set side, set DDEN, and step to track.
 		; data stored in 8000h
-07CF  AF      	tfdrd:	xra	a
-07D0  3200FF  		sta	addr0
-07D3  CD3409  		call	getaddr ;get optional sector
-07D6  DA0901  		jc	error	;error if non-hex character
-07D9          		bit	7,b	;test for no entry
-07D9  CB78    		DB	0CBH,7*8+b+40H
-07DB          		jrnz	tfrX
-07DB  2008    		DB	20H,tfrX-$-1
-07DD  7C      		mov	a,h
-07DE  B7      		ora	a
-07DF  C20901  		jnz	error
-07E2  2200FF  		shld	addr0	; allow some rediculous values
-07E5          	tfrX:			; (also, side 1 uses: 0A..13)
-07E5  CDAC08  		call	crlf
-07E8  3A00FF  		lda	addr0
-07EB  D312    		out	fpysec
-07ED  210080  		lxi	h,8000h
-07F0  011300  		lxi	b,fpydat	; B=0
-07F3  3E88    		mvi	a,88h	; read sector, side compare(?)
-07F5  D310    		out	fpycmd
-07F7  76      	tfr0:	hlt
-07F8          		ini
-07F8  EDA2    		DB	0EDH,0A2H
-07FA          		jrnz	tfr0
-07FA  20FB    		DB	20H,tfr0-$-1
-07FC  76      	tfr1:	hlt
-07FD          		ini
-07FD  EDA2    		DB	0EDH,0A2H
-07FF          		jrnz	tfr1
-07FF  20FB    		DB	20H,tfr1-$-1
-0801  76      		hlt	; wait for done
-0802  DB10    		in	fpysts
-0804  CD9208  		call	hexout
-0807  C9      		ret
+07D5  AF      	tfdrd:	xra	a
+07D6  3200FF  		sta	addr0
+07D9  CD3A09  		call	getaddr ;get optional sector
+07DC  DA0901  		jc	error	;error if non-hex character
+07DF          		bit	7,b	;test for no entry
+07DF  CB78    		DB	0CBH,7*8+b+40H
+07E1          		jrnz	tfrX
+07E1  2008    		DB	20H,tfrX-$-1
+07E3  7C      		mov	a,h
+07E4  B7      		ora	a
+07E5  C20901  		jnz	error
+07E8  2200FF  		shld	addr0	; allow some rediculous values
+07EB          	tfrX:			; (also, side 1 uses: 0A..13)
+07EB  CDB208  		call	crlf
+07EE  3A00FF  		lda	addr0
+07F1  D312    		out	fpysec
+07F3  210080  		lxi	h,8000h
+07F6  011300  		lxi	b,fpydat	; B=0
+07F9  3E88    		mvi	a,88h	; read sector, side compare(?)
+07FB  D310    		out	fpycmd
+07FD  76      	tfr0:	hlt
+07FE          		ini
+07FE  EDA2    		DB	0EDH,0A2H
+0800          		jrnz	tfr0
+0800  20FB    		DB	20H,tfr0-$-1
+0802  76      	tfr1:	hlt
+0803          		ini
+0803  EDA2    		DB	0EDH,0A2H
+0805          		jrnz	tfr1
+0805  20FB    		DB	20H,tfr1-$-1
+0807  76      		hlt	; wait for done
+0808  DB10    		in	fpysts
+080A  CD9808  		call	hexout
+080D  C9      		ret
 		
-0808          	tflpy:	; user must motor on and select drive (and side)
-0808  3ED0    		mvi	a,0d0h
-080A  3200FF  		sta	addr0	; default: force intr
-080D  AF      		xra	a
-080E  3202FF  		sta	addr1	; default: 256 samples
-0811  CD3409  		call	getaddr ;get optional command
-0814  DA0901  		jc	error	;error if non-hex character
-0817          		bit	7,b	;test for no entry
-0817  CB78    		DB	0CBH,7*8+b+40H
-0819          		jrnz	tfX
-0819  201B    		DB	20H,tfX-$-1
-081B  7C      		mov	a,h
-081C  B7      		ora	a
-081D  C20901  		jnz	error
-0820  2200FF  		shld	addr0	;save command
-0823  CD3409  		call	getaddr ;get sample count
-0826  DA0901  		jc	error	;error if non-hex character
-0829          		bit	7,b	;test for no entry
-0829  CB78    		DB	0CBH,7*8+b+40H
-082B  C23608  		jnz	tfX
-082E  7C      		mov	a,h
-082F  B7      		ora	a
-0830  C20901  		jnz	error
-0833  2202FF  		shld	addr1	;save count
-0836          	tfX:
-0836  CDAC08  		call	crlf
-0839  DB10    		in	fpysts
-083B  4F      		mov	c,a
-083C  3A00FF  		lda	addr0	; FDC command
-083F  D310    		out	fpycmd
-0841  210000  		lxi	h,0
-0844  110080  		lxi	d,8000h
+080E          	tflpy:	; user must motor on and select drive (and side)
+080E  3ED0    		mvi	a,0d0h
+0810  3200FF  		sta	addr0	; default: force intr
+0813  AF      		xra	a
+0814  3202FF  		sta	addr1	; default: 256 samples
+0817  CD3A09  		call	getaddr ;get optional command
+081A  DA0901  		jc	error	;error if non-hex character
+081D          		bit	7,b	;test for no entry
+081D  CB78    		DB	0CBH,7*8+b+40H
+081F          		jrnz	tfX
+081F  201B    		DB	20H,tfX-$-1
+0821  7C      		mov	a,h
+0822  B7      		ora	a
+0823  C20901  		jnz	error
+0826  2200FF  		shld	addr0	;save command
+0829  CD3A09  		call	getaddr ;get sample count
+082C  DA0901  		jc	error	;error if non-hex character
+082F          		bit	7,b	;test for no entry
+082F  CB78    		DB	0CBH,7*8+b+40H
+0831  C23C08  		jnz	tfX
+0834  7C      		mov	a,h
+0835  B7      		ora	a
+0836  C20901  		jnz	error
+0839  2202FF  		shld	addr1	;save count
+083C          	tfX:
+083C  CDB208  		call	crlf
+083F  DB10    		in	fpysts
+0841  4F      		mov	c,a
+0842  3A00FF  		lda	addr0	; FDC command
+0845  D310    		out	fpycmd
+0847  210000  		lxi	h,0
+084A  110080  		lxi	d,8000h
 		
-0847  DB10    	tf0:	in	fpysts	; 11
-0849  B9      		cmp	c	;  4
-084A          		jrnz	tf4	;  7
-084A  2027    		DB	20H,tf4-$-1
-084C  23      	tf5:	inx	h	;  6
-084D  7C      		mov	a,h	;  4
-084E  B5      		ora	l	;  4
-084F          		jrnz	tf0	; 12 = 48 = 12uS
-084F  20F6    		DB	20H,tf0-$-1
+084D  DB10    	tf0:	in	fpysts	; 11
+084F  B9      		cmp	c	;  4
+0850          		jrnz	tf4	;  7
+0850  2027    		DB	20H,tf4-$-1
+0852  23      	tf5:	inx	h	;  6
+0853  7C      		mov	a,h	;  4
+0854  B5      		ora	l	;  4
+0855          		jrnz	tf0	; 12 = 48 = 12uS
+0855  20F6    		DB	20H,tf0-$-1
 			; dump 8000h..DE and return
-0851  210080  	tf1:	lxi	h,8000h
-0854          	tf2:
-0854  7C      		mov	a,h
-0855  BA      		cmp	d
-0856          		jrnz	tf3
-0856  2003    		DB	20H,tf3-$-1
-0858  7D      		mov	a,l
-0859  BB      		cmp	e
-085A  C8      		rz	; user must motor off...
-085B          	tf3:
-085B  7E      		mov	a,m
-085C  23      		inx	h
-085D  CD9208  		call	hexout
-0860  CDA708  		call	space
-0863  46      		mov	b,m
-0864  23      		inx	h
-0865  7E      		mov	a,m
-0866  23      		inx	h
-0867  CD9208  		call	hexout
-086A  78      		mov	a,b
-086B  CD9208  		call	hexout
-086E  CDAC08  		call	crlf
-0871          		jr	tf2
-0871  18E1    		DB	18H,tf2-$-1
+0857  210080  	tf1:	lxi	h,8000h
+085A          	tf2:
+085A  7C      		mov	a,h
+085B  BA      		cmp	d
+085C          		jrnz	tf3
+085C  2003    		DB	20H,tf3-$-1
+085E  7D      		mov	a,l
+085F  BB      		cmp	e
+0860  C8      		rz	; user must motor off...
+0861          	tf3:
+0861  7E      		mov	a,m
+0862  23      		inx	h
+0863  CD9808  		call	hexout
+0866  CDAD08  		call	space
+0869  46      		mov	b,m
+086A  23      		inx	h
+086B  7E      		mov	a,m
+086C  23      		inx	h
+086D  CD9808  		call	hexout
+0870  78      		mov	a,b
+0871  CD9808  		call	hexout
+0874  CDB208  		call	crlf
+0877          		jr	tf2
+0877  18E1    		DB	18H,tf2-$-1
 		
 		; save sample, check for done.
-0873  EB      	tf4:	xchg
-0874  77      		mov	m,a
-0875  23      		inx	h
-0876  73      		mov	m,e
-0877  23      		inx	h
-0878  72      		mov	m,d
-0879  23      		inx	h
-087A  EB      		xchg
-087B  4F      		mov	c,a
-087C  3A02FF  		lda	addr1
-087F  3D      		dcr	a
-0880  3202FF  		sta	addr1
-0883          		jrz	tf1
-0883  28CC    		DB	28H,tf1-$-1
-0885          		jr	tf5
-0885  18C5    		DB	18H,tf5-$-1
+0879  EB      	tf4:	xchg
+087A  77      		mov	m,a
+087B  23      		inx	h
+087C  73      		mov	m,e
+087D  23      		inx	h
+087E  72      		mov	m,d
+087F  23      		inx	h
+0880  EB      		xchg
+0881  4F      		mov	c,a
+0882  3A02FF  		lda	addr1
+0885  3D      		dcr	a
+0886  3202FF  		sta	addr1
+0889          		jrz	tf1
+0889  28CC    		DB	28H,tf1-$-1
+088B          		jr	tf5
+088B  18C5    		DB	18H,tf5-$-1
 		
-0887          	Vcomnd:
-0887  21C500  		lxi	h,signon
-088A  C3B608  		jmp	msgprt
+088D          	Vcomnd:
+088D  21C500  		lxi	h,signon
+0890  C3BC08  		jmp	msgprt
 		
 		*********************************************************
 		**  Utility subroutines
 		*********************************************************
 		
-088D  7A      	taddr:	mov	a,d	;display (DE) at console in HEX
-088E  CD9208  		call	hexout	;print HI byte in HEX
-0891  7B      		mov	a,e	;now do LO byte
-0892  F5      	hexout:	push	psw	;output (A) to console in HEX
-0893  07      		rlc		;get HI digit in usable (LO) position
-0894  07      		rlc
-0895  07      		rlc
-0896  07      		rlc
-0897  CD9B08  		call	nible	;and display it
-089A  F1      		pop	psw	;get LO digit back and display it
-089B  E60F    	nible:	ani	00001111b	;display LO 4 bits of (A) in HEX
-089D  C690    		adi	90h	;algorithm to convert 4-bits to ASCII
-089F  27      		daa
-08A0  CE40    		aci	40h
-08A2  27      		daa
-08A3  4F      		mov	c,a	;display ASCII digit
-08A4  C38F00  		jmp	conout
+0893  7A      	taddr:	mov	a,d	;display (DE) at console in HEX
+0894  CD9808  		call	hexout	;print HI byte in HEX
+0897  7B      		mov	a,e	;now do LO byte
+0898  F5      	hexout:	push	psw	;output (A) to console in HEX
+0899  07      		rlc		;get HI digit in usable (LO) position
+089A  07      		rlc
+089B  07      		rlc
+089C  07      		rlc
+089D  CDA108  		call	nible	;and display it
+08A0  F1      		pop	psw	;get LO digit back and display it
+08A1  E60F    	nible:	ani	00001111b	;display LO 4 bits of (A) in HEX
+08A3  C690    		adi	90h	;algorithm to convert 4-bits to ASCII
+08A5  27      		daa
+08A6  CE40    		aci	40h
+08A8  27      		daa
+08A9  4F      		mov	c,a	;display ASCII digit
+08AA  C38F00  		jmp	conout
 		
-08A7  0E20    	space:	mvi	c,' '	;send an ASCII blank to console
-08A9  C38F00  		jmp	conout
+08AD  0E20    	space:	mvi	c,' '	;send an ASCII blank to console
+08AF  C38F00  		jmp	conout
 		
-08AC  0E0D    	crlf:	mvi	c,CR	;send Carriage-Return/Line-Feed to console
-08AE  CD8F00  		call	conout
-08B1  0E0A    		mvi	c,LF
-08B3  C38F00  		jmp	conout
+08B2  0E0D    	crlf:	mvi	c,CR	;send Carriage-Return/Line-Feed to console
+08B4  CD8F00  		call	conout
+08B7  0E0A    		mvi	c,LF
+08B9  C38F00  		jmp	conout
 		
-08B6  7E      	msgprt:	mov	a,m	;send string to console, terminated by 00
-08B7  B7      		ora	a
-08B8  C8      		rz
-08B9  4F      		mov	c,a
-08BA  CD8F00  		call	conout
-08BD  23      		inx	h
-08BE          		jr	msgprt
-08BE  18F6    		DB	18H,msgprt-$-1
+08BC  7E      	msgprt:	mov	a,m	;send string to console, terminated by 00
+08BD  B7      		ora	a
+08BE  C8      		rz
+08BF  4F      		mov	c,a
+08C0  CD8F00  		call	conout
+08C3  23      		inx	h
+08C4          		jr	msgprt
+08C4  18F6    		DB	18H,msgprt-$-1
 		
-08C0  7E      	print:	mov	a,m	; BDOS func 9 style msgprt
-08C1  FE24    		cpi	'$'
-08C3  C8      		rz
-08C4  4F      		mov	c,a
-08C5  CD8F00  		call	conout
-08C8  23      		inx	h
-08C9          		jr	print
-08C9  18F5    		DB	18H,print-$-1
+08C6  7E      	print:	mov	a,m	; BDOS func 9 style msgprt
+08C7  FE24    		cpi	'$'
+08C9  C8      		rz
+08CA  4F      		mov	c,a
+08CB  CD8F00  		call	conout
+08CE  23      		inx	h
+08CF          		jr	print
+08CF  18F5    		DB	18H,print-$-1
 		
-08CB  E5      	check:	push	h	;non-destuctive compare HL:DE
-08CC  B7      		ora	a
-08CD          		dsbc	d
-08CD  ED52    		DB	0EDH,d*8+42H
-08CF  E1      		pop	h
-08D0  C9      		ret
+08D1  E5      	check:	push	h	;non-destuctive compare HL:DE
+08D2  B7      		ora	a
+08D3          		dsbc	d
+08D3  ED52    		DB	0EDH,d*8+42H
+08D5  E1      		pop	h
+08D6  C9      		ret
 		
 		; Convert letters to upper-case
-08D1          	toupper:
-08D1  FE61    		cpi	'a'
-08D3  D8      		rc
-08D4  FE7B    		cpi	'z'+1
-08D6  D0      		rnc
-08D7  E65F    		ani	01011111b
-08D9  C9      		ret
+08D7          	toupper:
+08D7  FE61    		cpi	'a'
+08D9  D8      		rc
+08DA  FE7B    		cpi	'z'+1
+08DC  D0      		rnc
+08DD  E65F    		ani	01011111b
+08DF  C9      		ret
 		
 		; Read a line of text into 'line'
 		; End with CR, honor BS
 		; Reject all non-printing characters, force toupper
-08DA  2104FF  	linein:	lxi	h,line	;get string of characters from console, ending in CR
-08DD  CD9E00  	li0:	call	conin	;get a character
-08E0  FE08    		cpi	BS	;allow BackSpacing
-08E2          		jrz	backup
-08E2  281D    		DB	28H,backup-$-1
-08E4  FE0D    		cpi	CR
-08E6          		jrz	li1
-08E6  282E    		DB	28H,li1-$-1
-08E8  FE03    		cpi	CTLC
-08EA          		jrz	liZ
-08EA  2830    		DB	28H,liZ-$-1
-08EC  FE20    		cpi	' '	;ignore other non-print
-08EE          		jrc	li0
-08EE  38ED    		DB	38H,li0-$-1
-08F0  CDD108  		call	toupper
-08F3  77      		mov	m,a	;put character in line nuffer
-08F4  23      		inx	h
-08F5  4F      		mov	c,a
-08F6  CD8F00  		call	conout	; echo character
-08F9  7D      		mov	a,l	;else check for pending buffer overflow
-08FA  D604    		sui	line mod 256
-08FC  FE40    		cpi	64
-08FE  C8      		rz		;stop if buffer full
-08FF          		jr	li0	;if not full, keep getting characters
-08FF  18DC    		DB	18H,li0-$-1
+08E0  2104FF  	linein:	lxi	h,line	;get string of characters from console, ending in CR
+08E3  CD9E00  	li0:	call	conin	;get a character
+08E6  FE08    		cpi	BS	;allow BackSpacing
+08E8          		jrz	backup
+08E8  281D    		DB	28H,backup-$-1
+08EA  FE0D    		cpi	CR
+08EC          		jrz	li1
+08EC  282E    		DB	28H,li1-$-1
+08EE  FE03    		cpi	CTLC
+08F0          		jrz	liZ
+08F0  2830    		DB	28H,liZ-$-1
+08F2  FE20    		cpi	' '	;ignore other non-print
+08F4          		jrc	li0
+08F4  38ED    		DB	38H,li0-$-1
+08F6  CDD708  		call	toupper
+08F9  77      		mov	m,a	;put character in line nuffer
+08FA  23      		inx	h
+08FB  4F      		mov	c,a
+08FC  CD8F00  		call	conout	; echo character
+08FF  7D      		mov	a,l	;else check for pending buffer overflow
+0900  D604    		sui	line mod 256
+0902  FE40    		cpi	64
+0904  C8      		rz		;stop if buffer full
+0905          		jr	li0	;if not full, keep getting characters
+0905  18DC    		DB	18H,li0-$-1
 		
-0901  7D      	backup:	mov	a,l	;(destructive) BackSpacing
-0902  FE04    		cpi	line mod 256	;test if at beginning of line
-0904          		jrz	li0	;can't backspace past start of line
-0904  28D7    		DB	28H,li0-$-1
-0906  0E08    		mvi	c,bs	;output BS," ",BS to erase character on screen
-0908  CD8F00  		call	conout	;and put cursor back one position
-090B  CDA708  		call	space
-090E  0E08    		mvi	c,bs
-0910  CD8F00  		call	conout
-0913  2B      		dcx	h	;step buffer pointer back one
-0914          		jr	li0	;and continue to get characters
-0914  18C7    		DB	18H,li0-$-1
+0907  7D      	backup:	mov	a,l	;(destructive) BackSpacing
+0908  FE04    		cpi	line mod 256	;test if at beginning of line
+090A          		jrz	li0	;can't backspace past start of line
+090A  28D7    		DB	28H,li0-$-1
+090C  0E08    		mvi	c,bs	;output BS," ",BS to erase character on screen
+090E  CD8F00  		call	conout	;and put cursor back one position
+0911  CDAD08  		call	space
+0914  0E08    		mvi	c,bs
+0916  CD8F00  		call	conout
+0919  2B      		dcx	h	;step buffer pointer back one
+091A          		jr	li0	;and continue to get characters
+091A  18C7    		DB	18H,li0-$-1
 		
 		; End line input, A=CR
-0916  77      	li1:	mov	m,a	; store CR in buffer
-0917  0E0D    		mvi	c,CR	;display CR so user knows we got it
-0919  C38F00  		jmp	conout	;then return to calling routine
+091C  77      	li1:	mov	m,a	; store CR in buffer
+091D  0E0D    		mvi	c,CR	;display CR so user knows we got it
+091F  C38F00  		jmp	conout	;then return to calling routine
 		
 		; Abort input
-091C  0E5E    	liZ:	mvi	c,'^'
-091E  CD8F00  		call	conout
-0921  0E43    		mvi	c,'C'
-0923  CD8F00  		call	conout
-0926  E1      		pop	h	; always OK?
-0927  C9      		ret		; return to caller's caller (main debug loop)
+0922  0E5E    	liZ:	mvi	c,'^'
+0924  CD8F00  		call	conout
+0927  0E43    		mvi	c,'C'
+0929  CD8F00  		call	conout
+092C  E1      		pop	h	; always OK?
+092D  C9      		ret		; return to caller's caller (main debug loop)
 		
 		; Get next character from line buffer.
 		; DE=current pointer within 'line'
 		; Returns: ZR=EOL else A=char
-0928  7B      	char:	mov	a,e	;remove a character from line buffer,
-0929  D604    		sui	line mod 256	;testing for no more characters
-092B  D640    		sui	64
-092D  C8      		rz		;return [ZR] condition if at end of buffer
-092E  1A      		ldax	d
-092F  FE0D    		cpi	CR
-0931  C8      		rz		;also return [ZR] if at end of line
-0932  13      		inx	d	;else step to next character
-0933  C9      		ret		;and return [NZ]
+092E  7B      	char:	mov	a,e	;remove a character from line buffer,
+092F  D604    		sui	line mod 256	;testing for no more characters
+0931  D640    		sui	64
+0933  C8      		rz		;return [ZR] condition if at end of buffer
+0934  1A      		ldax	d
+0935  FE0D    		cpi	CR
+0937  C8      		rz		;also return [ZR] if at end of line
+0938  13      		inx	d	;else step to next character
+0939  C9      		ret		;and return [NZ]
 		
 		; Get HEX value from line buffer
 		; Return: CY=error, HL=value, bit7(B)=1 if no input
-0934          	getaddr:		;extract address from line buffer (delimitted by " ")
-0934          		setb	7,b	;flag to detect no address entered
-0934  CBF8    		DB	0CBH,7*8+b+0C0H
-0936  210000  		lxi	h,0
-0939  CD3705  		call	skb
-093C  C8      		rz		;end of buffer/line before a character was found
-093D          		jr	ga1	;if not space, then start getting HEX digits
-093D  1804    		DB	18H,ga1-$-1
+093A          	getaddr:		;extract address from line buffer (delimitted by " ")
+093A          		setb	7,b	;flag to detect no address entered
+093A  CBF8    		DB	0CBH,7*8+b+0C0H
+093C  210000  		lxi	h,0
+093F  CD3D05  		call	skb
+0942  C8      		rz		;end of buffer/line before a character was found
+0943          		jr	ga1	;if not space, then start getting HEX digits
+0943  1804    		DB	18H,ga1-$-1
 		
-093F  CD2809  	ga0:	call	char
-0942  C8      		rz
-0943  CD5B09  	ga1:	call	hexcon	;start assembling digits into 16 bit accumilator
-0946          		jrc	chkdlm	;check if valid delimiter before returning error.
-0946  380E    		DB	38H,chkdlm-$-1
-0948          		res	7,b	;reset flag
-0948  CBB8    		DB	0CBH,7*8+b+80H
-094A  D5      		push	d	;save buffer pointer
-094B  5F      		mov	e,a
-094C  1600    		mvi	d,0
-094E  29      		dad	h	;shift "accumulator" left 1 digit
-094F  29      		dad	h
-0950  29      		dad	h
-0951  29      		dad	h
-0952  19      		dad	d	;add in new digit
-0953  D1      		pop	d	;restore buffer pointer
-0954          		jr	ga0	;loop for next digit
-0954  18E9    		DB	18H,ga0-$-1
+0945  CD2E09  	ga0:	call	char
+0948  C8      		rz
+0949  CD6109  	ga1:	call	hexcon	;start assembling digits into 16 bit accumilator
+094C          		jrc	chkdlm	;check if valid delimiter before returning error.
+094C  380E    		DB	38H,chkdlm-$-1
+094E          		res	7,b	;reset flag
+094E  CBB8    		DB	0CBH,7*8+b+80H
+0950  D5      		push	d	;save buffer pointer
+0951  5F      		mov	e,a
+0952  1600    		mvi	d,0
+0954  29      		dad	h	;shift "accumulator" left 1 digit
+0955  29      		dad	h
+0956  29      		dad	h
+0957  29      		dad	h
+0958  19      		dad	d	;add in new digit
+0959  D1      		pop	d	;restore buffer pointer
+095A          		jr	ga0	;loop for next digit
+095A  18E9    		DB	18H,ga0-$-1
 		
-0956  FE20    	chkdlm: cpi	' '	;blank is currently the only valid delimiter
-0958  C8      		rz
-0959  37      		stc
-095A  C9      		ret
+095C  FE20    	chkdlm: cpi	' '	;blank is currently the only valid delimiter
+095E  C8      		rz
+095F  37      		stc
+0960  C9      		ret
 		
-095B          	hexcon: 		;convert ASCII character to HEX digit
-095B  FE30    		cpi	'0'	;must be .GE. "0"
-095D  D8      		rc
-095E  FE3A    		cpi	'9'+1	;and be .LE. "9"
-0960          		jrc	ok0	;valid numeral.
-0960  3809    		DB	38H,ok0-$-1
-0962  FE41    		cpi	'A'	;or .GE. "A"
-0964  D8      		rc
-0965  FE47    		cpi	'F'+1	;and .LE. "F"
-0967  3F      		cmc
-0968  D8      		rc		;return [CY] if not valid HEX digit
-0969  D607    		sui	'A'-'9'-1	;convert letter
-096B  D630    	ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
-096D  C9      		ret
+0961          	hexcon: 		;convert ASCII character to HEX digit
+0961  FE30    		cpi	'0'	;must be .GE. "0"
+0963  D8      		rc
+0964  FE3A    		cpi	'9'+1	;and be .LE. "9"
+0966          		jrc	ok0	;valid numeral.
+0966  3809    		DB	38H,ok0-$-1
+0968  FE41    		cpi	'A'	;or .GE. "A"
+096A  D8      		rc
+096B  FE47    		cpi	'F'+1	;and .LE. "F"
+096D  3F      		cmc
+096E  D8      		rc		;return [CY] if not valid HEX digit
+096F  D607    		sui	'A'-'9'-1	;convert letter
+0971  D630    	ok0:	sui	'0'	;convert (numeral) to 0-15 in (A)
+0973  C9      		ret
 		
 		; These only work on */84 (and 10) models.
 		; Have no effect (and does nothing) on */83 models.
-096E          	proginit:
-096E  AF      		xra	a
-096F          		stai
-096F  ED47    		DB	0EDH,47H
+0974          	proginit:
+0974  AF      		xra	a
+0975          		stai
+0975  ED47    		DB	0EDH,47H
 FFFF          	 if not rom2k
-0971  DB14    		in	sysp84
-0973  E6FC    		ani	not DSNONE
-0975  E6EF    		ani	not K84MTR
-0977  F602    		ori	DS0
-0979  D314    		out	sysp84
+0977  DB14    		in	sysp84
+0979  E6FC    		ani	not DSNONE
+097B  E6EF    		ani	not K84MTR
+097D  F602    		ori	DS0
+097F  D314    		out	sysp84
 		 endif
-097B  3E41    		mvi	a,'A'
-097D  320030  		sta	3000h
-0980  C9      		ret
+0981  3E41    		mvi	a,'A'
+0983  320030  		sta	3000h
+0986  C9      		ret
 		
-0981          	progoff:
-0981          		ldai
-0981  ED57    		DB	0EDH,57H
-0983  C0      		rnz
-0984  2F      		cma
-0985          		stai
-0985  ED47    		DB	0EDH,47H
+0987          	progoff:
+0987          		ldai
+0987  ED57    		DB	0EDH,57H
+0989  C0      		rnz
+098A  2F      		cma
+098B          		stai
+098B  ED47    		DB	0EDH,47H
 FFFF          	 if not rom2k
-0987  DB14    		in	sysp84
-0989  F603    		ori	DSNONE
-098B  D314    		out	sysp84
+098D  DB14    		in	sysp84
+098F  F603    		ori	DSNONE
+0991  D314    		out	sysp84
 		 endif
-098D  AF      		xra	a
-098E  320030  		sta	3000h
-0991  C9      		ret
+0993  AF      		xra	a
+0994  320030  		sta	3000h
+0997  C9      		ret
 		
-0992          	progress:
-0992          		ldai
-0992  ED57    		DB	0EDH,57H
-0994  C0      		rnz
+0998          	progress:
+0998          		ldai
+0998  ED57    		DB	0EDH,57H
+099A  C0      		rnz
 FFFF          	 if not rom2k
-0995  DB14    		in	sysp84
-0997  EE03    		xri	DSNONE
-0999  D314    		out	sysp84
+099B  DB14    		in	sysp84
+099D  EE03    		xri	DSNONE
+099F  D314    		out	sysp84
 		 endif
-099B  3A0030  		lda	3000h
-099E  EE03    		xri	00000011b
-09A0  320030  		sta	3000h
-09A3  C9      		ret
+09A1  3A0030  		lda	3000h
+09A4  EE03    		xri	00000011b
+09A6  320030  		sta	3000h
+09A9  C9      		ret
 		
 			rept	romsiz-$
-09A4  FF      		db	0ffh
-09A5  FF      		db	0ffh
-09A6  FF      		db	0ffh
-09A7  FF      		db	0ffh
-09A8  FF      		db	0ffh
-09A9  FF      		db	0ffh
 09AA  FF      		db	0ffh
 09AB  FF      		db	0ffh
 09AC  FF      		db	0ffh
@@ -3183,6 +3178,6 @@ Statistics:
    223	symbols
   4096	bytes
 
-  1952	macro calls
+  1946	macro calls
   3775	macro bytes
      0	invented symbols
