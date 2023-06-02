@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	022h	; ROM version
+VERN	equ	023h	; ROM version
 
 rom2k	equ	0
 
@@ -788,7 +788,7 @@ tv5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
 	jrnz	tv0	; 12 = 48 = 12uS
-	jmp	tf1	; display results
+	jmp	tf6	; final sample and display results
 tv4:	xchg
 	mov	m,a
 	inx	h
@@ -891,9 +891,15 @@ th5:	inx	h
 	mov	a,h
 	ora	l
 	jrnz	th0
+	jr	th6	; final sample and display results
 th1:	call	tf1	; dump results from 8000h..DE
 	in	hdderr	; also print final error status
 	jmp	hexout
+; force final sample
+th6:	dcx	h	; show as FFFF
+	mvi	a,1
+	sta	addr1	; last sample
+	mov	a,c	; last register value
 th4:	xchg
 	mov	m,a
 	inx	h
@@ -992,6 +998,9 @@ tf5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
 	jrnz	tf0	; 12 = 48 = 12uS
+	; force final entry...
+	jr	tf6
+
 	; dump 8000h..DE and return
 tf1:	lxi	h,8000h
 tf2:
@@ -1016,6 +1025,11 @@ tf3:
 	call	crlf
 	jr	tf2
 
+; force last sample. works for all tests - can't escape to tf5
+tf6:	dcx	h	; show as FFFF
+	mvi	a,1
+	sta	addr1	; last sample
+	mov	a,c	; last register value
 ; save sample, check for done.
 tf4:	xchg
 	mov	m,a
