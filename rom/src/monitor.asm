@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	023h	; ROM version
+VERN	equ	024h	; ROM version
 
 rom2k	equ	0
 
@@ -693,7 +693,7 @@ Tcomnd:
 	dcx	d
 	lxi	h,kbd
 	call	strcmp
-	jrz	tkbd
+	jz	tkbd
  if not rom2k
 	lxi	h,crtc
 	call	strcmp
@@ -724,7 +724,7 @@ tcrtc:	lxi	h,waitm
 	call	msgprt
 	mvi	b,5	; count
 	mvi	e,80h	; compare
-	mvi	a,31
+tc5:	mvi	a,31
 	out	crtctl	; select reg
 tc0:	in	crtctl
 	ani	80h
@@ -732,8 +732,13 @@ tc0:	in	crtctl
 	jrz	tc9
 	in	conctl
 	ani	00000001b
-	jrz	tc0
-	in	condat
+	jrnz	tc6
+	mov	a,e
+	ora	a
+	jrnz	tc0
+	in	crtram	; clear Update
+	jr	tc5
+tc6:	in	condat
 	lxi	h,abrtm
 	call	msgprt
 	ret
@@ -744,7 +749,7 @@ tc9:	mov	a,e
 	lxi	h,updtm
 	call	msgprt
 	in	crtram	; clear Update
-	djnz	tc0
+	djnz	tc5
 	ret
 tc8:	call	space
 	djnz	tc0
