@@ -317,9 +317,13 @@ public class Z80PIO implements IODevice, InterruptController {
 					attObj.outputs(data | inputs);
 				}
 			} else {	// control
-				if (ctl) {
+				if (ctl) { // only if mode 3
 					ctl = false;
 					inputs = val & 0xff;
+					if (attObj != null) {
+						// this doubles as STB
+						attObj.outputs(data | inputs);
+					}
 					return;
 				}
 				if (mask) {
