@@ -5,6 +5,7 @@ Kaypro simulator and other related Kaypro items.
 This includes the Emergency Debug Monitor, which is designed to (temporarily) replace
 the system's boot ROM and allow debugging/diagnosing of issues using a serial port.
 See [Emergency ROM documentation](rom/doc/monitor.pdf).
+There is also a manual on [Diagnosing Kaypros](rom/doc/diags.pdf).
 
 The simulator should not require building from source. The JAR file, and related files,
 are generally available [here](http://sebhc.durgadas.com/kaypro/).
