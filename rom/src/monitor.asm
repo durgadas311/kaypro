@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	024h	; ROM version
+VERN	equ	025h	; ROM version
 
 rom2k	equ	0
 
@@ -299,7 +299,7 @@ menu:
 	db	CR,LF,'T <hw> - Test hardware'
 	db	CR,LF,'  (KBD'
  if not rom2k
-	db		', CRTC, VRT, CRTR, HDD, HDRD'
+	db		', CRTC, VRT, CRTR, CRTF, HDD, HDRD'
  endif
 	db		', FDRD, FLPY)'
 	db	CR,LF,'V - Show ROM version'
@@ -618,6 +618,7 @@ kb83:	db	'KB83',TRM
 kb84:	db	'KB84',TRM
 crtc:	db	'CRTC',TRM
 crtr:	db	'CRTR',TRM
+crtf:	db	'CRTF',TRM
 vrt:	db	'VRT',TRM
 hdd:	db	'HDD',TRM
 hdrd:	db	'HDRD',TRM
@@ -704,6 +705,9 @@ Tcomnd:
 	lxi	h,crtr
 	call	strcmp
 	jz	tcrtr
+	lxi	h,crtf
+	call	strcmp
+	jz	tcrtf
 	lxi	h,hdd
 	call	strcmp
 	jz	thdd
@@ -853,6 +857,75 @@ tr9:	push	d
 	call	space
 	pop	d
 	call	taddr
+	ret
+
+; Fill video RAM will value
+tcrtf:
+	mvi	a,' '
+	sta	addr0	; default to blanks
+	xra	a
+	sta	addr1	; default to no attributes
+	call	getaddr ;get optional fill byte
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jrnz	tcfX
+	mov	a,l
+	sta	addr0
+	call	getaddr ;get optional attr byte
+	jc	error	;error if non-hex character
+	bit	7,b	;test for no entry
+	jrnz	tcfX
+	mov	a,l
+	sta	addr1
+tcfX:
+	mvi	b,18	; hi byte of addr reg
+	mvi	c,19	; lo byte of addr reg
+	lxi	h,80*25
+	lxi	d,0
+	mvi	a,1fh
+	out	crtctl	; clear update bit
+tcf0:	in	crtctl
+	rlc
+	jrnc	tcf0
+	mov	a,b
+	out	crtctl
+	mov	a,d
+	out	crtdat
+	mov	a,c
+	out	crtctl
+	mov	a,e
+	out	crtdat
+	mvi	a,1fh
+	out	crtctl	; clear update bit
+tcf1:	in	crtctl
+	rlc
+	jrnc	tcf1
+	lda	addr0
+	out	crtram
+	inx	d
+tcf2:	in	crtctl
+	rlc
+	jrnc	tcf2
+	mov	a,b
+	out	crtctl
+	mov	a,d
+	ori	08h	; attr RAM
+	out	crtdat
+	mov	a,c
+	out	crtctl
+	mov	a,e
+	out	crtdat
+	mvi	a,1fh
+	out	crtctl	; clear update bit
+tcf3:	in	crtctl
+	rlc
+	jrnc	tcf3
+	lda	addr1
+	out	crtram
+	dcx	h
+	mov	a,h
+	ora	l
+	jrnz	tcf0
 	ret
 
 ; user must have set other registers as needed

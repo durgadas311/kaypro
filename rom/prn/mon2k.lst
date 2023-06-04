@@ -1,7 +1,7 @@
 		; serial-port ROM monitor/boot for debugging Kaypro.
 		; Uses "aux serial" a.k.a "Serial Printer" port.
 		
-0024          	VERN	equ	024h	; ROM version
+0025          	VERN	equ	025h	; ROM version
 		
 FFFF          	rom2k	equ	-1
 		
@@ -235,7 +235,7 @@ FFFF          	 if rom2k
 00D0  204D6F6E		db	' Monitor v'
       69746F72
       2076
-00DA  322E34  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
+00DA  322E35  	vernum:	db	(VERN SHR 4)+'0','.',(VERN AND 0fh)+'0'
 00DD  0D0A00  		db	CR,LF,TRM
 		
 00E0  0D0A073F	errm:	db	CR,LF,BEL,'?',TRM
