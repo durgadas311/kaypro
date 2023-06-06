@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	025h	; ROM version
+VERN	equ	026h	; ROM version
 
 rom2k	equ	0
 
@@ -83,41 +83,51 @@ hddcmd	equ	87h
 
 stack	equ	00000h	; stack at top of memory (wrapped)
 
+; Defined entry points:
+; 0003: conout, C=char
+; 000B: hexout, A=value
+; 0013: msgprt, HL=string (NUL)
+; 001B: crlf
+; 0023: (reserved)
+; 002B: (reserved)
+; 0033:	sample I/O port C, initial val B, A=max (returns DE)
+; 003B: dump samples 8000H to DE
+
 ; Start of ROM code
 	org	00000h
-rst0e	equ	$+8
-	jmp	init
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+reset:	jmp	init
+	jmp	conout	; 0003: conout, C=char
+	db	0ffh,0ffh
 
-rst1e	equ	$+8
 rst1:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	hexout	; 000B:
+	db	0ffh,0ffh
 
-rst2e	equ	$+8
 rst2:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	msgprt	; 0013:
+	db	0ffh,0ffh
 
-rst3e	equ	$+8
 rst3:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	crlf	; 001B:
+	db	0ffh,0ffh
 
-rst4e	equ	$+8
 rst4:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	swtrap	; 0023:
+	db	0ffh,0ffh
 
-rst5e	equ	$+8
 rst5:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	swtrap	; 002B:
+	db	0ffh,0ffh
 
-rst6e	equ	$+8
 rst6:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	xsamp1	; 0033: sample a port
+	db	0ffh,0ffh
 
-rst7e	equ	$+8
 rst7:	jmp	swtrap
-	db	0ffh,0ffh,0ffh,0ffh,0ffh
+	jmp	ysamp	; 003B: dump samples
+	db	0ffh,0ffh
 
-	; NMI not a problem?
+	; NMI needed for FLPY testing
 
 swt:	db	CR,LF,'*** RST ',TRM
 
@@ -130,12 +140,14 @@ swtrap:	di		; try to recover return address...
 	pop	d
 	call	taddr
 	call	crlf
-	; TODO: print address, etc...
 	jmp	debug
 
 	rept	0066h-$
 	db	0ffh
 	endm
+ if $ <> 0066h
+	.error	'NMI overflow'
+ endif
 nmi:	ret
 
 sioini:	db	18h	; reset
@@ -162,7 +174,6 @@ init:	di
 	call	msgprt
 
 	call	proginit
-	; save registers on stack, for debugger access...
 	jmp	debug
 
 belout:
@@ -661,9 +672,12 @@ nh0:	dcx	h	;  6
 	mov	a,h	;  4
 	ora	a	;  4
 	jrnz	nh0	; 12 = 26 cycles
+	call	crlf
 	in	sysp84
 	res	1,a
 	out	sysp84	; MR off
+	mvi	c,hddcmd
+	mvi	b,0	; assume starting status
 	jmp	thdd1
  endif
 
@@ -785,33 +799,11 @@ updtm:	db	'Update',TRM
 tvrt:	mvi	a,10	; we don't need many samples
 	sta	addr1
 	call	crlf
-	in	crtctl
-	mov	c,a
+	mvi	c,crtctl
+	inp	b
 	; TODO: reset Update bit? optionally?
-	lxi	h,0
-	lxi	d,8000h
-tv0:	in	crtctl	; 11
-	cmp	c	;  4
-	jrnz	tv4	;  7
-tv5:	inx	h	;  6
-	mov	a,h	;  4
-	ora	l	;  4
-	jrnz	tv0	; 12 = 48 = 12uS
-	jmp	tf6	; final sample and display results
-tv4:	xchg
-	mov	m,a
-	inx	h
-	mov	m,e
-	inx	h
-	mov	m,d
-	inx	h
-	xchg
-	mov	c,a
-	lda	addr1
-	dcr	a
-	sta	addr1
-	jz	tf1
-	jr	tv5
+	call	xsamp
+	jmp	ysamp
 
 pass:	db	'Passed',TRM
 fail:	db	'Failed ',TRM
@@ -951,47 +943,14 @@ thdd:	; issue command, wait...
 	jnz	error
 	shld	addr1	;save count
 thY:	call	crlf
-	in	hddcmd
-	mov	c,a
+	mvi	c,hddcmd
+	inp	b
 	lda	addr0
 	out	hddcmd
-	jr	thX
-thdd1:	; RESET already issued
-	call	crlf
-	in	hddcmd
-	mvi	c,0
-thX:	lxi	h,0
-	lxi	d,8000h
-th0:	in	hddcmd
-	cmp	c
-	jrnz	th4
-th5:	inx	h
-	mov	a,h
-	ora	l
-	jrnz	th0
-	jr	th6	; final sample and display results
-th1:	call	tf1	; dump results from 8000h..DE
+thdd1:	call	xsamp
+th1:	call	ysamp	; dump results from 8000h..DE
 	in	hdderr	; also print final error status
 	jmp	hexout
-; force final sample
-th6:	dcx	h	; show as FFFF
-	mvi	a,1
-	sta	addr1	; last sample
-	mov	a,c	; last register value
-th4:	xchg
-	mov	m,a
-	inx	h
-	mov	m,e
-	inx	h
-	mov	m,d
-	inx	h
-	xchg
-	mov	c,a
-	lda	addr1
-	dcr	a
-	sta	addr1
-	jrz	th1
-	jr	th5
 
 ; user setup registers and issue READ command
 thdrd:	call	crlf
@@ -1062,34 +1021,66 @@ tflpy:	; user must motor on and select drive (and side)
 	shld	addr1	;save count
 tfX:
 	call	crlf
-	in	fpysts
-	mov	c,a
+	mvi	c,fpysts
+	inp	b
 	lda	addr0	; FDC command
 	out	fpycmd
+	call	xsamp	; gather samples
+	jmp	ysamp	; dump samples
+
+Vcomnd:
+	lxi	h,signon
+	jmp	msgprt
+
+*********************************************************
+**  Utility subroutines
+*********************************************************
+
+; take samples from port C, storing changes in 8000H
+; B = initial value of port (may be faked).
+; samples are 3 bytes each, new port value and 16-bit iteration count.
+; returns DE pointing +1 after last sample.
+xsamp1:	sta	addr1
+; addr1 = max num samples (0=256)
+xsamp:
 	lxi	h,0
 	lxi	d,8000h
-
-tf0:	in	fpysts	; 11
-	cmp	c	;  4
-	jrnz	tf4	;  7
-tf5:	inx	h	;  6
+xs0:	inp	a	; 12
+	cmp	b	;  4
+	jrnz	xs4	;  7
+xs5:	inx	h	;  6
 	mov	a,h	;  4
 	ora	l	;  4
-	jrnz	tf0	; 12 = 48 = 12uS
-	; force final entry...
-	jr	tf6
+	jrnz	xs0	; 12 = 49 = 12.25uS (19.6uS)
+	dcx	h	; show as FFFF
+	mvi	a,1
+	sta	addr1	; force last sample
+	mov	a,b	; current register value
+xs4:	xchg		;  4
+	mov	m,a	;  7
+	inx	h	;  6
+	mov	m,e	;  7
+	inx	h	;  6
+	mov	m,d	;  7
+	inx	h	;  6
+	xchg		;  4
+	mov	b,a	;  4
+	lda	addr1	; 13
+	dcr	a	;  4
+	sta	addr1	; 13
+	jrnz	xs5	; 12 = 93 = 23.25uS (37.2uS)
+	ret
 
-	; dump 8000h..DE and return
-tf1:	lxi	h,8000h
-tf2:
-	mov	a,h
+; print out samples from 8000h to DE
+ysamp:
+	lxi	h,8000h
+ys2:	mov	a,h
 	cmp	d
-	jrnz	tf3
+	jrnz	ys3
 	mov	a,l
 	cmp	e
-	rz	; user must motor off...
-tf3:
-	mov	a,m
+	rz
+ys3:	mov	a,m
 	inx	h
 	call	hexout
 	call	space
@@ -1101,36 +1092,7 @@ tf3:
 	mov	a,b
 	call	hexout
 	call	crlf
-	jr	tf2
-
-; force last sample. works for all tests - can't escape to tf5
-tf6:	dcx	h	; show as FFFF
-	mvi	a,1
-	sta	addr1	; last sample
-	mov	a,c	; last register value
-; save sample, check for done.
-tf4:	xchg
-	mov	m,a
-	inx	h
-	mov	m,e
-	inx	h
-	mov	m,d
-	inx	h
-	xchg
-	mov	c,a
-	lda	addr1
-	dcr	a
-	sta	addr1
-	jrz	tf1
-	jr	tf5
-
-Vcomnd:
-	lxi	h,signon
-	jmp	msgprt
-
-*********************************************************
-**  Utility subroutines
-*********************************************************
+	jr	ys2
 
 taddr:	mov	a,d	;display (DE) at console in HEX
 	call	hexout	;print HI byte in HEX
@@ -1165,14 +1127,6 @@ msgprt:	mov	a,m	;send string to console, terminated by 00
 	call	conout
 	inx	h
 	jr	msgprt
-
-print:	mov	a,m	; BDOS func 9 style msgprt
-	cpi	'$'
-	rz
-	mov	c,a
-	call	conout
-	inx	h
-	jr	print
 
 check:	push	h	;non-destuctive compare HL:DE
 	ora	a
@@ -1340,6 +1294,9 @@ progress:
 	rept	romsiz-$
 	db	0ffh
 	endm
+ if $ <> romsiz
+	.error	'EPROM overflow'
+ endif
 
 ; RAM used...
 	org	0ff00h
