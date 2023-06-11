@@ -1,7 +1,7 @@
 ; serial-port ROM monitor/boot for debugging Kaypro.
 ; Uses "aux serial" a.k.a "Serial Printer" port.
 
-VERN	equ	026h	; ROM version
+VERN	equ	027h	; ROM version
 
 rom2k	equ	0
 
@@ -281,6 +281,8 @@ comnds:
 	dw	Icomnd
 	db	'O'
 	dw	Ocomnd
+	db	'H'
+	dw	Hcomnd
 	db	'N'
 	dw	Ncomnd
 	db	'T'
@@ -302,6 +304,7 @@ menu:
 	db	CR,LF,'M <start> <end> <dest> - Move data'
 	db	CR,LF,'I <port> [num] - Input from port'
 	db	CR,LF,'O <port> <value> [...] - Output to port'
+	db	CR,LF,'H - Hexload program'
 	db	CR,LF,'N <hw> - iNitialize hardware (KB83'
  if not rom2k
 	db		', KB84, CRTC, HDD'
@@ -1031,6 +1034,79 @@ tfX:
 Vcomnd:
 	lxi	h,signon
 	jmp	msgprt
+
+; B = checksum
+getbyte:
+	call	conine	; trashes C
+	call	hexcon
+	rc
+	rlc
+	rlc
+	rlc
+	rlc
+	mov	e,a
+	call	conine	; trashes C
+	call	hexcon
+	rc
+	ora	e
+	; update checksum...
+	mov	e,a
+	add	b
+	mov	b,a
+	mov	a,e
+	ora	a
+	ret
+
+; Uses:
+;	E' = error indicator (used?)
+;	E = scratch (getbyte)
+;	D = count (per line)
+;	B = checksum (per line)
+;	C = scratch (conine)
+;	HL = dest (per line)
+Hcomnd:
+	; TODO: clear error flag
+hc2:	call	crlf
+hc0:	call	conine
+	cpi	CTLC
+	rz
+	cpi	':'	; start of record
+	jrnz	hc0
+	mvi	b,0	; init checksum 0
+	call	getbyte	; count
+	jrc	hc8
+	mov	d,a
+	exaf	; save copy of count
+	call	getbyte	; addr hi
+	jrc	hc8
+	mov	h,a
+	call	getbyte	; addr lo
+	jrc	hc8
+	mov	l,a
+	call	getbyte	; record type (ignored)
+	jrc	hc8
+	inr	d	; +1 for checksum byte
+	; TODO: range check HL... ?
+hc1:	call	getbyte
+	jrc	hc8
+	dcr	d
+	jrz	hc7
+	mov	m,a
+	inx	h
+	jr	hc1
+hc7:	mov	a,b
+	ora	a
+	jrnz	hc8
+	exaf
+	ora	a
+	jrnz	hc2
+	; TODO: what to do with entry addr?
+	; TODO: check error flag
+	jmp	crlf
+hc8:	; TODO: set error flag
+	mvi	c,'!'
+	call	conout
+	jr	hc0
 
 *********************************************************
 **  Utility subroutines

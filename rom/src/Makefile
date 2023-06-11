@@ -18,5 +18,8 @@ mon2k.asm: monitor.asm
 	cp $*.cim $@
 	cp $*.lst ../prn
 
+%.hex: %.asm
+	zmac --dri -i -8 -c -s -n --od . --oo hex,lst $*.asm
+
 ship: all
 	rsync -Wuv $(BINS) $(DOCS) durgadas.com:/var/www/html/sebhc/kaypro
