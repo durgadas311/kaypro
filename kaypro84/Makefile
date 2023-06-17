@@ -5,7 +5,8 @@ CLASSES = $(subst .java,.class,$(JAVAS))
 DEST = durgadas.com:/var/www/html/sims/kaypro
 SEBHC = durgadas.com:/var/www/html/sebhc/kaypro
 
-KBD_CLASSES = VirtualKeyboard.class TtyUART.class \
+KBD_CLASSES = TtyUART.class \
+		VirtualKeyboard.class \
 		VirtualUART.class \
 		SerialDevice.class \
 		PasteListener.class \

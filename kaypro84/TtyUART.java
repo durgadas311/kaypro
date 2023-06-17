@@ -8,14 +8,12 @@ import java.io.*;
 // Currently using: jSerialComm-2.6.2.jar
 import com.fazecast.jSerialComm.*;
 
-// Provides a conduit between virtual serial port and a TTY device.
-// Intended use is as attached to virtual serial port in simulators,
+// Provides a conduit between virtual UART and a TTY device.
+// Intended use is to attach a TTY in simulators,
 // to provide access to a real TTY. Typical usage example (in config file):
 //
-// data_att = TtySerial tty=/dev/ttyUSB0,9600
-//
-// where 'data' is the virtual port name, depends on simulated platform's
-// serial ports designations and choice of port.
+// tty = /dev/ttyUSB0
+// baud = 9600
 //
 // Requires invoking the simulator with jSerialComm.jar on the classpath,
 // which also precludes using the "-jar" option. Typical invocation:
@@ -33,21 +31,37 @@ public class TtyUART implements VirtualUART, Runnable {
 	boolean modem = false;
 	int mdms = -1;
 
-	public TtyUART(Properties props) {
-		String s = props.getProperty("tty");
+	public TtyUART(Properties props, String pfx, String[] args) {
+		String prefix = "";
+		if (pfx != null && pfx.length() > 0) {
+			prefix = pfx + "_";
+		}
+		String s = props.getProperty(prefix + "tty");
 		if (s != null) {
 			tty = s;
 		}
-		s = props.getProperty("baud");
+		s = props.getProperty(prefix + "baud");
 		if (s != null) {
 			baud = Integer.valueOf(s);
 		}
-		s = props.getProperty("modem");
+		s = props.getProperty(prefix + "modem");
 		if (s != null) {
 			modem = true;
 		}
+		for (String arg : args) {
+			if (arg.startsWith("tty=")) {
+				tty = arg.substring(4);
+			} else if (arg.startsWith("baud=")) {
+				baud = Integer.valueOf(arg.substring(5));
+			} else if (arg.equals("modem")) {
+				modem = true;
+			}
+		}
 		if (tty == null) {
 			throw new RuntimeException("No valid TTY specified\n");
+		}
+		if (baud < 0) {
+			baud = 300;
 		}
 		comm = getPort(tty, baud);
 		if (comm == null) {
@@ -72,6 +86,10 @@ public class TtyUART implements VirtualUART, Runnable {
 			t = new Thread(new ModemControl());
 			t.start();
 		}
+	}
+
+	public String getConfig() {
+		return String.format("Port: %s Baud: %d", tty, baud);
 	}
 
 	private static SerialPort getPort(String tty, int baud) {

@@ -58,14 +58,17 @@ public class VirtualKeyboard implements MouseListener {
 		// This allows TAB to be sent
 		front_end.setFocusTraversalKeysEnabled(false);
 		JPanel pn;
+		TtyUART uart = new TtyUART(props, "vkbd", args);
+		kbd = new KayproKeyboard(props, null, uart);
 
+		title = "<HTML><FONT SIZE=+2>Kaypro Keyboard Emulator</FONT><BR><BR>";
+		title += uart.getConfig();
+		title += "<BR><BR>Set NumLock to use keypad</HTML>";
 		pn = new JPanel();
-		pn.setPreferredSize(new Dimension(300, 100));
-		pn.add(new JLabel("Kaypro Keyboard Emulator"));
+		pn.setPreferredSize(new Dimension(400, 200));
+		pn.add(new JLabel(title));
 		front_end.add(pn);
 
-		VirtualUART uart = new TtyUART(props);
-		kbd = new KayproKeyboard(props, null, uart);
 		front_end.addMouseListener(this);
 		front_end.addKeyListener(kbd);
 
