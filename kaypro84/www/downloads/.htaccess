@@ -18,6 +18,8 @@ AddDescription "Emergency Debug Monitor" monitor.bin
 AddDescription "Emergency Memory Test ROM" memtest.bin
 AddDescription "Emergency Debug Monitor Documentation" monitor.pdf
 AddDescription "Diagnosing Problems with the Debug Monitor" diags.pdf
+AddDescription "Using the Virtual Kaypro Keyboard" vkbd.pdf
+AddDescription "Virtual Kaypro Keyboard" VirtualKeyboard.jar
 AddDescription "Debug Monitor for Early Kaypro-II (2716)" mon2k.bin
 AddDescription "Star Trek Game for X/84 and 10" strtrk.com
 AddDescription "Original 2X Star Trek Game" startrek.com

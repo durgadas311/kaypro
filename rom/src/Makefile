@@ -6,7 +6,7 @@
 # read-back for verify, etc.
 #	minipro -p "AT28C64B" -r junk
 
-DOCS = ../doc/monitor.pdf ../doc/diags.pdf
+DOCS = ../doc/monitor.pdf ../doc/diags.pdf ../doc/vkbd.pdf
 BINS = ../bin/monitor.bin ../bin/mon2k.bin ../bin/memtest.bin
 all: $(BINS)
 
