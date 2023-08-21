@@ -8,6 +8,7 @@ import java.util.Properties;
 import java.awt.event.*;
 import java.text.SimpleDateFormat;
 import java.text.ParsePosition;
+import java.util.Locale;
 
 public class MM58167 implements IODevice, PPortDevice, ActionListener {
 	private int baseAdr;
@@ -22,7 +23,7 @@ public class MM58167 implements IODevice, PPortDevice, ActionListener {
 	private javax.swing.Timer[] timers;
 
 	public static SimpleDateFormat timestamp =
-		new java.text.SimpleDateFormat("yyyy MM dd EEE HH:mm:ss.SSS");
+		new java.text.SimpleDateFormat("yyyy MM dd EEE HH:mm:ss.SSS", Locale.US);
 	private static Map<String, Integer> wdays;
 	static {
 		wdays = new HashMap<String, Integer>();
