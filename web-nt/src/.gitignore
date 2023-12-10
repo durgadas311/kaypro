@@ -1,3 +1,4 @@
 *.cim
 *.lst
+*.com
 z80.lib
