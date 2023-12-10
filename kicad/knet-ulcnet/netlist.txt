@@ -1,0 +1,128 @@
+#enscript -2 -f Courier7 -p junk.ps netlist.txt
+u1.1	u2.11	u2.10	u3.2	u3.14
+u1.2	sok.12
+u1.3	u4.2	u6.9
+u1.4	sio.12
+u1.5	sok.19
+u1.6	u7.12
+u1.7	sio.19
+u1.9	sio.14
+u1.10	u4.4	u5.9
+u1.11	sok.14
+u1.12	sio.18
+u1.13	u6.5
+u1.14	sok.18
+u1.15	gnd
+
+u2.1	sok.13
+u2.2	u2.12	sio.24
+u2.3	u2.4
+u2.5	u2.8
+u2.6	sio.13
+u2.9	u7.13
+u2.13	vcc
+
+u3.1	sio.17
+u3.3	gnd
+u3.4	sok.17
+u3.5	u4.9
+u3.6	nc
+u3.7	nc
+u3.9	nc
+u3.10	nc
+u3.11	u4.5
+u3.12	sok.15
+u3.13	gnd
+u3.15	sio.15
+
+u4.1	u7.10	u6.12	u8.1
+u4.3	u7.2
+u4.6	u5.2
+u4.8	u8.3	u9.5
+u4.10	u4.13	vcc
+u4.11	u5.3	u6.3
+u4.12	j1.6	u5.11
+
+u5.1	vcc
+u5.4	vcc
+u5.5	u8.4
+u5.6	nc
+u5.8	u5.12
+u5.10	vcc
+u5.13	vcc
+
+u6.1	vcc
+u6.2	u9.2	u9.13	u9.14	r8
+u6.4	vcc
+u6.6	nc
+u6.8	nc
+u6.10	vcc
+u6.11	u7.4
+u6.13	vcc
+
+u7.1	gnd
+u7.3	vcc
+u7.5	r4
+u7.6	c3
+u7.7	r3
+u7.9	gnd
+u7.11	vcc
+u7.14	c2
+u7.15	r2
+
+u8.2	gnd
+u8.5	d3.a	d4.a	j2.2	(agnd)
+u8.6	d1.a	j2.3	r12
+u8.7	d2.a	j2.4	r9
+u8.8	vcc
+
+u9.1	nc
+u9.3	vcc*
+u9.4	u9.8	u9.10	vref
+u9.6	nc
+u9.7	nc
+u9.9	r11	r12
+u9.11	r9	r10
+u9.12	gnd*
+
+j1.2	r5
+j1.3	q1.c
+j1.4	vcc
+j1.5	gnd
+
+j2.1	gnd	(key)
+
+sio.1	sok.1
+sio.2	sok.2
+sio.3	sok.3
+sio.4	sok.4
+sio.5	sok.5
+sio.6	sok.6
+sio.7	sok.7
+sio.8	sok.8
+sio.9	sok.9
+sio.10	sok.10
+sio.11	r1
+sio.16	sok.16
+sio.20	sok.20
+sio.21	sok.21
+sio.22	sok.22
+sio.23	sok.23
+sio.25	sok.25
+sio.26	sok.26
+sio.27	sok.27
+sio.28	sok.28
+sio.29	sok.29
+sio.30	sok.30
+sio.31	sok.31
+sio.32	sok.32
+sio.33	sok.33
+sio.34	sok.34
+sio.35	sok.35
+sio.36	sok.36
+sio.37	sok.37
+sio.38	sok.38
+sio.39	sok.39
+sio.40	sok.40
+
+sok.24	nc
