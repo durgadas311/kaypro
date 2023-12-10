@@ -2525,19 +2525,19 @@ Le4f3:	db	4
 	db	11h,0		; WR1: INT off
 	db	33h,0d8h	; WR3: 8b, hunt, CRC (Rx dis)
 
-	db	0
-Le4f9:
+	db	0	; Rx status
+Le4f9:	db	0,0,0,0,0,0,0,0,0,0,0	; short msg buf? hdr?
  if K10
-	db	0,0,0,0,0,0,0,0,0,0,0
  else
+	; padding for ???
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-	db	0,0,0,0,0,0,0,0,0,0,0,0,0
+	db	0,0
  endif
 
 ; public table? NDOS func 202
-; holds records of accesses by remote nodes? open files...
+; holds records of accesses by remote nodes - open files...
 ; entries are sorted...
 Le560:	db	0ffh	; 0=empty? IX+6
 	    db	0ffh	;     IX+15 <= in Ld694
@@ -2765,7 +2765,7 @@ Leba3:	db	1eh	; retry?
 netstk:	ds	0
 netsav:	dw	0
 
-Lebc6:	dw	Le4f9
+Lebc6:	dw	Le4f9	; current msg buf ptr
 
 	; padding for interrupt vector location
 	rept	0f0h-($ and 0ffh)
