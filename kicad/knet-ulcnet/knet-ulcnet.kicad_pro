@@ -324,6 +324,10 @@
     [
       "78161a73-d24d-449c-bfe3-bd9b71578fb9",
       "web-nt-cables"
+    ],
+    [
+      "bc105e97-925d-4c41-8792-2ef6ad133432",
+      "DIP-40"
     ]
   ],
   "text_variables": {}
