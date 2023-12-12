@@ -7,7 +7,14 @@ K10	equ	0
 	.endif
 
  if K10
+CLK4	equ	1	; 4MHz CPU clock
 base	equ	0c100h
+ else
+CLK4	equ	0	; 2.5MHz CPU clock
+base	equ	0d100h
+ endif
+
+ if CLK4 ; 4MHz
 timeout	equ	64
 delay	equ	7
 delay2	equ	219
@@ -29,8 +36,7 @@ zdelay	macro
 	inx	h
 	dcx	h
 	endm
- else
-base	equ	0d100h
+ else	; 2.5MHz
 timeout	equ	40
 delay	equ	3
 delay2	equ	127
