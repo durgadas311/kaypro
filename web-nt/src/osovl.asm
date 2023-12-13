@@ -62,8 +62,9 @@ fcb	equ	005ch
 dma	equ	0080h
 tpa	equ	0100h
 
-ccp	equ	base-0700h
-ccplen	equ	16	; number of records
+ccprec	equ	16	; number of records
+ccplen	equ	ccprec*128
+ccp	equ	ndospg-ccplen
 
 coninf	equ	1
 conoutf	equ	2
@@ -129,8 +130,10 @@ usrnumf	equ	32
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 	db	0,0,0,0,0,0,0,0,0,0,0,0,0
+inilen	equ	$-base
 
 ; resident code
+ndospg:
 	db	0,0,0,0,0,0
 ; BDOS calls land here...
 ndose:	pushix			;; d206: dd e5       ..
@@ -2037,7 +2040,7 @@ Le1ad:	mvi	c,printf	;; e1ad: 0e 09       ..
 
 ; re-load the CCP
 Le1ba:	lxi	h,ccp		;; e1ba: 21 00 ca    ...
-	mvi	b,ccplen	;; e1bd: 06 10       ..
+	mvi	b,ccprec	;; e1bd: 06 10       ..
 	mvi	c,readf		;; e1bf: 0e 14       ..
 Le1c1:	push	h		;; e1c1: e5          .
 	push	b		;; e1c2: c5          .
@@ -2790,6 +2793,6 @@ intvec:	dw	0
 ; BDOS begins here...
 
 ; special locations in the standard CP/M 2.2 BDOS
-Lef0f	equ	$+783
-Lf9de	equ	$+3550
+Lef0f	equ	$+030fh	; BDOS data area compcol..aret (stack)
+Lf9de	equ	$+0ddeh	; BDOS variable resel
 	end
