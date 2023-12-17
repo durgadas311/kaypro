@@ -1,6 +1,9 @@
 ; disassembled from WEB.COM starting at address 0x0300 (offset 0x0200)
 ; this code is (copied to and) run at location 0xd100.
-; This code is for the Kaypro II/IV (2.5MHz) - hard-coded timing.
+; Base code is for the Kaypro II/IV (2.5MHz) - hard-coded timing.
+; Define CLK4 for Kaypro 10 and */84 (4MHz) timing.
+; Define K10 for Kaypro 10 (incl. CLK4) drive assignments and base address.
+
 	maclib	z80
 	.ifndef	K10
 K10	equ	0
@@ -48,6 +51,27 @@ ydelay	macro
 zdelay	macro
 	endm
  endif
+
+; WEB-NT Hardware Controls
+; ChB RTS (keyboard port): "on" selects WEB-NT hardware, off = Kaypro serial
+; ChA RTS: Enable transmit of data from this node
+;          (off = force CTS on?)
+;     CTS: on = collision (or RTS off)(?)
+;     DCD: activity sensed on network
+;
+; Note that U8 Rx and Tx data are identical during transmit.
+; This means that DCD is active during transmit for the duration.
+;
+; During Transmit: DCD should reamin on. CTS should not change.
+; Any "modem control" changes cause interrupt, aborts Tx.
+; Prior to transmit, DCD is used to detect idle conditions.
+;
+; During Receive: DCD and CTS are ignored. First character
+; causes interrupt, begins receive operation. Third-party
+; collisions are detected by CRC errors.
+;
+; Both Tx and Rx occur using hard-coded timing. No polling
+; (or interrupts) are used for sending/receiving characters.
 
 BEL	equ	7
 TAB	equ	9
@@ -1989,6 +2013,7 @@ Le11d:	call	crlf		;; e11d: cd dd d2    ...
 	out	007h		;; e122: d3 07       ..
 	mvi	a,0eah	; DTR, 8b, Tx ena, RTS on
 	out	007h		;; e126: d3 07       ..
+	; Network selected/enabled
 	call	Ldff0		;; e128: cd f0 df    ...
 	call	conrst		;; e12b: cd dc df    ...
 	lhld	biosp		;; e12e: 2a a7 e7    *..
@@ -2094,7 +2119,7 @@ Le245:	lxi	h,Le7fe		;; e245: 21 fe e7    ...
 
 Le255:	di			;; e255: f3          .
 	lxi	h,Le376		;; e256: 21 76 e3    .v.
-	lxi	d,intvec		;; e259: 11 f0 eb    ...
+	lxi	d,intvec	;; e259: 11 f0 eb    ...
 	lxi	b,16		;; e25c: 01 10 00    ...
 	ldir			;; e25f: ed b0       ..
 	mvi	a,high intvec	;; e261: 3e eb       >.
@@ -2112,7 +2137,7 @@ Le255:	di			;; e255: f3          .
 	; set "status affects vector" (keyboard)
 	mvi	a,001h	; WR1
 	out	007h		;; e277: d3 07       ..
-	mvi	a,004h		;; e279: 3e 04       >.
+	mvi	a,004h	; sts affects vector, INT off
 	out	007h		;; e27b: d3 07       ..
 	; SIO init sequence for network
 	lxi	h,Le4c9		;; e27d: 21 c9 e4    ...
@@ -2137,31 +2162,34 @@ Le29f:	mvi	c,100	; timeout limit
 Le2a1:	mvi	a,010h	; reset EXT/STS
 	out	006h		;; e2a3: d3 06       ..
 	in	006h		;; e2a5: db 06       ..
-	ani	008h	; DCD
+	ani	008h	; DCD - activity on net
 	jrz	Le2b9		;; e2a9: 28 0e       (.
 	dcr	c		;; e2ab: 0d          .
-	jz	Le36e	; timeout
+	jz	Le36e	; timeout waiting for idle
 	lda	Leba2		;; e2af: 3a a2 eb    :..
 	ori	007h		;; e2b2: f6 07       ..
-	call	Le34f		;; e2b4: cd 4f e3    .O.
+	call	Le34f	; random delay, factor (Leba2 | 7)
 	jr	Le2a1	; keep checking
+; network is idle - at the moment
 Le2b9:	mvi	a,timeout	;; e2b9: 3e 28       >(
 	call	delay8		;; e2bb: cd 61 e3    .a.
 	mvi	a,010h	; reset EXT/STS
 	out	006h		;; e2c0: d3 06       ..
 	in	006h		;; e2c2: db 06       ..
-	ani	008h	; DCD (collision detect?)
-	jrnz	Le29f		;; e2c6: 20 d7        .
+	ani	008h	; DCD - activity on net
+	jrnz	Le29f	; active again - keep waiting
 	di			;; e2c8: f3          .
 	; keyboard intrs off
 	mvi	a,001h	; WR1
 	out	007h		;; e2cb: d3 07       ..
-	mvi	a,000h		;; e2cd: 3e 00       >.
+	mvi	a,000h	; sts-aff-vec off, INT off
 	out	007h		;; e2cf: d3 07       ..
+	; Status-Affects-Vector is now OFF
 	; network setup for send???
 	lxi	h,Le4d4		;; e2d1: 21 d4 e4    ...
 	call	Le4c2		;; e2d4: cd c2 e4    ...
 	ei			;; e2d7: fb          .
+	; setup for network transmit (RTS on, EXT/STS intr)
 	mvi	a,0aah	; fill data? first byte(s) out...
 	out	004h		;; e2da: d3 04       ..
 	mvi	a,005h	; WR5
@@ -2231,7 +2259,8 @@ Le323:	outi		; byte 9... sent
 	jrnz	Le323		;; e327: 20 fa        .
 	di			;; e329: f3          .
 	outi		; last byte?
-Le32c:	mvi	a,010h	; reset EXT/STS
+	; wait for CRC bytes to go
+Le32c:	mvi	a,010h	; reset EXT/STS - avoid spurious intr
 	out	006h		;; e32e: d3 06       ..
 	in	006h		;; e330: db 06       ..
 	cma			;; e332: 2f          /
@@ -2240,14 +2269,15 @@ Le32c:	mvi	a,010h	; reset EXT/STS
 	; now clear to disable Tx...
 	lxi	h,Le4df		;; e337: 21 df e4    ...
 	call	Le4c2		;; e33a: cd c2 e4    ...
-	call	Le488		;; e33d: cd 88 e4    ...
+	call	Le488	; switch to Recv
 	lda	Leba2		;; e340: 3a a2 eb    :..
 	srlr	a		;; e343: cb 3f       .?
 	sta	Leba2		;; e345: 32 a2 eb    2..
-	mvi	a,000h		;; e348: 3e 00       >.
+	mvi	a,0	; no errors in Tx
 Le34a:	lspd	netsav		;; e34a: ed 7b c4 eb .{..
 	ret			;; e34e: c9          .
 
+; Delay some "random" amount
 Le34f:	push	b		;; e34f: c5          .
 	mov	b,a		;; e350: 47          G
 	ldar			;; e351: ed 5f       ._
@@ -2258,7 +2288,7 @@ Le34f:	push	b		;; e34f: c5          .
 	ana	b		;; e357: a0          .
 	inr	a		;; e358: 3c          <
 	mov	b,a		;; e359: 47          G
-Le35a:	call	Le365		;; e35a: cd 65 e3    .e.
+Le35a:	call	Le365	; delay and poll
 	djnz	Le35a		;; e35d: 10 fb       ..
 	pop	b		;; e35f: c1          .
 	ret			;; e360: c9          .
@@ -2269,26 +2299,32 @@ delay8:	dcr	a		;; e361: 3d          =
 
 Le365:	mvi	a,delay2	;; e365: 3e 7f       >.
 	call	delay8		;; e367: cd 61 e3    .a.
-	call	Ldf8f		;; e36a: cd 8f df    ...
+	call	Ldf8f	; poll
 	ret			;; e36d: c9          .
 
+; wait for network idle timed-out
 Le36e:	call	Le488		;; e36e: cd 88 e4    ...
-	mvi	a,002h		;; e371: 3e 02       >.
-	jmp	Le34a		;; e373: c3 4a e3    .J.
+	mvi	a,2	; timeout (waiting for idle net)
+	jmp	Le34a	; return from Tx, err 2
 
-Le376:	dw	Le386
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	Le469
-	dw	Le3ad
-	dw	Le478
+; During transmit, Status-Affects-Vector is OFF so
+; ANY interrupt will use Le386.
+Le376:	dw	Le386	; ChB Tx Empty (any intr during Tx)
+	dw	0	; ChB Ext/Sts
+	dw	0	; ChB Rx Avail
+	dw	0	; ChB Rx Spcl
+	dw	0	; ChA Tx Empty
+	dw	Le469	; ChA Ext/Sts
+	dw	Le3ad	; ChA Rx Avail
+	dw	Le478	; ChA Rx Spcl
 
+; Interrupt during transmit - abort
+; Typically CTS (collision) (DCD should not change during Tx).
+; Normal EOM avoids CRC-intr.
 Le386:	pop	d		;; e386: d1          .
-	lxi	h,Le4df		;; e387: 21 df e4    ...
+	lxi	h,Le4df	; clear from Tx mode
 	call	Le4c2		;; e38a: cd c2 e4    ...
-	call	Le488		;; e38d: cd 88 e4    ...
+	call	Le488	; switch back to Recv
 	lda	Leba2		;; e390: 3a a2 eb    :..
 	stc			;; e393: 37          7
 	ral			;; e394: 17          .
@@ -2299,8 +2335,8 @@ Le386:	pop	d		;; e386: d1          .
 	sta	Leba3		;; e39f: 32 a3 eb    2..
 	lhld	Leba0		;; e3a2: 2a a0 eb    *..
 	jnz	Le290		;; e3a5: c2 90 e2    ...
-	mvi	a,001h		;; e3a8: 3e 01       >.
-	jmp	Le34a		;; e3aa: c3 4a e3    .J.
+	mvi	a,1		;; e3a8: 3e 01       >.
+	jmp	Le34a	; return from Tx, err 1
 
 Le3ad:	push	psw		;; e3ad: f5          .
 	push	b		;; e3ae: c5          .
@@ -2322,7 +2358,7 @@ Le3ad:	push	psw		;; e3ad: f5          .
 	out	006h		;; e3c7: d3 06       ..
 	zdelay
 	ini			;; e3c9: ed a2       ..
-	mvi	a,009h	; Rx INT 1st, EXT INT
+	mvi	a,009h	; Rx INT 1st, EXT INT (CTS/DCD)
 	out	006h		;; e3cd: d3 06       ..
 	zdelay
 	ini			;; e3cf: ed a2       ..
@@ -2388,7 +2424,7 @@ Le420:	inx	h		;; e420: 23          #
 	lda	ournid		;; e421: 3a 93 e5    :..
 	mov	m,a		;; e424: 77          w
 	call	Le4a8		;; e425: cd a8 e4    ...
-	; reconfigure SIO for ...
+	; reconfigure SIO for Recv
 	lxi	h,Le4ea		;; e428: 21 ea e4    ...
 	call	Le4c2		;; e42b: cd c2 e4    ...
 Le42e:	pop	h		;; e42e: e1          .
@@ -2412,7 +2448,7 @@ Le433:	ini			;; e433: ed a2       ..
 	out	006h		;; e443: d3 06       ..
 	zdelay
 	ini			;; e445: ed a2       ..
-	mvi	a,009h	; Rx INT 1st, EXT INT
+	mvi	a,009h	; Rx INT 1st, EXT INT (CTS/DCD)
 	out	006h		;; e449: d3 06       ..
 	zdelay
 	ini			;; e44b: ed a2       ..
@@ -2445,11 +2481,13 @@ Le469:	mvi	a,003h	; WR3
 	pop	h		;; e475: e1          .
 	jr	Le461		;; e476: 18 e9       ..
 
+; Rx Special conditions
+; collision detected?
 Le478:	mvi	a,003h	; WR3
 	out	006h	; 
 	mvi	a,0d8h	; 8b, hunt, CRC (Rx dis)
 	out	006h		;; e47e: d3 06       ..
-	mvi	a,020h	; CTS (fake)
+	mvi	a,020h	; CTS (fake) - collision?
 	pop	h		;; e482: e1          .
 	jr	Le461		;; e483: 18 dc       ..
 
@@ -2503,21 +2541,22 @@ Le4c9:	db	10
 	db	16h,0f5h	; WR6: sync low
 	db	17h,0fah	; WR7: sync high
 	db	13h,0d8h	; WR3: 8b, hunt, CRC (Rx dis)
-	db	15h,65h		; WR5: 8b, CRC-16, CRC (Tx dis)
+	db	15h,65h		; WR5: 8b, CRC-16, CRC (Tx dis, RTS off))
 
-;
+; Setup for Tx - EXT/STS intr enabled
 Le4d4:	db	10
 	db	33h,0d8h	; WR3: error reset, 8b, hunt, CRC (Rx dis)
 	db	0b1h,0		; WR1: error reset, reset TxCRC, INT off
-	db	15h,67h		; WR5: 8b, CRC-16, RTS, CRC (Tx dis)
-	db	10h,10h		; reset EXT/STS
-	db	39h,1		; RETI, EXT INT ena
-
-; toggle RTS, ...?
-Le4df:	db	10
-	db	0
 	db	15h,67h		; WR5: 8b, CRC-16, RTS on, CRC (Tx dis)
-	db	11h,0		; WR1: INT off
+	db	10h,10h		; reset EXT/STS
+	db	39h,1		; RETI, WR1: EXT/STS INT ena
+
+; Clear Tx mode?
+; toggle RTS, to clear /CTS?
+Le4df:	db	10
+	db	0		; sync SIO cmd reg
+	db	15h,67h		; WR5: 8b, CRC-16, RTS on, CRC (Tx dis)
+	db	11h,0		; (send ABORT SDLC) WR1: INT off
 	db	15h,65h		; WR5: 8b, CRC-16, RTS off, CRC (Tx dis)
 	db	16h,0f5h	; WR6: sync low
 	db	38h		; RETI
@@ -2526,7 +2565,7 @@ Le4df:	db	10
 Le4ea:	db	8
 	db	70h		; reset error, RxCRC
 	db	13h,0d8h	; WR3: reset EXT/STS, 8b, hunt, CRC (Rx dis)
-	db	11h,8		; WR1: RxINT 1st
+	db	11h,8		; WR1: RxINT 1st (EXT/STS intr off)
 	db	38h		; RETI
 	db	23h,0d9h	; WR3: EI nxt Rx, 8b, hunt, CRC, Rx ena
 
