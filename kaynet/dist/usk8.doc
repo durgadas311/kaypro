@@ -1,0 +1,347 @@
+.OP
+.MT3
+.MB3
+                            CHAPTER 8
+
+     TECHNICAL CONSIDERATIONS FOR PROGRAMMING AND OPERATIONS
+
+
+PLACEMENT OF .COM AND .OV? FILES
+
+     ULC-OPSneô  haó á designed-iî automatiã searcè algorithí foò 
+prograí  anä overlaù files®  Thå rationalå foò autosearcè  ió  tï 
+reducå thå numbeò oæ copieó oæ .COÍ anä .OV¿ fileó occupyinç disë 
+spacå  iî thå networë environment®  Therå arå threå formó oæ  thå 
+RUÎ commanä whicè activatå autosearch:
+
+     1.  Implied run (.COM file name without extension). 
+     2.  R <dev>:<.COM file name without extension>.
+     3.  RUn <dev>:<.COM file name without extension>.
+
+Eacè  oæ  theså  formó invokeó á differenô searcè  patè  foò  thå 
+desireä program®   Thå followinç tablå delineateó thå searcè patè 
+for each form of the RUN command looking for the program XX.COM:
+     +--------------------------------------------------------+
+     :d=current logged drive :                :               :
+     :u=active USER[ID]      :1st Search to:  :2nd Search to: :
+     :N=any assigned disk    :                :               :
+     :-----------------------+----------------+---------------:
+     :<du>XX<RET>            :A:USER [0]      :d:USER [u]     :    
+     :-----------------------+----------------+---------------:
+     :<du>R XX<RET>          :d:USER [0]      :A:USER [0]     :
+     :-----------------------+----------------+---------------:
+     :<du>R N:XX<RET>        :N:USER [0]      :A:USER [0]     :
+     :-----------------------+----------------+---------------:
+     :<du>RUn XX<RET>        :d:USER [u]      :A:USER [0]     :
+     :-----------------------+----------------+---------------:
+     :<du>RUn N:XX<RET>      :N:USER [u]      :A:USER [0]     :
+     +--------------------------------------------------------+
+     Foò  example¬  supposå thaô yoõ arå operatinç thå systeí  aô 
+nodå  · anä desirå tï executå thå prograí ZERO.COÍ locateä oî thå 
+physicaì disë C:¬ USEÒ [0]¬ aô nodå 3®  Yoõ coulä ruî ZERO.COÍ bù 
+performinç anù oæ thå following:
+     +--------------------------------------------------------+
+     :  <A0>ASSIGN C:=C:3<RET>                                :
+     :  Device C: assigned                                    :
+     :                                                        :
+     :  <A0>R C:ZERO<RET>                                     :
+     :                  (or)                                  :
+     :  <A0>C:<RET>                                           :
+     :  <C0>ZERO<RET>                                         :
+     :                  (or)                                  :
+     :  <C0>RUN ZERO<RET>                                     :
+     :                  (or,_if_eg._USER_[1])                 :
+     :  <A1>ASSIGN C:=C:3<RET>                                :
+     :  Device C: assigned                                    :
+     :                                                        :
+     :  <A1>R C:ZERO<RET>                                     :
+     :                  (or)                                  :
+     :  <A1>C:<RET>                                           :
+     :  <C1>R ZERO<RET>                                       :
+     +--------------------------------------------------------+
+
+                               8-1Š     Thå autosearcè algorithí foò .OV¿  fileó ió  absoluteº  .OV¿ 
+fileó  wilì alwayó bå searcheä oî thå samå logicaì disë anä  froí 
+thå  samå USEÒ [IDİ aó thå .COÍ prograí thaô calló foò thå  over
+lay®   Whilå  thió methoä makeó thå decisioî oî thå placemenô  oæ 
+alì  .COÍ fileó anä theiò respectivå overlayó relativelù  simple¬ 
+iô  causeó confusioî wheî usinç thå PIP.COÍ prograí oò anù  otheò 
+filå  copù routine®   Sincå ULC-OPSneô overrideó thå logicaì disë 
+locatioî calì froí á .COÍ prograí tï thå logicaì disë froí  whicè 
+thå .COÍ prograí waó loaded¬ copyinç .OV¿ fileó requireó thaô thå 
+autosearcè featurå foò .OV¿  fileó bå temporarilù disabled®  Thió 
+ió  accomplisheä witè thå OVOFF‚ command®   Supposå yoõ desirå  tï 
+copù WS.COM¬  WSMSGS.OVR¬ anä WSOVLY1.OVÒ froí logicaì disë Dº tï 
+logicaì  disë F:®   Iæ yoõ werå tï trù thió without“ firsô turninç 
+off the .OV? autosearch, the following would occur:
+
+     +--------------------------------------------------------+
+     :  <A0>PIP F:=D:WS*.*[V0]<RET>                           :
+     :    COPYING-                                            :
+     :    WS.COM                                              :
+     :    WSMSGS.OVR                                          :
+     :    NO FILE: =D:WSMSGS.OVR                              :
+     :                                                        :
+     :  <A0>                                                  :
+     +--------------------------------------------------------+ 
+     Iî  thió example¬  WS.COÍ waó found¬  buô thå firsô  overlaù 
+file¬  WSMSGS.OVR¬  waó noô founä becauså ULC-OPSneô overrode“ thå 
+PIP.COÍ  requesô tï finä WSMSGS.OVÒ oî thå logicaì Dº  disk¬  anä 
+instead¬ searcheä thå disë froí whicè thå .COÍ filå (PIP.COM© waó 
+loaded¬  disë  A:®   Thå  commanä woulä havå beeî  successfuì  iæ 
+precedeä bù thå OVOFF‚ commanä aó follows:
+
+     +--------------------------------------------------------+
+     :  <A0>OVOFF<RET>                                        :
+     :                                                        :
+     :  <A0>PIP F:=D:WS*.*[V0]<RET>                           :
+     :    COPYING-                                            :
+     :    WS.COM                                              :
+     :    WSMSGS.OVR                                          :
+     :    WSOVLY1.OVR                                         :
+     :                                                        :
+     :  <A0>OVON<RET>                                         :
+     :                                                        :
+     :  <A0>                                                  :
+     +--------------------------------------------------------+
+Aó thå examplå indicates¬  dï noô forgeô tï turî .OV¿  autosearcè 
+on again after completing copying operations.
+
+     Thå  Autosearcè featurå oæ ULC-OPSnet¬  iî combinatioî  witè 
+thå  systeí  securitù features¬  caî bå useä tï advantagå iî  thå 
+operationaì environmenô wherå á varietù oæ employeeó witè differ
+inç  responsibilitieó  anä experiencå leveló havå accesó  tï  thå 
+system®  Iæ alì requireä .COÍ anä .OV¿ fileó arå kepô iî USEÒ [0İ 
+area¬ (foò example)¬ employeeó witè accesó tï accountinç fileó iî 
+USEÒ [7İ coulä noô seå thå .COÍ anä .OV¿  fileó iî theiò  respec
+tivå  directories¬  buô woulä bå ablå tï executå thå applicationó 
+wheî  followinç theiò writteî procedureó bù typinç iî thå  appro
+priatå  .COÍ filå names®   Otheò unauthorizeä employeeó woulä  bå 
+ablå  tï  executå thå accountinç programs¬  buô  woulä  noô  havå 
+accesó tï thå accountinç datá files.
+                               8-2ŠOPERATIONAÌ PERFORMANCÅ NOTEº   Iô ió always“ advisablå tï keeğ aó 
+mucè oæ thå prograí codå (fileó endinç iî .COM¬ .OV?¬ .BAS¬ .CMD¬ 
+etc.© aó possiblå oî locally“ availablå disë storage®  Accesó oveò 
+ULCneô tï recordó iî á datá file¬ messagå switching¬ anä spoolinç 
+usuallù requirå onlù á smalì numbeò oæ networë packetó peò opera
+tion®   Iæ  multiplå operatoró musô loaä prograí applicatioî codå 
+oveò  thå  networë aó well¬  useò responså timå maù  bå  severelù 
+affected¬  aó  prograí loadó maù requirå upwardó oæ  40°  packetó 
+beforå anù operatoò activitù maù bå accomplished®  Thió situatioî 
+ió particularlù exacerbateä wheî á networë ió organizeä sucè thaô 
+alì useró musô loaä prograí codå anä datá froí onå node®   Remem
+ber¬  thå  concepô  oæ  locaì areá networkinç ió onå  oæ  Distri
+buted_Processing»  sincå  alì micro-processoró iî  thå  networkeä 
+systemó  arå approximatelù equaì iî instructioî executioî  speed¬ 
+iô  ió besô tï distributå thå probablå processinç loaä aó mucè aó 
+possiblå betweeî multiplå systems.
+
+MULTI-USER FILE OPERATIONS UNDER ULC-OPSnet
+
+     ULCneô ió á distributeä intelligencå architecture¬  thaô is¬ 
+applicationó  executå  independentlù oæ onå anotheò  iî  separatå 
+systems®  Therå ió nï centralizeä filå server¬ anä nï MP/Í systeí 
+ió requireä tï acô aó thå serveò controller®  Iî thå ULCneô envi
+ronment¬  multiplå simultaneouó executionó oæ aî applicatioî  maù 
+alsï  havå commoî file(s© opeî aô thå samå time®  Iî thió regard¬ 
+ULC-OPSneô  provideó á momentarù recorä locë tï prohibiô  twï  oò 
+morå  requestó  froí  issuinç simultaneouó "writes¢ tï  thå  samå 
+physicaì record®  Therå ió not¬ however¬ aî automatiã methoä witè 
+whicè  tï ensurå propeò filå appendinç wheî twï oò  morå  systemó 
+havå á commoî filå open®   Sincå thå backgrounä servinç partitioî 
+caî  onlù providå datá anä filå controì blocë informatioî tï  thå 
+application¬  therå  ió  nï waù tï communicatå tï thå  foregrounä 
+partitioî  oæ  á  requestinç systeí thå statuó  oæ  á  particulaò 
+record®   Thå  CP/Í filå structurå haó nï provisioî iî  thå  filå 
+controì  blocë  foò thió kinä oæ dynamiã statuó  information®  Tï 
+solvå thió multi-useò datá baså problem¬ ULC-OPSneô haó implemen
+teä á conventioî which¬  iæ followeä iî applicatioî  logic¬  wilì 
+resulô  iî  thå abilitù tï uså dynamicallù alterablå commoî  datá 
+baseó  iî á multi-useò environment®  Thå conventioî waó  designeä 
+specificallù foò dBASE-IÉ (c)¬  buô wilì worë witè virtuallù  anù 
+applicatioî  generator¬  compileò oò interpreteò witè thå abilitù 
+tï "Peek¢ anä "Poke¢ á specifiã memorù location®  Anù filå inten
+deä  tï bå useä witè thå filå locë featurå musô havå  á  physicaì 
+filå extensioî beginninç witè .D‚ (i.e.¬ FILENAME.D??).
+
+     Thå  multi-useò filå locë conventioî ió defaulteä iî thå OFF‚ 
+positioî  iî thå networë operatinç system®   Tï  turî  multi-useò 
+filå locë ON¬  POKÅ locatioî 0¸ (08H© witè á non-zerï value®   Iæ 
+locatioî  0¸ (08H© ió non-zero¬  thå ULC-OPSneô operatinç  systeí 
+wilì  checë thå statuó oæ anù filå witè á .D??‚ filå extensioî  tï 
+seå iæ iô haó beeî "applicatioî locked"®   Á filå ió "applicatioî 
+locked¢  wheî  thå high-ordeò biô iî thå fiftè bytå oæ  thå  Filå 
+Controì Blocë ió seô "high"®   Foò example¬ ULC-OPSneô knowó thaô 
+thå  filå  ACCT.DTÁ ió "applicatioî locked¢ iæ thå  Filå  Controì 
+Blocë readsº "00414343D420202020445441...(H)¢  Pokinç locatioî 0¸ 
+(08H©  witè á non-zerï valuå alsï causeó ULC-OPSneô seô thå Retrù 
+Counteò  tï  á higè value¬  thuó continuinç  applicatioî  prograí 
+executioî tï á normaì completioî anä  preservinç locaì datá untiì 
+thå Serveò Nodå becomeó available.
+                               8-3Š     Thå  multi-useò  conventioî  ió designeä  arounä  twï  "flaç 
+bytes,¢  thå contentó oæ whicè arå determineä bù botè  ULC-OPSneô 
+anä thå applicatioî program®  Thå flaç byteó arå iî memorù  loca
+tionó 6´ (40H© anä 6µ (41H)®  Locatioî 6´ ió thå filå statuó bytå 
+thå applicatioî lookó foò tï determinå iæ thå filå jusô openeä ió 
+"locked¢  anä currentlù iî uså bù anotheò user¬  oò haó jusô beeî 
+lockeä anä ió availablå foò updatå bù thå  application®  Locatioî 
+6µ ió useä bù thå applicatioî tï telì ULC-OPSneô iæ thå filå jusô 
+requesteä  ió tï bå useä tï reaä only¬  oò wilì bå useä witè  thå 
+intenô tï botè read“ anä write®
+
+     Functionally¬  thå applicatioî musô POKÅ locatioî 6µ witè 90“ 
+(5AH©  iæ  thå  filå ió tï bå openeä aó read/write“ oò  anù  otheò 
+valuå iæ thå filå ió tï bå openeä aó read/only®  Afteò issuinç aî 
+OPEÎ  (oò USE)¬  thå applicatioî musô PEEË aô  locatioî  64®   Iæ 
+locatioî  6´  ½ 0¬  thå filå jusô openeä ió no÷ lockeä  tï  otheò 
+users¬  anä thå applicatioî maù continuå witè thå process¬ updatå 
+thå  file¬  anä closå thå file®  Iæ locatioî 6´ ió noô 0“  (=/0)thå 
+filå  jusô openeä haó alreadù beeî openeä anä lockeä  bù  anotheò 
+user®  Iæ  thå applicatioî haä previouslù POKEä á 1“ intï locatioî 
+65¬  signifyinç tï ULC-OPSneô thå intenô tï read_only¬ thå appli
+catioî maù proceeä witè á normaì reaä anä closå thå file®  If¬ oî 
+thå  otheò hand¬  thå applicatioî haä previouslù POKEä á 90“  intï 
+locatioî 65¬  indicatinç tï ULC-OPSneô thå intenô tï writå tï thå 
+file¬  thå  applicatioî  musô waiô anä retrù thå  OPEÎ  prioò  tï 
+proceeding.
+
+     Iæ  multiplå fileó arå tï bå "used¢ aô thå  samå  time¬  thå 
+value__of__location_64_after_the_file_is_opened__must__be__saved® 
+Likewise¬ before_the_file_is_closed_the_value_of_location_64_musô 
+be_restored® Foò example¬ iî dBASE-II¬ afteò thå USÅ statemenô tï 
+opeî  á  file¬  dï á STORÅ PEEK(64© TÏ FSTAT1®  Theî  beforå  thå 
+closinç USE¬  dï á POKÅ 64,FSTAT1®  Makå certaiî therå ió á sepa
+ratå variablå foò eacè filå opened.‚ Iæ onlù onå filå aô á timå ió 
+tï  bå used¬  thió procedurå ió noô nessesary®  Thió procedurå is“ 
+necessarù  wheî morå thaî onå filå ió tï bå openeä aô  onå  time¬ 
+regardlesó oæ whetheò oò noô thå fileó arå PRIMARÙ oò SECONDARY.
+
+     To check the status of a file use:
+
+               <A0>DIR d:<filename.ext>/W<RET>
+
+     To unlock an automatically locked file manually, use:
+
+               <A0>PROTECT d:<filename.ext> AUNLOCK<RET>
+
+     To manually use the file lock, use:
+               
+               <A0>PROTECT d:<filename.ext> ALOCK<RET>
+
+OPERATIONAÌ NOTEº  ULCneô createó á trulù distributeä  processinç 
+network®  Anù filå maù bå locateä anywherå physicallù iî thå Net¬ 
+anä  (provideä  thå propeò Privilegå Leveló arå assigned© maù  bå 
+accesseä bù anù node®   Thå foregrounä partitioî oæ á nodå oî thå 
+Neô  onlù haó accesó tï thå Filå Controì Blocë anä thå datá  con
+taineä iî á filå locateä oî somå otheò  node®   Thus¬  ULC-OPSneô 
+utilizeó  thå filenamå extensioî tï determinå whetheò á filå  maù 
+bå  controlleä bù thå filå locë facility®   Onlù fileó  witè  thå 
+physicaì filenamå extensioî oæ .D?¿  maù bå shareä usinç thå filå 
+lock facility.                 8-4ŠRESTRICTED ASCII CHARACTERS AND FILE NAMES IN ULC-OPSnet
+
+     ULC-OPSneô  useó  somå ASCIÉ characteró aó speciaì  switcheó 
+anä delimiters®  Thå /‚ character¬  foò example¬ ió useä tï denotå 
+aî optioî switcè foò thå DIR‚ anä QUEUE‚ commands®  Iô ió importanô 
+tï  notå whicè oæ theså ASCIÉ characteró cannot“ bå useä iî  file
+names®   Iæ filenameó alreadù exisô witè restricteä characteró aó 
+parô  oæ  thå filename¬  thå filenamå musô bå changeä tï  utilizå 
+non-restricteä characters®  Otherwise¬ thå filå wilì noô bå founä 
+bù ULC-OPSneô wheî accessed®  
+
+     Thå  tablå belo÷ listó thå completå seô oæ ASCIÉ  characteró 
+witè  thå  correspondinç hexadecimaì  values®   Characteró  whicè 
+cannot“ bå useä iî filenameó arå iî BRACKETÓ ([]).
+
++---------+-----+--------+-----+--------+-----+--------+-----+
+:  CHAR   : HEX :  CHAR  : HEX :  CHAR  : HEX :  CHAR  : HEX :
++---------+-----+--------+-----+--------+-----+--------+-----+
+: [NUL]   : 00H :  [SP]  : 20H :   @    : 40H :   ` *  : 60H :
+: [CTL A] : 01H :  [!]   : 21H :   A    : 41H :   a *  : 61H :
+: [CTL B] : 02H :  ["]   : 22H :   B    : 42H :   b *  : 62H :
+: [CTL C] : 03H :  [#]   : 23H :   C    : 43H :   c *  : 63H :
+: [CTL D] : 04H :   $    : 24H :   D    : 44H :   d *  : 64H :
+: [CTL E] : 05H :  [%]   : 25H :   E    : 45H :   e *  : 65H :
+: [CTL F] : 06H :  [&]   : 26H :   F    : 46H :   f *  : 66H :
+: [CTL G] : 07H :  [']   : 27H :   G    : 47H :   g *  : 67H :
+: [CTL H] : 08H :  [(]   : 28H :   H    : 48H :   h *  : 68H :
+: [CTL I] : 09H :  [)]   : 29H :   I    : 49H :   i *  : 69H :
+: [CTL J] : 0AH :  [*]   : 2AH :   J    : 4AH :   j *  : 6AH :
+: [CTL K] : 0BH :  [+]   : 2BH :   K    : 4BH :   k *  : 6BH :
+: [CTL L] : 0CH :  [,]   : 2CH :   L    : 4CH :   l *  : 6CH :
+: [CTL M] : 0DH :  [-]   : 2DH :   M    : 4DH :   m *  : 6DH :
+: [CTL N] : 0EH :  [.]   : 2EH :   N    : 4EH :   n *  : 6EH :
+: [CTL O] : 0FH :  [/]   : 2FH :   O    : 4FH :   o *  : 6FH :
+: [CTL P] : 10H :   0    : 30H :   P    : 50H :   p *  : 70H :
+: [CTL Q] : 11H :   1    : 31H :   Q    : 51H :   q *  : 71H :
+: [CTL R] : 12H :   2    : 32H :   R    : 52H :   r *  : 72H :
+: [CTL S] : 13H :   3    : 33H :   S    : 53H :   s *  : 73H :
+: [CTL T] : 14H :   4    : 34H :   T    : 54H :   t *  : 74H :
+: [CTL U] : 15H :   5    : 35H :   U    : 55H :   u *  : 75H :
+: [CTL V] : 16H :   6    : 36H :   V    : 56H :   v *  : 76H :
+: [CTL W] : 17H :   7    : 37H :   W    : 57H :   w *  : 77H :
+: [CTL X] : 18H :   8    : 38H :   X    : 58H :   x *  : 78H :
+: [CTL Y] : 19H :   9    : 39H :   Y    : 59H :   y *  : 79H :
+: [CTL Z] : 1AH :  [:]   : 3AH :   Z    : 5AH :   z *  : 7AH :
+: [ESC]   : 1BH :  [;]   : 3BH :   [    : 5BH :   { *  : 7BH :
+: [FS]    : 1CH :   <    : 3CH :   \    : 5CH :   | *  : 7CH :
+: [GS]    : 1DH :  [=]   : 3DH :   ]    : 5DH :   } *  : 7DH :
+: [RS]    : 1EH :   >    : 3EH :   ^    : 5EH :   ~ *  : 7EH :
+: [US]    : 1FH :  [?]   : 3FH :   _    : 5FH :  [DEL] : 7FH :
++---------+-----+--------+-----+--------+-----+--------+-----+
+
+(*© Automaticallù translateä tï (-20H© character»  i.e.¬  a“ (61H© 
+is automatically translated to A (41H).
+
+
+
+.pa                            8-5Š     Iî additioî tï thå restricteä characteró iî thå table¬  .COÍ 
+filenameó  arå alsï restricted®   Literaì sub-setó oæ  ULC-OPSneô 
+systeí commandó cannot“ bå useä aó .COÍ filå names®   Foò example¬ 
+iæ thå systeí werå askeä tï executå INIT.COM¬ thå .COÍ filå woulä 
+neveò  bå seeî bù thå system®  Instead¬  ULC-OPSneô woulä executå 
+thå INITializå command®  Likewise¬  ULC-OPSneô wilì loaä thå COPù 
+(PIP©  commanä insteaä oæ thå COPY.COÍ prograí iæ yoõ attempô  tï 
+ruî COPY®   Comparå youò .COÍ filå nameó witè thå commanä summarù 
+iî Chapteò 9¬  anä renamå anù conflictinç filenames®   Notå  thaô 
+Chapteò  ¹ listó eacè oæ thå ULC-OPSneô commandó witè thå minimum“ 
+commanä  entrù iî CAPÓ anä thå remaindeò oæ thå commanä iî  loweò 
+case®  Foò example¬ thå minimuí entrù foò thå WHERÅ commanä ió W®  
+Thuó iæ yoõ havå fileó nameä W.COM¬  WH.COM¬ WHE.COM¬ WHER.COÍ oò 
+WHERE.COM¬  alì  musô bå renamed®   Anù onå oæ thå abovå  entrieó 
+wilì executå thå WHERÅ command.
+
+OPERATIONS WITH OSUB.COM, OXSUB.COM, AND PSUB.COM
+
+     Thå  ULC-OPSneô  equivalenô oæ SUBMIT.COÍ anä  XSUB.COÍ  arå 
+OSUB.COÍ anä OXSUB.COÍ respectively®  PSUB.COÍ ió á speciaì relo
+catablå forí oæ SUBMIT.COÍ thaô does_not“ handlå submiô operationó 
+iî thå samå waù aó CP/M'ó SUBMIT.COM¬  buô maù bå useä tï executå 
+á submiô strinç withiî aî application®   It'ó primarù functioî ió 
+tï  facilitatå thå submitteä assignmenô oæ thå LSTº  devicå tï  á 
+filå namå whilå iî aî applicatioî likå WORDSTAR®  Operationó witè 
+OSUB.COÍ anä OXSUB.COÍ are¬  however¬  handleä iî thå samå waù aó 
+submiô operationó witè thå CP/Í counterpartó - witè thå followinç 
+enhancements:
+
+     1®   OSUB.COÍ anä OXSUB.COÍ dï not“ requirå additionaì memorù 
+     to process submitted files.
+     
+     2®   OSUB.COÍ  maù bå calleä witè (a© <A0>SUBmiô  <filename¾ 
+     <param>....<param><RET>‚ oò (b© <A0>OSUÂ <filename¾ <param>..
+     ..<param><RET>.
+
+     3®   OXSUB.COÍ  maù  bå invokeä witè (a)<A0>OXSUÂ  ON<RET>¬ 
+     (b)<A0>XSUB ON<RET>, or simply (c)<A0>X ON<RET>.
+
+     4®   $$$.SUÂ  fileó  arå createä anä processeä iî  thå  samå 
+     manneò  aó SUBMIT.COÍ processeó theså fileó iî CP/M¬  excepô 
+     thaô  alì legaì ULC-OPSneô commandó maù bå embeddeä  iî  thå 
+     commanä filå tï bå submitted¬ with_the_exceptioî_oæ_thå_USER„ 
+     command.  
+
+     5®   Iæ  á  filå nameä INITIA.INÉ existó oî thå systeí  disë 
+     (A:© iî thå respectivå USEÒ [IDİ areá aô thå timå oæ  LOGIN¬ 
+     OSUB.COÍ  wilì  automaticallù creatå anä procesó  á  $$$.SUÂ 
+     file with the contents of INITIA.INI.
+
+     6®   Thå filå extensioî .SUÂ ió not“ 

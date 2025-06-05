@@ -1,0 +1,208 @@
+title auto.mac  make/unmake disk auto boot
+subttl 10/29/84 jim
+.z80
+cr	equ	0dh
+lf	equ	0ah
+bdos	equ	5
+esc	equ	1bh
+patch	equ	7	;byte 7 = first byte to adjust
+trk	equ	0
+sec	equ	1
+dfcb	equ	05ch	;default fcb
+;
+;
+	defb	cr,'       '
+inst:	defb	cr,lf
+	defb	'to use this program you must supply a drive letter'
+	defb	cr,lf
+	defb	'A: or B: or in the case of the K10 C:'
+	defb	cr,lf
+	defb	'and an optional program name'
+	defb	cr,lf
+	defb	'AUTO A:MBASIC      - will cause the disk in drive A'
+	defb	cr,lf
+	defb	'                     when booted to run the program MBASIC'
+	defb	cr,lf
+	defb	'AUTO A:            - will undo the above, the disk will'
+	defb	cr,lf
+	defb	'                     boot normaly'
+;
+	defb	cr,lf
+	defb	'$'
+	defb	1ah
+;
+start:
+;
+; get bios jumps
+	ld	hl,(1)
+	ld	de,bios
+	ld	bc,48
+	ldir
+;
+; check if drive specified no drive = invalid request
+;
+	ld	hl,80h	;line typed in length
+	ld	a,(hl)	;length
+	cp	0	;= nothing typed
+	jp	z,invalid
+	cp	3
+	jp	c,invalid
+	inc	hl
+	inc	hl
+	sub	3
+	ld	(len),a	;length of command
+	inc	hl
+	ld	a,(hl)
+	cp	':'	;must be 
+	jp	nz,invalid
+	dec	hl
+	ld	a,(hl)	;get drive
+	sub	'A'	; a=0
+	cp	3
+	jp	nc,invalid
+;
+	ld	(dsk),a	;save for read/write operation
+	ld	a,(len)
+	cp	0	;0 = unauto
+	jp	z,unauto
+	ld	hl,80h+4	;1 st char typed in
+	ld	c,a		;length of command
+	ld	b,0
+	ld	de,mbuf		;temporary storage
+	ldir
+;
+	call	read		;get tagret sector
+	ld	a,(len)		;length of the command
+	ld	(87h),a		;save it for write
+	ld	c,a
+	ld	b,0
+	ld	hl,mbuf		;source
+	ld	de,88h		;destination
+	ldir			;move it to target
+	ld	a,0
+	ld	(de),a		;mark end
+;
+	call	write
+	ret
+;
+unauto:	;make disk un auto boot
+	call	read	;read in sector
+	ld	a,0
+	ld	(87h),a
+	call	write
+	ret
+;
+invalid:	;invalid request
+	ld	de,inst
+	ld	c,9
+	call	bdos
+	ret
+;
+;
+;
+read:	;read in a sector
+	ld	a,(dsk)	;dsk drive
+	ld	c,a
+	call	seldsk
+	ld	a,h
+	or	l
+	jr	nz,rd1
+;
+	ld	de,ndmsg
+	ld	c,9
+	call	bdos
+	jp	invalid
+ndmsg:	defb	cr,lf
+	defb	' non existant drive '
+	defb	cr,lf
+	defb	'$'
+;
+rd1:
+	call	home
+	ld	bc,trk
+	call	settrk
+	ld	bc,sec
+	call	setsec
+	ld	c,1
+	call	bread
+	cp	0	;0 = sucess
+	ret	z
+;
+	ld	de,rerr
+	ld	c,9
+	call	bdos
+	pop	hl	;clean stack
+	jp	0	;warm boot system
+;
+rerr:	defb	cr,lf
+	defb	'******** error reading disk *********'
+	defb	7,7,7
+	defb	cr,lf
+	defb	'$'
+;
+write:	;write sector
+	ld	a,(dsk)	;dsk drive
+	ld	c,a
+	call	seldsk
+	ld	a,h
+	or	l
+	jr	nz,wr1
+;
+	ld	de,wndmsg
+	ld	c,9
+	call	bdos
+	jp	invalid
+wndmsg:	defb	cr,lf
+	defb	' non existant drive '
+	defb	cr,lf
+	defb	'$'
+;
+wr1:
+	call	home
+	ld	bc,trk
+	call	settrk
+	ld	bc,sec
+	call	setsec
+	ld	c,1
+	call	bwrite
+	cp	0	;0 = sucess
+	ret	z
+;
+	ld	de,werr
+	ld	c,9
+	call	bdos
+	pop	hl	;clean stack
+	jp	0	;warm boot system
+;
+werr:	defb	cr,lf
+	defb	'******** error writing disk *********'
+	defb	7,7,7
+	defb	cr,lf
+	defb	'$'
+;
+lfunc:	defb	0	;last function preformed
+dsk:	defb	0
+len:	defb	0
+mbuf:	ds	130	;my copy of the buffer
+bios:
+wboot:	ds	3
+const:	ds	3
+conin:	ds	3
+conout:	ds	3
+list:	ds	3
+punch:	ds	3
+reader:	ds	3
+home:	ds	3
+seldsk:	ds	3
+settrk:	ds	3
+setsec:	ds	3
+setdma:	ds	3
+bread:	ds	3
+bwrite:	ds	3
+listst:	ds	3
+sectran: ds	3
+	ds	10
+;
+	end	start
+;
+

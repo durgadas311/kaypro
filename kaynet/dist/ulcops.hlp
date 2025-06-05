@@ -1,0 +1,179 @@
+&ASM
+ASM FOO			;Assemble FOO.ASM
+&ASSIGN
+ASSign A:		;Deassigns A:
+ASSign C:=G:		;Reassigns C: to be G:
+ASSign D:=A:5		;Assigns D: to A: on node 5
+ASSign LST:=A:FOO.LPT	;Assigns all LST: output to file A:FOO.LPT
+			;Use the FINish command to assign LST: to LST:
+&CORE
+CORe			;Display RAM available to the foreground partition
+&COPY
+COPy A:DOG=C:CAT	;Copy the file CAT on disk C: to disk A: and rename 
+			;the file to DOG
+COPy LST:=H:FILE.DOC	;Copy the file FILE.DOC on disk H: to the local LST:
+			;device
+			;Note: Runs PIP.COM for all copy operations.
+&DDT
+DDT			;Run the DDT debugging program
+DDT FOO.HEX		;Debug FOO.HEX
+DDT C:BARC.COM		;Debug the BARC.COM program on disk C:
+&DIRECT
+DIrectory		;Show all files on the default disk
+DIrectory J:		;Show all files on disk J:
+DIrectory *.COM		;Show all .COM files on the default disk
+DIrectory *.DOC/W	;Show a detailed directory for all .DOC files
+DIrectory B:/P		;Print a directory of disk B: on the local LST: device
+DIrectory/WP		;Print a detailed directory on the local LST: device
+&DUMP
+DUmp FOO.COM		;Dump the contents of FOO.COM in hexadecimal
+&ED
+ED TEST.RST		;Edit TEST.RST using ED.COM
+&ERASE
+ERAse TESTER.TST	;Erase file TESTER.TST on default DSK: and USER [ID]  
+ERAse *.COM		;Erase all .COM files on default DSK: and USER [ID]
+ERAse G:*.*		;Erase all files on disk G:, USER [ID]
+&FIND
+FIND MYFILE.ASM		;Search all disk drives currently ASSigned in the Where
+			;table for the file MYFILE.ASM
+FIND WS*.*		;Search all disk drives currently ASSigned in the Where
+			;table for any file names starting with WS 
+&FINISH
+FINish			;Closes ASSigned LST: file and ASSigns LST:=LST:
+&GET
+Get			;Load last created .COM file into TPA
+Get EDITOR		;Load EDITOR.COM into the TPA
+&HELP
+Help			;Displays this text
+Help *			;Displays all subjects available
+Help ASSIGN		;Gives information on the ASSIGN command
+&INET
+INET Xerox 8		;Set system for a XEROX computer and make it node 8
+INET Kaypro Z		;Set system for a KAYPRO computer and make it node Z
+INET Kaypro		;Set system for a KAYPRO computer and make it node G
+			;(Gatekeeper) NOTE: do not omit Node ID if not a GtKpr
+&INITIA
+Initialize		;Reinitialize the disk system (If you change disks)
+			;and display Version, Node ID, and User information
+&LOAD
+LOAd FOO		;Load FOO.HEX into RAM and create a .COM file
+&LOCATE
+LOCate			;Locate devices local
+LOCate 7		;Locate devices at node 7
+&LOGIN
+LOGin 7			;Login to system as user 7 (Password required)
+			;(If INITIA.INI exist upon LOGin it will be SUbmitted)
+&LOGOUT
+LOGout			;Give up access to the system, but keep serving par-
+			;tition active (if system has been INETed)
+&MAIL
+Mail			;Check mailbox
+Mail 5 A:LETTER		;Mail A:LETTER to node 5, USER [ID]
+Mail 23 B:TEST.DOC	;Mail B:TEST.DOC to node 2 user 3
+&OSUB
+OSUB B:TEST.SUB		;Submit the file TEST.SUB on disk B: (Same as SUbmit)
+&OVOFF
+OVOFf			;Turns off the auto overlay feature (use with PIP)
+&OVON
+OVON			;Turns on the auto overlay feature
+			;	(default on LOGIN is OVON)
+&OXSUB
+OXSUB On		;Turn XSUB on and remain on until turned off
+OXSUB OFf		;Turn XSUB off
+			;	(default on LOGIN is XSUB OFF)
+&PSUB
+PSUB PRINTON		;Submit the file PRINTON...used to submit a file while 
+			;in an application program
+&PROTECT
+PROtect MYFILE RO	;Protect MYFILE to Read/Only
+PROtect C:FILE.DOC LOCK	;Lock the file FILE.DOC on disk C:
+PROtect *.DBU AU	;Unlock all databases for application programs
+
+	Attributes are:	ROnly	Read Only
+			RWrite	Read/Write
+			SYstem	SYstem file
+			Direct  DIrectory file
+			Private	A PRivate(Not sharable) file
+			SHare	A SHarable file
+			Lock	Temporary file Lock
+			Unlock  Remove temporary file lock
+			ALock	Lock file to Application programs
+			AUnlock	Unlock a file for Application programs
+&QOFF
+QOFf			;Pauses the print queue service from printing (use 
+			;when printing to local LST: device directly from
+			;application (foreground partition)
+&QON
+QON			;Gives the print queue service control of the printer
+			;	(default on LOGIN is QON)
+&QUEUE
+QUeue			;Display queues and spooler status
+QUeue FILE.LPT		;Print FILE.LPT to location of SPool LST: device
+QUeue TTY:		;Set spooler device default to TTY:
+QUeue UL1:=FOO.LPT	;Spool FOO.LPT to device UL1:
+QUeue/Abort		;Stop current file from spooling
+QUeue/Eject		;Set printer to top of form
+QUeue H:OUTP.LST/C3	;Print (Spool) 3 copies of OUTP.LST from disk H:
+QUeue INVOICE.PRN/F	;Spool INVOICE.PRN and pause for special forms before
+			;physical output begins
+&R
+R D:PIP			;Run the PIP.COM program from disk D:, USER [0], or
+			;search disk A:, USER [0] if not on D:
+R PIP			;Run the PIP.COM program from the default DSK:, USER
+			;[0], or search disk A:, USER [0] if not on the DSK:
+&REACT
+REACT			;Run the REACT.COM program (REview ACcT.sys)
+&RENAME
+REName B:XYZ=B:ABC	;Rename file B:ABC to B:XYZ
+&RETRY
+RETRY			;Check the current value of the Retry counter
+RETRY 10		;Set the value of the Retry counter to 10
+			;	(default on LOGIN is RETRY 000)
+&RUN
+RUn C:FOO		;Run the FOO.COM program from disk C:, USER [ID], or
+			;search disk A:, USER [0] if not on C:
+RUn FOO			;Run the FOO.COM program from the default DSK:, USER
+			;[ID], or search disk A:, USER [0] if not on the DSK:
+&SAVE
+SAve 34 C:MY.COM	;Save the first 34 records (128 bytes each) of TPA, st-
+			;arting at 100H, to disk C:, with the file name MY.COM
+&SEND
+SEND 1 MESSAGE		;Send a message to node 1
+SEND ALl MESSAGE	;Send a message to all nodes
+&SPOOL
+SPool			;Displays spooler location
+SPool 0			;QUeued (printed) output to local LST: device
+			;	(default on LOGIN is SPool 0)
+SPool 5			;QUeued (printed) output to LST: device at Node 5
+&START
+STart			;Start execution of the program in the TPA
+STart APPLE PEAR	;Start with APPLE and PEAR program arguments
+&STAT
+Issue a 'STAT VAL:' command for info on STAT.
+&SUBMIT
+SUbmit JUNKDIR		;Submit JUNKDIR. (or if not found JUNKDIR.SUB)
+SUbmit D:X.X A B C	;Submit X.X, located on disk D:, with A, B, and C for 
+			;arguments ($$$.SUB will be processed from disk A:)
+&TTY
+TTy Crt			;Terminal is a CRT
+TTy Gag			;Don't receive messages if executing a program
+TTy No Gag		;Receive a message anytime
+			;	(default on LOGIN is TTy No Gag)
+TTy Tty			;Terminal is a teletype
+&TYPE
+TYpe MYFILE.DAT		;Display the contents of MYFILE.DAT
+&USER
+User			;Display current user information
+User 7			;Change user number to 7 (If privleged)
+&WHERE
+Where			;Display device assignments
+Where C:		;Display C: assignment and location
+&WHO
+WHO			;Display all current network users and there status
+			;(can only be executed from Gatekeeper)
+&XSUB
+Xsub On			;Turn XSUB feature On
+Xsub OFf		;Turn XSUB feature OFf
+			;	(default on LOGIN is XSUB OFf)
+&
+

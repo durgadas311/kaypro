@@ -1,0 +1,268 @@
+.MB 7
+
+             DBASE II USAGE WITH ULCNET FILE LOCKING
+
+
+     Thió   documenô  describeó  thå  procedureó  tï   uså   wheî 
+implementinç  dBASÅ  IÉ  witè thå ULCNEÔ filå  lockinç  facility®  
+Followinç  theså  procedureó insureó thaô databaså fileó  maù  bå 
+shareä  bù morå thaî onå user®   Iô ió assumeä thaô yoõ  havå  aî 
+understandinç  oæ thå ULCNEÔ operatinç systeí beforå readinç thió 
+document.
+
+
+PROCEDURES
+
+     Therå  arå twï procedureó thaô musô bå followeä iî ordeò  tï 
+uså dBASÅ IÉ witè thå ULCNEÔ filå lockinç facility®   Theù shoulä 
+poså nï probleí foò mosô users®  Theù arå aó follows:
+
+1®  Thå dBASÅ IÉ COMMAND¬  PRIMARÙ DATÁ BASÅ ¬ anä SECONDARÙ DATÁ 
+BASÅ fileó MUST‚ bå oî DIFFERENÔ LOGICAL“ disë drives®  Thió shoulä 
+noô  bå á probleí becauså morå thaî onå logicaì drivå designatioî 
+maù  bå  assigneä  tï  thå  samå  PHYSICAÌ  drive®  Thió  caî  bå 
+accomplisheä witè thå assigî command®   Foò  assistance¬  consulô 
+youò ULCNEÔ User'ó Guide.
+
+2®  Oncå á databaså filå ió opened¬  iô MUST‚ bå changeä beforå iô 
+ió closed®   Iæ nï changeó arå tï bå made¬ simplù uså thå REPLACÅ 
+commanä  anä replacå á fielä witè thå samå field®   Thió  'fools§ 
+dBASÅ  intï  thinkinç thaô thå filå waó changed¬  anä  thå  closå 
+operatioî wilì worë properly®  Iæ thió ió noô done¬ thå filå wilì 
+remaiî  lockeä  afteò  thå filå ió closeä anä caî  nï  longeò  bå 
+accessed.
+
+
+EXAMPLES
+
+   Showî belo÷ arå somå examplå '.CMD§ fileó thaô demonstratå ho÷ 
+tï uså dBASÅ IÉ witè ULCNEÔ filå locking®  Thå firsô ió á prograí 
+thaô accesseó á databaså filå anä displayó itó contents®  Iæ thió 
+prograí ió ruî oî twï differenô nodes¬  anä botè nodeó attempô tï 
+accesó  thå samå databaså file¬  onlù onå wilì bå granteä access®  
+Thå otheò wilì havå tï waiô untiì thå firsô nodå ió donå witè thå 
+filå  anä  closeó it®   Thió prograí ió supplieä oî  thå  releaså 
+disk¬ anä ió nameä TEST.CMD.  Thió prograí useó TESTFILE.DBF
+
+*
+*TEST.CMD
+*
+STORE 'C:TESTFILE' TO USEFILE
+SET TALK OFF
+* TURN ON FILE LOCKING
+POKE 8,1
+* CREATE AN INFINITE LOOP
+STORE -1 TO ALL
+DO WHILE ALL <> 0
+  STORE -1 TO LOCKŠ  DO WHILE LOCK <> 0
+    * BE SURE TESTFILE.CMD IS ON DRIVE C:
+    RESET C:
+    * REQUEST FILE FOR READ/WRITE
+    POKE 65,90
+    * OPEN FILE
+    USE &USEFILE
+    * SAVE LOCK STATUS
+    STORE PEEK(64) TO LOCK
+    IF LOCK <> 0
+      ? 'FILE LOCKED - PLEASE WAIT'
+      ? 'PRESS RETURN TO TRY AGAIN'
+      ? 'PRESS ESCAPE TO CANCEL DO'
+      * RESTORE LOCK FLAG TO 64
+      POKE 64,LOCK
+      * CLOSE THE FILE
+      USE
+      * WAIT FOR RETURN OR ESCAPE
+      WAIT
+    ENDIF
+  * LOOP UNTIL FILE ACCESS IS GRANTED
+  ENDDO
+  LIST
+  * FORCE A FILE UPDATE!!!
+  REPLACE NAME WITH NAME
+  ? 'PRESS RETURN TO CLOSE & UNLOCK IT'
+  WAIT
+  * RESTORE LOCK FLAG
+  POKE 64,LOCK
+  * CLOSE FILE & UNLOCK IT
+  USE
+  ? 'FILE CLOSED.'
+  ? 'PRESS RETURN TO REPEAT'
+  ? 'PRESS ESCAPE TO QUIT'
+  WAIT
+ENDDO
+
+     Thió  nexô examplå useó twï databaså files®   Iô alsï  showó 
+ho÷ á subroutinå caî bå useä tï initialize¬  opeî ¦ closå  files®  
+Thió filå ió nameä TESTER.CMD.
+
+*
+* TESTER.CMD
+*
+  ERASE
+* DO INITIALIZATIONS
+  DO ULCINIT
+* SELECT PRIMARY DATABASE
+  SELECT PRIMARY
+* GET DATABASE FILENAME
+  ACCEPT 'ENTER FILE TO USE' TO USEFILE
+* OPEN IT
+  DO PUSEIT
+  LIST
+* SELECT SECONDARY DATABASE FILE
+  SELECT SECONDARYŠ* GET DATABASE FILENAME
+  ACCEPT 'ENTER FILE TO USE' TO USEFILE
+* OPEN IT
+  DO SUSEIT
+  LIST
+  ? 'FILES OPEN, PRESS RETURN TO CLOSE'
+  WAIT
+* USE A NULL FILENAME TO CLOSE A FILE
+  STORE ' ' TO USEFILE
+* CLOSE SECONDARY FILE
+  DO SUSEIT
+  SELECT PRIMARY
+* CLOSE PRIMARY FILE
+  DO PUSEIT
+  ? 'DONE'
+
+
+     Thå  followinç  arå thå threå subroutineó thaô werå useä  iî 
+thå  abovå  program®    Theù  arå  ULCINIT.CMD¬  PUSEIT.CMD¬  anä 
+SUSEIT.CMD, respectively.
+
+
+*
+* ULCINIT.CMD
+*
+ERASE
+* ENABLE FILE LOCKING
+POKE 8,1
+SET TALK OFF
+* SET USEFILE TO NULL FILE
+STORE ' ' TO USEFILE
+* SET OPEN FLAGS TO FALSE
+STORE 0 TO OPEN:P
+STORE 0 TO OPEN:S
+* INIT LOCK FLAGS
+STORE 0 TO LOCK:P
+STORE 0 TO LOCK:S
+* START WITH DEFAULT SETTINGS
+STORE 'A:' TO DBFDRIVE:P
+STORE 'A:' TO DBFDRIVE:S
+STORE 0 TO IFLAG
+* THE PRIMARY & SECONDARY DRIVES CANNOT BE THE SAME
+DO WHILE DBFDRIVE:P = DBFDRIVE:S
+  IF IFLAG <> 0
+    ? CHR(7),'THE DRIVES CANNOT BE THE SAME. TRY AGAIN'
+  ENDIF
+* IFLAG IS A TEMPORARY 1-SHOT FLAG
+  STORE 1 TO IFLAG
+  STORE -1 TO OKF
+  DO WHILE OKF <> 0
+    ACCEPT 'ENTER DRIVE FOR PRIMARY FILES' TO DBFDRIVE:P
+    IF LEN(DBFDRIVE:P) = 2 .AND. $(DBFDRIVE:P,2,1) = ':'
+      STORE 0 TO OKF
+    ELSE
+      * DBFDRIVE MUST CONTAIN 2 CHRS, A LETTER & A COLON!!
+      ? CHR(7),'ILLEGAL DRIVE, TRY AGAIN'Š    ENDIF
+  ENDDO
+  STORE -1 TO OKF
+  DO WHILE OKF <> 0
+    ACCEPT 'ENTER DRIVE FOR SECONDARY FILES' TO DBFDRIVE:S
+    IF LEN(DBFDRIVE:S) = 2 .AND. $(DBFDRIVE:S,2,1) = ':'
+      STORE 0 TO OKF
+    ELSE
+      * DBFDRIVE MUST CONTAIN 2 CHRS, A LETTER & A COLON!!
+      ? CHR(7),'ILLEGAL DRIVE, TRY AGAIN'
+    ENDIF
+  ENDDO
+ENDDO
+RELEASE IFLAG
+ERASE
+
+
+*
+* PUSEIT.CMD
+*
+IF OPEN:P <> 0
+  * RESTORE OLD LOCK VALUE
+  POKE 64,LOCK:P
+  * CLOSE OLD FILE
+  USE
+  * FLAG FILE CLOSED
+  STORE 0 TO OPEN:P
+  * RESET DISK SYSTEM TO WRITE OUT DATA FOR FILE CLOSE
+  RESET &DBFDRIVE:P
+ENDIF
+STORE '&DBFDRIVE:P'+'&USEFILE' TO USETEMP
+IF $(USEFILE,1,1) <> ' '
+  * OPEN FILE IF A FILENAME WAS SPECIFIED
+  STORE -1 TO LOCK:P
+  DO WHILE LOCK:P <> 0
+    RESET &DBFDRIVE:P
+    * OPEN FILE FOR READ/WRITE
+    POKE 65,90
+    USE &USETEMP
+    * SAVE LOCK STATUS
+    STORE PEEK(64) TO LOCK:P
+    IF LOCK:P <> 0
+      ? 'FILE LOCKED - PLEASE WAIT'
+      ? 'PRESS RETURN TO TRY AGAIN'
+      ? 'PRESS ESCAPE TO CANCEL DO'
+      POKE 64,LOCK:P
+      USE
+      WAIT
+      * WAIT FOR KEYPRESS, THEN TRY TO OPEN FILE AGAIN
+    ENDIF
+    * REPEAT UNTIL FILE ACCESS IS GRANTED
+  ENDDO
+  STORE -1 TO OPEN:P
+ENDIF
+RELEASE USETEMP
+Š
+*
+* SUSEIT.CMD
+*
+IF OPEN:S <> 0
+  * RESTORE OLD LOCK VALUE
+  POKE 64,LOCK:S
+  * CLOSE OLD FILE
+  USE
+  * FLAG FILE CLOSED
+  STORE 0 TO OPEN:S
+  * RESET DISK SYSTEM TO WRITE OUT DATA FOR FILE CLOSE
+  RESET &DBFDRIVE:S
+ENDIF
+STORE '&DBFDRIVE:S'+'&USEFILE' TO USETEMP
+IF $(USEFILE,1,1) <> ' '
+  * OPEN FILE IF A FILENAME WAS SPECIFIED
+  STORE -1 TO LOCK:S
+  DO WHILE LOCK:S <> 0
+    RESET &DBFDRIVE:S
+    * OPEN FILE FOR READ/WRITE
+    POKE 65,90
+    USE &USETEMP
+    * SAVE LOCK STATUS
+    STORE PEEK(64) TO LOCK:S
+    IF LOCK:S <> 0
+      ? 'FILE LOCKED - PLEASE WAIT'
+      ? 'PRESS RETURN TO TRY AGAIN'
+      ? 'PRESS ESCAPE TO CANCEL DO'
+      POKE 64,LOCK:S
+      USE
+      * WAIT FOR KEYPRESS, THEN TRY TO OPEN FILE AGAIN
+      WAIT
+    ENDIF
+    * REPEAT UNTIL FILE ACCESS IS GRANTED
+  ENDDO
+  STORE -1 TO OPEN:S
+ENDIF
+RELEASE USETEMP
+
+
+
+     Witè theså examples¬ yoõ shoulä bå ablå tï creatå anä modifù 
+dBASÅ  IÉ  programó  tï  properlù uså  thå  ULCNEÔ  filå  lockinç 
+facility.
+
+
