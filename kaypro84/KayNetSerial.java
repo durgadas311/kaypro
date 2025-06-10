@@ -1,6 +1,8 @@
 // Copyright (c) 2025 Douglas Miller <durgadas311@gmail.com>
 
 // Usage: xxx_att = KayNetSerial <host> <port> <node-id>
+// <node-id> is arbitrary but must be unique. does not relate
+// to node id used in ULCNet.
 
 // All socket communications is in byte-pairs, to facilitate OOB.
 // First byte of pair is NID, DTR, DCD, or DAT. Second is the data/operand.
@@ -13,20 +15,21 @@ import java.net.*;
 
 public class KayNetSerial implements SerialDevice, Runnable {
 	static final byte NID = (byte)0xff;
-	static final byte DTR = (byte)0xfe; // client DTR changed
-	static final byte DCD = (byte)0xfd; // what global DCD is
+	static final byte SOM = (byte)0xfe; // client is starting send
+	static final byte EOM = (byte)0xfd; // client send finished
 	static final byte DAT = (byte)0;
 
 	VirtualUART uart;
 	String dbg;
 	int dtr; // current state of DTR in UART
+	boolean started;
 	boolean client;
 
 	// if client == false
 	ServerSocket listen;
 	int nc = 16;
 	SocketConnection[] sc;
-	boolean active;
+	int active;
 	int actIdx;
 	boolean collision;
 
@@ -95,10 +98,10 @@ public class KayNetSerial implements SerialDevice, Runnable {
 					discon();
 					break;
 				}
-				// should never be DCD
-				if (bb[0] == DTR) {
-					dtr = bb[1] & 0xff;
-					updateDTR();
+				if (bb[0] == SOM) {
+					som(idx);
+				} else if (bb[0] == EOM) {
+					eom(idx);
 				} else if (bb[0] == DAT) {
 					netIn(bb, idx);
 				}
@@ -153,15 +156,9 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		uart.attachDevice(this);
 		int mdm = uart.getModem();
 		dtr = (mdm & VirtualUART.GET_DTR) == 0 ? 0 : 1;
+		setDCD(1);
 		Thread t = new Thread(this);
 		t.start();
-		if (client) {
-			byte[] bb = new byte[]{ DTR, (byte)dtr };
-			// server sends back accumulated result
-			try {
-				out.write(bb); // propagate to network
-			} catch (Exception ee) {}
-		}
 	}
 
 	// broadcast character/handshake on network.
@@ -182,8 +179,22 @@ public class KayNetSerial implements SerialDevice, Runnable {
 
 	// character arrived from UART.
 	private void lclChar(int b) {
-		byte[] bb = new byte[]{ DAT, (byte)b };
-		uart.put(bb[1] & 0xff, false); // echo immediately, to meet timing
+		// TODO: this does not get corrupted by collision... fix it
+		uart.put(b, false); // echo immediately, to meet timing
+		byte[] bb = new byte[2];
+		if (!started) {
+			started = true;
+			if (client) {
+				bb[0] = SOM;
+				try {
+					out.write(bb);
+				} catch (Exception ee) {}
+			} else {
+				som(-1);
+			}
+		}
+		bb[0] = DAT;
+		bb[1] = (byte)b;
 		if (client) {
 			// client mode: just send upstream
 			try {
@@ -198,25 +209,6 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		}
 		// send to ALL connections.
 		bcast(bb, -1);
-	}
-
-	// only called in server mode.
-	// (at least) one node's DTR changed.
-	// re-evaluate DCD and propagate.
-	public void updateDTR() {
-		int dcd = dtr;
-		for (int x = 0; x < nc; ++x) {
-			if (sc[x] == null || sc[x].sok == null) continue;
-			dcd &= sc[x].dtr;
-		}
-		if (dcd == 0) { // DTR off
-			active = false;
-			collision = false;
-			actIdx = -1;
-		}
-		byte[] bb = new byte[]{ DCD, (byte)dcd };
-		bcast(bb, -1); // inform all of (possibly) new DCD
-		setDCD(dcd); // set local DCD accordingly
 	}
 
 	// set local DCD according to 'l'
@@ -234,9 +226,10 @@ public class KayNetSerial implements SerialDevice, Runnable {
 	// client action incoming from network.
 	// process character/handshake locally (on UART)
 	private void lclAction(byte[] bb) {
-		// should never get DTR (or NID)
-		if (bb[0] == DCD) {
-			setDCD(bb[1] & 0xff);
+		if (bb[0] == SOM) {
+			setDCD(0);
+		} else if (bb[0] == EOM) {
+			setDCD(1);
 		} else if (bb[0] == DAT) {
 			uart.put(bb[1] & 0xff, false);
 		} else {
@@ -246,17 +239,47 @@ public class KayNetSerial implements SerialDevice, Runnable {
 
 	// server receive DAT on a socket
 	private void netIn(byte[] bb, int ix) {
-		if (active && actIdx != ix) {
-			collision = true;
-		} else if (!active) {
-			active = true;
-			actIdx = ix;
-		}
-		if (collision) {
+		if (active > 1) { // collision
 			bb[1] = (byte)0;
 		}
 		bcast(bb, ix); // exclude sender, they echo locally
 		uart.put(bb[1] & 0xff, false);
+	}
+
+	// Start Of Message - only called in server
+	private void som(int ix){
+		boolean first = false;
+		synchronized(this) {
+			first = (active == 0);
+			if (first) {
+				actIdx = ix;
+			}
+			++active;
+		}
+		if (first) {
+			byte[] bb = new byte[]{ SOM, 0 };
+			bcast(bb, ix); // exclude sender, they handled
+		}
+	}
+
+	// End Of Message - only called in server
+	private void eom(int ix){
+		boolean last = false;
+		synchronized(this) {
+			if (active == 0) {
+				//System.err.format("active ref undeflow\n");
+				return;
+			}
+			--active;
+			last = (active == 0);
+			if (last) {
+				actIdx = -1;
+			}
+		}
+		if (last) {
+			byte[] bb = new byte[]{ EOM, 0 };
+			bcast(bb, ix); // exclude sender, they handled
+		}
 	}
 
 	///////////////////////////
@@ -302,26 +325,23 @@ public class KayNetSerial implements SerialDevice, Runnable {
 			return;
 		}
 		dtr = l;
-		byte[] bb = new byte[]{ DTR, (byte)dtr };
-		if (client) {
-			// server sends back accumulated result
-			try {
-				out.write(bb); // propagate to network
-			} catch (Exception ee) {}
-		} else {
-			if (dtr == 0) { // TODO: which edge?
-				active = false;
-				collision = false;
-				actIdx = -1;
+		if (dtr == 0) {
+			started = false;
+			if (client) {
+				byte[] bb = new byte[]{ EOM, (byte)dtr };
+				try {
+					out.write(bb); // propagate to network
+				} catch (Exception ee) {}
+			} else {
+				eom(-1);
 			}
-			bcast(bb, -1); // server broadcasts DTR change
 		}
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
 
 	public String dumpDebug() {
 		String ret = dbg;
-		ret += String.format("DTR=%s\n", dtr);
+		ret += String.format("DTR=%s started=%s\n", dtr, started);
 		if (client) {
 			if (conn != null) {
 				ret += "CONNECTED\n";
@@ -334,8 +354,8 @@ public class KayNetSerial implements SerialDevice, Runnable {
 			} else {
 				ret += "DEAD.\n";
 			}
-			ret += String.format("act=%s idx=%d col=%s\n",
-				active, actIdx, collision);
+			ret += String.format("active: refs=%d idx=%d\n",
+				active, actIdx);
 			for (int x = 0; x < nc; ++x) {
 				if (sc[x] == null) continue;
 				ret += sc[x].dumpDebug();
