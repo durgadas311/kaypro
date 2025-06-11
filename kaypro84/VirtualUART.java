@@ -28,4 +28,7 @@ public interface VirtualUART {
 	void detach();		// Peripheral no longer usable
 	String getPortId();	// for properties
 	void attachDevice(SerialDevice io);	//
+	// doesn't belong here, but...
+	void addClockListener(ClockListener lstn);
+	LED getPowerLED();
 }

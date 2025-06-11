@@ -36,6 +36,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private CPUTracer trc;
 	private ReentrantLock cpuLock;
 	private KayproKeyboard kbd; // to prevent erasure...
+	private LED pwr;
 
 	// Relationship between virtual CPU clock and real time
 	private static long intervalTicks = 4000;	// 1ms
@@ -50,7 +51,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private static int nFlpy = 2;
 	static final String uRom = "81-478b.rom"; // The "Universal ROM" (CP/M 2.2u)
 	private static String defRom = uRom;
-	private static Kaypro thus;
 
 	public Kaypro(Properties props, LEDHandler lh, KayproCrt crt) {
 		String s;
@@ -72,7 +72,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		clks = new Vector<ClockListener>();
 		intrs = new Vector<InterruptController>();
 		this.crt = crt;
-		thus = this;
+		pwr = lh.getPowerLED();
 		// Do this early, so we can log messages appropriately.
 		s = props.getProperty("kaypro_log");
 		if (s != null) {
@@ -190,10 +190,6 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDevice(sio1);
 		addDevice(baudA);
 		addDevice(baudB);
-	}
-
-	public static Interruptor getInterruptor() {
-		return thus;
 	}
 
 	public static Interruptor.Model setModel(Properties props) {
@@ -466,6 +462,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	public Interruptor.Model getModel() {
 		return model;
 	}
+	public LED getPowerLED() { return pwr; }
 
 	/////////////////////////////////////////////
 	/// H89Commander interface implementation ///

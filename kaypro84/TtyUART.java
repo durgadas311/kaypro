@@ -173,6 +173,10 @@ public class TtyUART implements VirtualUART, Runnable {
 	public void attachDevice(SerialDevice io) {
 		this.io = io;
 	}
+	// these should never be called here.
+	public LED getPowerLED() { return null; }
+	public void addClockListener(ClockListener lstn) {}
+
 	////
 	public String dumpDebug() {
 		String ret = String.format("%s: %3s %3s %3s %3s %3s %3s\n",

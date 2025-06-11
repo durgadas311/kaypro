@@ -27,4 +27,5 @@ public interface Interruptor {
 	void startTracing();
 	void stopTracing();
 	Model getModel();
+	LED getPowerLED();
 }

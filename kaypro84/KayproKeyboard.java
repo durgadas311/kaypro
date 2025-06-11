@@ -172,18 +172,18 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		int s = -1;
                 char c = e.getKeyChar();
                 int k = e.getKeyCode();
-		int m = e.getModifiers();
+		int m = e.getModifiersEx();
 		int l = e.getKeyLocation();
 		if (l == KeyEvent.KEY_LOCATION_NUMPAD &&
 				c != KeyEvent.CHAR_UNDEFINED &&
 				altKeys.containsKey((int)c)) {
 			s = altKeys.get((int)c);
 		} else if (k == KeyEvent.VK_ENTER &&
-				(m & InputEvent.CTRL_MASK) == 0) {
+				(m & InputEvent.CTRL_DOWN_MASK) == 0) {
 			// Assume if CTRL is down, must be ^J not ENTER...
 			s = 0x0d;
 		} else if (k == KeyEvent.VK_BACK_SPACE &&
-				(m & InputEvent.SHIFT_MASK) != 0) {
+				(m & InputEvent.SHIFT_DOWN_MASK) != 0) {
 			s = 0x7f;
 		} else if (k == KeyEvent.VK_UP) {
 			s = 0xf1;

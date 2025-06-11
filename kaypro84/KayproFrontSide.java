@@ -15,7 +15,20 @@ class KayproPowerLED extends JPanel {
 	LED led;
 	public KayproPowerLED(int wd, int ht, Font ft) {
 		super();
-		setPreferredSize(new Dimension(wd, ht));
+		// here we go...
+		GridBagLayout gb = new GridBagLayout();
+		GridBagConstraints gc = new GridBagConstraints();
+		gc.fill = GridBagConstraints.NONE;
+		gc.gridx = 0;
+		gc.gridy = 0;
+		gc.weightx = 0;
+		gc.weighty = 0;
+		gc.gridwidth = 1;
+		gc.gridheight = 1;
+		gc.anchor = GridBagConstraints.CENTER;
+		setLayout(gb);
+
+		setPreferredSize(new Dimension(60, ht));
 		setFont(ft);
 		setOpaque(false);
 		setForeground(Color.white);
@@ -24,21 +37,29 @@ class KayproPowerLED extends JPanel {
 		vcenter = ht / 2;
 		led = new RoundLED(LED.Colors.RED);
 		led.set(true);
+
+		JLabel lab = new JLabel("~");
+		lab.setFont(ft);
+		lab.setOpaque(false);
+		lab.setForeground(Color.white);
+		gb.setConstraints(lab, gc);
+		add(lab);
+		++gc.gridy;
+		gb.setConstraints(led, gc);
+		add(led);
+		++gc.gridy;
+		lab = new JLabel("POWER");
+		lab.setFont(ft);
+		lab.setOpaque(false);
+		lab.setForeground(Color.white);
+		gb.setConstraints(lab, gc);
+		add(lab);
 	}
-	public void paint(Graphics g) {
-		super.paint(g);
-		Graphics2D g2d = (Graphics2D)g;
-		g2d.addRenderingHints(new RenderingHints(
-			RenderingHints.KEY_ANTIALIASING,
-			RenderingHints.VALUE_ANTIALIAS_ON));
-		g2d.drawString("~", 20, vcenter - 20);
-		g2d.drawString("POWER", 0, vcenter + 20);
-		g2d.translate(18, vcenter - 16);
-		led.paint(g2d);
-	}
+	public LED getLED() { return led; }
 }
 
 class LEDPanel extends JPanel {
+	LED pwr;
 	LEDPane[] panes;
 	public static final Font font = new Font("Monospaced", Font.BOLD, 16);
 
@@ -65,8 +86,12 @@ class LEDPanel extends JPanel {
 				add(pn);
 				++gc.gridy;
 				KayproPowerLED kp = new KayproPowerLED(w, h / 3, font);
+				int a = gc.anchor;
+				gc.anchor = GridBagConstraints.WEST;
 				gb.setConstraints(kp, gc);
 				add(kp);
+				pwr = kp.getLED();
+				gc.anchor = a;
 			} else {
 				pn.setPreferredSize(new Dimension(w, h / 3 / (rows - 1)));
 				gb.setConstraints(pn, gc);
@@ -75,6 +100,10 @@ class LEDPanel extends JPanel {
 			panes[y] = pn;
 			++gc.gridy;
 		}
+	}
+
+	public LED getPowerLED() {
+		return pwr;
 	}
 
 	public LEDPane getPane(int row) {
@@ -229,6 +258,10 @@ public class KayproFrontSide extends JPanel
 		gridbag.setConstraints(pan, gc);
 		gc.gridwidth = 1;
 		add(pan);
+	}
+
+	public LED getPowerLED() {
+		return _ledspace.getPowerLED();
 	}
 
 	public void setMenuItem(String drive, JMenuItem mi) {

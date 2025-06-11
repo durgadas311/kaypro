@@ -57,6 +57,7 @@ class LabeledRoundLED extends LEDPane {
 
 class K10LEDPanel extends JPanel {
 	LEDPane[] panes;
+	LED pwr;
 	LED[] leds;
 	int nLeds;
 	public static final Font font = new Font("SansSerif", Font.BOLD, 10);
@@ -95,6 +96,7 @@ class K10LEDPanel extends JPanel {
 		kp.getLED().set(true);
 		gb.setConstraints(kp, gc);
 		add(kp);
+		pwr = kp.getLED();
 		++gc.gridx;
 		LabeledRoundLED led1 = new LabeledRoundLED(w / 3, h, bh, font,
 			new String[]{"10 MB", "READY"}, LED.Colors.RED);
@@ -128,6 +130,10 @@ class K10LEDPanel extends JPanel {
 
 	public LED getLED(int row) {
 		return leds[row];
+	}
+
+	public LED getPowerLED() {
+		return pwr;
 	}
 
 	public LEDPane getPane(int row) {
@@ -293,6 +299,10 @@ public class Kaypro10FrontSide extends JPanel
 		gridbag.setConstraints(pan, gc);
 		gc.gridwidth = 1;
 		add(pan);
+	}
+
+	public LED getPowerLED() {
+		return _ledspace.getPowerLED();
 	}
 
 	public void setMenuItem(String drive, JMenuItem mi) {

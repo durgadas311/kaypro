@@ -568,6 +568,11 @@ public class Z80SIO implements IODevice, InterruptController {
 			return String.format("%s%c", name, index + 'A');
 		}
 
+		public void addClockListener(ClockListener lstn) {
+			intr.addClockListener(lstn);
+		}
+		public LED getPowerLED() { return intr.getPowerLED(); }
+
 		// Force a changeModem() event.
 		private void updateModemForce() {
 			modem = getModem() ^ VirtualUART.GET_ONLY; // force event?

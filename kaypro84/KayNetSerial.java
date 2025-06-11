@@ -7,10 +7,14 @@
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.Properties;
+import java.awt.event.*;
 import java.io.*;
 import java.net.*;
 
-public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
+public class KayNetSerial implements SerialDevice, ClockListener,
+		ActionListener, Runnable {
+	LED led;
+	javax.swing.Timer timer;
 	VirtualUART uart;
 	String dbg;
 	int dtr; // current state of DTR from UART
@@ -91,6 +95,8 @@ public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
 
 	public KayNetSerial(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
+		led = uart.getPowerLED();
+		timer = new javax.swing.Timer(100, this);
 		if (argv.size() != 3) {
 			System.err.format("KayNetSerial: Invalid args\n");
 			return;
@@ -134,9 +140,19 @@ public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
 		int mdm = uart.getModem();
 		dtr = (mdm & VirtualUART.GET_DTR) == 0 ? 0 : 1;
 		setDCD(1);
-		Kaypro.getInterruptor().addClockListener(this);
+		uart.addClockListener(this);
 		Thread t = new Thread(this);
 		t.start();
+	}
+
+	private void ledActive() { // LED is off when network is active...
+		if (led == null) {
+			return;
+		}
+		timer.removeActionListener(this);
+		timer.addActionListener(this);
+		timer.restart();
+		led.set(false);
 	}
 
 	// broadcast character/handshake on network.
@@ -160,6 +176,7 @@ public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
 		if (!started) {
 			started = true;
 			setDCD(0);
+			ledActive();
 		}
 		synchronized(this) {
 			to = 200;
@@ -324,6 +341,15 @@ public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
 		} catch (Exception ee) {
 			ee.printStackTrace();
 		}
+	}
+
+	public void actionPerformed(ActionEvent e) {
+		if (e.getSource() != timer || led == null) {
+			return;
+		}
+		// LED is on when inactive
+		timer.removeActionListener(this);
+		led.set(true);
 	}
 
 	public void run() {

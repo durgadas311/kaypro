@@ -3,6 +3,7 @@
 import javax.swing.JMenuItem;
 
 public interface LEDHandler {
+	LED getPowerLED();
 	LED registerLED(String drive);
 	LED[] registerLEDs(String drive, int num, LED.Colors[] colors);
 	void setMenuItem(String drive, JMenuItem mi);
