@@ -4,55 +4,42 @@
 // <node-id> is arbitrary but must be unique. does not relate
 // to node id used in ULCNet.
 
-// All socket communications is in byte-pairs, to facilitate OOB.
-// First byte of pair is NID, DTR, DCD, or DAT. Second is the data/operand.
-
 import java.util.Arrays;
 import java.util.Vector;
 import java.util.Properties;
 import java.io.*;
 import java.net.*;
 
-public class KayNetSerial implements SerialDevice, Runnable {
-	static final byte NID = (byte)0xff;
-	static final byte SOM = (byte)0xfe; // client is starting send
-	static final byte EOM = (byte)0xfd; // client send finished
-	static final byte DAT = (byte)0;
-
+public class KayNetSerial implements SerialDevice, ClockListener, Runnable {
 	VirtualUART uart;
 	String dbg;
-	int dtr; // current state of DTR in UART
+	int dtr; // current state of DTR from UART
+	int dcd; // current state of DCD to UART
 	boolean started;
+	int to;	// timeout for driving DCD off last Rx char
 	boolean client;
 
 	// if client == false
 	ServerSocket listen;
 	int nc = 16;
 	SocketConnection[] sc;
-	int active;
-	int actIdx;
-	boolean collision;
 
 	// if client == true
 	Socket conn;
 	InputStream inp;
 	OutputStream out;
-	int nid;
 
 	// server mode, tracks each client connection
 	class SocketConnection implements Runnable {
 		public Socket sok;
 		public InputStream inp;
 		public OutputStream out;
-		public int nid;
 		public String remote;
 		public int remPort;
 		public int idx;
-		public int dtr; // current state of DTR in remote UART
 
-		public SocketConnection(Socket so, int ni, int ix) throws Exception {
+		public SocketConnection(Socket so, int ix) throws Exception {
 			sok = so;
-			nid = ni;
 			idx = ix;
 			InetAddress ia = so.getInetAddress();
 			remote = ia.getCanonicalHostName();
@@ -76,21 +63,20 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		public String dumpDebug() {
 			String ret;
 			if (sok == null) {
-				ret = String.format("[%02x] DEAD\n", nid);
+				ret = String.format("[%02x] DEAD\n", idx);
 			} else {
-				ret = String.format("[%02x] %s %d dtr=%d\n",
-					nid, remote, remPort, dtr);
+				ret = String.format("[%02x] %s %d\n",
+					idx, remote, remPort);
 			}
 			return ret;
 		}
 
 		public void run() {
-			int n;
-			byte[] bb = new byte[2];
+			int b;
 			while (sok != null) {
 				try {
-					n = inp.read(bb);
-					if (n != 2) {
+					b = inp.read();
+					if (b < 0) {
 						discon();
 						break;
 					}
@@ -98,27 +84,20 @@ public class KayNetSerial implements SerialDevice, Runnable {
 					discon();
 					break;
 				}
-				if (bb[0] == SOM) {
-					som(idx);
-				} else if (bb[0] == EOM) {
-					eom(idx);
-				} else if (bb[0] == DAT) {
-					netIn(bb, idx);
-				}
+				netIn(b, idx);
 			}
 		}
 	}
 
 	public KayNetSerial(Properties props, Vector<String> argv, VirtualUART uart) {
 		this.uart = uart;
-		if (argv.size() != 4) {
+		if (argv.size() != 3) {
 			System.err.format("KayNetSerial: Invalid args\n");
 			return;
 		}
 		String host = argv.get(1);
 		int port = Integer.valueOf(argv.get(2));
-		nid = Integer.decode(argv.get(3));
-		dbg = String.format("KayNetSerial %s %d 0x%02x\n", host, port, nid);
+		dbg = String.format("KayNetSerial %s %d\n", host, port);
 		// TODO: configurable number of connections
 		InetAddress ia = null;
 		try {
@@ -139,8 +118,6 @@ public class KayNetSerial implements SerialDevice, Runnable {
 				conn = new Socket(ia, port);
 				inp = conn.getInputStream();
 				out = conn.getOutputStream();
-				byte[] bb = new byte[]{ NID, (byte)nid };
-				out.write(bb);
 				client = true;
 			} catch (Exception eee) {
 				System.err.println(eee.getMessage());
@@ -157,13 +134,14 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		int mdm = uart.getModem();
 		dtr = (mdm & VirtualUART.GET_DTR) == 0 ? 0 : 1;
 		setDCD(1);
+		Kaypro.getInterruptor().addClockListener(this);
 		Thread t = new Thread(this);
 		t.start();
 	}
 
 	// broadcast character/handshake on network.
 	// exclude connection index 'xcl'
-	private void bcast(byte[] bb, int xcl) {
+	private void bcast(int b, int xcl) {
 		for (int x = 0; x < nc; ++x) {
 			if (sc[x] == null) continue;
 			if (sc[x].sok == null) {
@@ -172,47 +150,43 @@ public class KayNetSerial implements SerialDevice, Runnable {
 			}
 			if (x == xcl) continue;
 			try {
-				sc[x].out.write(bb);
+				sc[x].out.write(b);
 			} catch (Exception ee) { }
+		}
+	}
+
+	private void rxChar(int b) {
+		uart.put(b, false);
+		if (!started) {
+			started = true;
+			setDCD(0);
+		}
+		synchronized(this) {
+			to = 200;
 		}
 	}
 
 	// character arrived from UART.
 	private void lclChar(int b) {
 		// TODO: this does not get corrupted by collision... fix it
-		uart.put(b, false); // echo immediately, to meet timing
-		byte[] bb = new byte[2];
-		if (!started) {
-			started = true;
-			if (client) {
-				bb[0] = SOM;
-				try {
-					out.write(bb);
-				} catch (Exception ee) {}
-			} else {
-				som(-1);
-			}
+		rxChar(b); // echo immediately, to meet timing
+		if (dtr == 0) {
+			return;
 		}
-		bb[0] = DAT;
-		bb[1] = (byte)b;
 		if (client) {
 			// client mode: just send upstream
 			try {
-				out.write(bb);
+				out.write(b);
 			} catch (Exception ee) {}
 			return;
 		}
-		// server mode: handles collisions.
-		// broadcast on network but also echo back to UART.
-		if (collision) {
-			bb[1] = (byte)0;
-		}
-		// send to ALL connections.
-		bcast(bb, -1);
+		// server mode: send to ALL connections.
+		bcast(b, -1);
 	}
 
 	// set local DCD according to 'l'
 	private void setDCD(int l) {
+		dcd = l;
 		if (l == 0) {
 			uart.setModem(VirtualUART.SET_CTS |
 				VirtualUART.SET_DSR);
@@ -225,60 +199,28 @@ public class KayNetSerial implements SerialDevice, Runnable {
 
 	// client action incoming from network.
 	// process character/handshake locally (on UART)
-	private void lclAction(byte[] bb) {
-		if (bb[0] == SOM) {
-			setDCD(0);
-		} else if (bb[0] == EOM) {
-			setDCD(1);
-		} else if (bb[0] == DAT) {
-			uart.put(bb[1] & 0xff, false);
-		} else {
-			// protocol/sync error
-		}
+	private void lclAction(int b) {
+		rxChar(b);
 	}
 
 	// server receive DAT on a socket
-	private void netIn(byte[] bb, int ix) {
-		if (active > 1) { // collision
-			bb[1] = (byte)0;
-		}
-		bcast(bb, ix); // exclude sender, they echo locally
-		uart.put(bb[1] & 0xff, false);
+	private void netIn(int b, int ix) {
+		rxChar(b);
+		bcast(b, ix); // exclude sender, they echo locally
 	}
 
-	// Start Of Message - only called in server
-	private void som(int ix){
-		boolean first = false;
-		synchronized(this) {
-			first = (active == 0);
-			if (first) {
-				actIdx = ix;
+	///////////////////////////
+	// ClockListener interface:
+	//
+	public void addTicks(int ticks, long clk) {
+		if (to > 0) {
+			synchronized(this) {
+				to -= ticks;
 			}
-			++active;
-		}
-		if (first) {
-			byte[] bb = new byte[]{ SOM, 0 };
-			bcast(bb, ix); // exclude sender, they handled
-		}
-	}
-
-	// End Of Message - only called in server
-	private void eom(int ix){
-		boolean last = false;
-		synchronized(this) {
-			if (active == 0) {
-				//System.err.format("active ref undeflow\n");
-				return;
+			if (to <= 0) {
+				started = false;
+				setDCD(1);
 			}
-			--active;
-			last = (active == 0);
-			if (last) {
-				actIdx = -1;
-			}
-		}
-		if (last) {
-			byte[] bb = new byte[]{ EOM, 0 };
-			bcast(bb, ix); // exclude sender, they handled
 		}
 	}
 
@@ -327,21 +269,14 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		dtr = l;
 		if (dtr == 0) {
 			started = false;
-			if (client) {
-				byte[] bb = new byte[]{ EOM, (byte)dtr };
-				try {
-					out.write(bb); // propagate to network
-				} catch (Exception ee) {}
-			} else {
-				eom(-1);
-			}
 		}
 	}
 	public int dir() { return SerialDevice.DIR_OUT; }
 
 	public String dumpDebug() {
 		String ret = dbg;
-		ret += String.format("DTR=%s started=%s\n", dtr, started);
+		ret += String.format("DTR=%s DCD=%d started=%s to=%d\n",
+				dtr, dcd, started, to);
 		if (client) {
 			if (conn != null) {
 				ret += "CONNECTED\n";
@@ -354,8 +289,6 @@ public class KayNetSerial implements SerialDevice, Runnable {
 			} else {
 				ret += "DEAD.\n";
 			}
-			ret += String.format("active: refs=%d idx=%d\n",
-				active, actIdx);
 			for (int x = 0; x < nc; ++x) {
 				if (sc[x] == null) continue;
 				ret += sc[x].dumpDebug();
@@ -376,7 +309,6 @@ public class KayNetSerial implements SerialDevice, Runnable {
 		conn = null;
 	}
 
-	// Should not get here unless conn == null...
 	private void tryConn(Socket nc) {
 		int x;
 		int n;
@@ -387,49 +319,24 @@ public class KayNetSerial implements SerialDevice, Runnable {
 			} catch (Exception ee) { }
 			return;
 		}
-		byte[] bb = new byte[2];
 		try {
-			n = nc.getInputStream().read(bb);
-			if (n != 2) {
-				try { nc.close(); } catch (Exception eee) { }
-				return;
-			}
-		} catch (Exception ee) {
-			ee.printStackTrace();
-			try { nc.close(); } catch (Exception eee) { }
-			return;
-		}
-		if (bb[0] != NID) {
-			// protocol/sync error...
-			try {
-				nc.close();
-			} catch (Exception eee) {}
-			return;
-		}
-		try {
-			sc[x] = new SocketConnection(nc, bb[1] & 0xff, x);
-			// client sends it's own DTR, normal channels
+			sc[x] = new SocketConnection(nc, x);
 		} catch (Exception ee) {
 			ee.printStackTrace();
 		}
 	}
 
-	private boolean _debug = false;
-
-	// This thread reads socket and sends to UART
-	// When disconnected, just quit and go back to listening mode...
 	public void run() {
 		if (client) {
-			byte[] bb = new byte[2];
-			int n;
+			int b;
 			while (conn != null) {
 				try {
-					n = inp.read(bb);
-					if (n != 2) {
+					b = inp.read();
+					if (b < 0) {
 						cltDiscon();
 						break;
 					}
-					lclAction(bb);
+					lclAction(b);
 				} catch (Exception ee) {
 					cltDiscon();
 					break;
