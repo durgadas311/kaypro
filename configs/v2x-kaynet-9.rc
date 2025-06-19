@@ -1,0 +1,15 @@
+# Kaypro 2X - workstation with KayNet ULCnet adapter and ULC-OPSnet software
+kaypro_model = 2X
+monitor_rom = 81-292a.rom
+#kaypro_log = vKaypro.out
+
+floppy_drive1 = FDD_5_25_DS_ST A
+floppy_drive2 = FDD_5_25_DS_ST B
+
+floppy_disk1 = kaynet-9.logdisk rw
+
+# device TTY: on Kaypro CP/M 2.2g
+#aux_att = TelnetSerial 192.168.1.21 31123
+
+# serial data port
+data_att = KayNetSerial 192.168.1.21 31124

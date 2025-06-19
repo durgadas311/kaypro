@@ -6,6 +6,10 @@ kaypro-cpm22u.logdisk:
 kaypro-cpm22g.logdisk:
 	Kaypro CP/M 2.2G (for ROM 81-292a)
 
+kaynet-*.logdisk:
+	Kaypro CP/M 2.2G with KayNet software for gatekeeper (-G) and
+	workstations (-1..9). See also configs similarly named.
+
 kpii-149.logdisk:
 	Kaypro II CP/M 2.2 (for ROM 81-149c). Single sided.
 

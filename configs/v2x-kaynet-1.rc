@@ -1,0 +1,7 @@
+# Kaypro 2X - workstation with KayNet ULCnet adapter and ULC-OPSnet software
+
+# device TTY: on Kaypro CP/M 2.2g
+#aux_att = TelnetSerial 192.168.1.21 31123
+
+# serial data port
+data_att = KayNetSerial 192.168.1.21 31124

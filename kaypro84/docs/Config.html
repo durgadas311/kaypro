@@ -82,7 +82,26 @@ The following properties are recognized (shown with default value, if any):
 <DT><B>aux_att</B> = (special)</DT>
 <DT><B>modem_att</B> = (special)</DT><DD>
 	Attach object (device) to serial port. Options are
-	"Diablo630Serial", "ProgramSerial", or "&gt;<I>file</I>".
+	<DL>
+	<DT>TelnetSerial <I>host</I> <I>port</I> [<B>modem</B>]
+	<DD>Connecting using a TCP/IP socket like telnet.
+	Listens on <I>host</I> <I>port</I> for connection.
+	The option <B>modem</B> causes use of the serial port modem control lines
+	to control and report the connection.</DD>
+	<DT>TtySerial tty=<I>device</I>,<I>baud</I> [<B>modem</B>]
+	<DD>Use a physical serial port device as the connection.</DD>
+	<DT>KayNetSerial <I>host</I> <I>port</I>
+	<DD>Simulates a KayNet-ULCNet device on the serial port.
+	The <I>host</I> <I>port</I> parameters are the same for all nodes, no matter
+	where they are located in the LAN or WAN.</DD>
+	<DT>ProgramSerial <I>command-line</I>
+	<DD>Use the program <I>command-line</I> as the serial port
+	connection, where stdout and stdin serve as the data paths.</DD>
+	<DT>Diablo630Serial [<I>out-file</I>]
+	<DD>Connect the Diable 630 printer widget to the serial port.</DD>
+	<DT><B>&gt;</B><I>file</I>
+	<DD>Redirect serial port output to a file.</DD>
+	</DL>
 </DD><DT><B>pprinter_att</B> = (special)</DT><DD>
 	Attach object (device) to parallel printer port.
 	"Diablo630Parallel", "ProgramParallel", or "&gt;<I>file</I>".
