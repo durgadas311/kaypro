@@ -1,4 +1,4 @@
-; WEB NT startup for Kaypro II (ROM 81-???)
+; WEB NT startup for Kaypro II / IV CP/M
 ; Sanity check, then patch 0fbacH and overlay CP/M at 0d100H (01b00H bytes).
 ; CP/M overlay starts at 0300H.
 	maclib	z80
@@ -17,7 +17,7 @@ stack	equ	0ed88h	; SP used for ROM calls
 bdospg	equ	0dc00h	; expected BDOS page
  else
 sysport	equ	1ch
-patadr	equ	0fbach	; ROM places "call ROM" routine here
+patadr	equ	0fbach	; Kaypro II/IV CP/M BIOS "call ROM" routine
 savstk	equ	0fbdch	; place where SP is saved for ROM calls
 stack	equ	0fc00h	; SP used for ROM calls
 bdospg	equ	0ec00h	; expected BDOS page
@@ -38,7 +38,7 @@ webadr	equ	bdospg-weblen
 
 	org	00100h
 	lda	bdos+2
-	cpi	high bdospg
+	cpi	high bdospg	; Kaypro II/IV CP/M only
 	rnz
 	lxi	d,signon
 	mvi	c,printf
