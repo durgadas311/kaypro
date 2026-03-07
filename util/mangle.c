@@ -9,20 +9,29 @@ int main(int argc, char **argv) {
 	int fd = -1;
 	int or = 0;
 	int and = 0;
+	int d_or = 0;
+	int d_and = 0;
 	int adr;
+	unsigned char dat;
 	struct stat stb;
 	unsigned char *buf;
 
 	extern int optind;
 	extern char *optarg;
 
-	while ((x = getopt(argc, argv, "a:o:")) != EOF) {
+	while ((x = getopt(argc, argv, "a:A:o:O:")) != EOF) {
 		switch (x) {
 		case 'a':
 			and = strtoul(optarg, NULL, 0);
 			break;
+		case 'A':
+			d_and = strtoul(optarg, NULL, 0);
+			break;
 		case 'o':
 			or = strtoul(optarg, NULL, 0);
+			break;
+		case 'O':
+			d_or = strtoul(optarg, NULL, 0);
 			break;
 		}
 	}
@@ -48,7 +57,8 @@ int main(int argc, char **argv) {
 	for (x = 0; x < stb.st_size; ++x) {
 		adr = (x & ~and) | or;
 		adr &= stb.st_size - 1;
-		write(1, buf + adr, 1);
+		dat = (buf[adr] & ~ d_and) | d_or;
+		write(1, &dat, 1);
 	}
 	free(buf);
 	return 0;
