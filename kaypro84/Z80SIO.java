@@ -77,6 +77,8 @@ public class Z80SIO implements IODevice, InterruptController {
 	public BaudListener clockA() { return ports[0]; }
 	public VirtualUART portB() { return ports[1]; }
 	public BaudListener clockB() { return ports[1]; }
+	public Object chAgetAttached() { return ports[0].getAttached(); }
+	public Object chBgetAttached() { return ports[1].getAttached(); }
 
 	public int readDataBus() {
 		if (intrs == 0) {
@@ -552,6 +554,9 @@ public class Z80SIO implements IODevice, InterruptController {
 			io_in = false;
 			io_out = false;
 			wait.release();
+		}
+		public Object getAttached() {
+			return attObj;
 		}
 		public void attachDevice(SerialDevice io) {
 			this.io = io;

@@ -76,6 +76,10 @@ public class VirtualKaypro {
 			pn = fs;
 		}
 
+		if (props.getProperty("kbd_att") == null) {
+			props.setProperty("kbd_att", "KayproKeyboard");
+		}
+
 		Kaypro kaypro = new Kaypro(props, lh, (KayproCrt)crt);
 		// All LEDs should be registered now...
 		KayproOperator op = new KayproOperator(front_end, props, crt, lh, model);

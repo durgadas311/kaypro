@@ -35,7 +35,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 	private Vector<ClockListener> clks;
 	private CPUTracer trc;
 	private ReentrantLock cpuLock;
-	private KayproKeyboard kbd; // to prevent erasure...
+	private Object kbd;
 	private LED pwr;
 
 	// Relationship between virtual CPU clock and real time
@@ -144,7 +144,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		addDiskDevice(new KayproFloppy(props, lh, this, gpp, nFlpy));
 		baudA.addBaudListener(sio1.clockA());
 		sio1.clockB().setBaud(300 * 16);
-		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
+		kbd = sio1.chBgetAttached();
 		baudB.addBaudListener(sio2.clockA());
 		sio2.clockB().setBaud(300 * 16);
 		addDevice(baudA);
@@ -174,7 +174,7 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		WD1943 baudA = new WD1943(0x00, 4, "baud-A");
 		WD1943 baudB = new WD1943(0x0c, 4, "baud-B");
 		Z80SIO sio1 = new Z80SIO(props, "data", "kbd", 0x04, this);
-		kbd = new KayproKeyboard(props, new Vector<String>(), sio1.portB());
+		kbd = sio1.chBgetAttached();
 		Z80PIO pio1 = new Z80PIO(props, null, null, 0x1c, this, true);
 		addDevice(pio1);
 		gpp = new SystemPortPIO(props, pio1.portA());
@@ -305,8 +305,12 @@ public class Kaypro implements Computer, KayproCommander, Interruptor, Runnable 
 		}
 	}
 
-	public KayproKeyboard getKeyboard() {
-		return kbd;
+	public Keyboard getKeyboard() {
+		if (kbd instanceof Keyboard) {
+			return (Keyboard)kbd;
+		} else {
+			return null;
+		}
 	}
 
 	public boolean addDevice(IODevice dev) {

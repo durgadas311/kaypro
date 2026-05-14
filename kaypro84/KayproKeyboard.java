@@ -7,7 +7,7 @@ import java.util.Vector;
 import java.util.Properties;
 import javax.sound.sampled.*;
 
-public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
+public class KayproKeyboard implements Keyboard, Runnable {
 	VirtualUART _uart;
 	java.util.concurrent.LinkedBlockingDeque<String> fifo;
 	int paste_delay = 0;	// mS, 1000/cps
@@ -142,7 +142,6 @@ public class KayproKeyboard implements PasteListener, KeyListener, Runnable {
 		setPasteRate(cps, crd);
 		Thread t = new Thread(this);
 		t.start();
-		uart.attach(this);
 	}
 
 	public void setPasteRate(int cps, int cr) {
