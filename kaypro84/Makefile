@@ -20,6 +20,9 @@ all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
 TtySerial.class: TtySerial.java jSerialComm-2.9.3.jar
 	javac -cp .:jSerialComm-2.9.3.jar $<
 
+TtyKeyboard.class: TtyKeyboard.java jSerialComm-2.9.3.jar
+	javac -cp .:jSerialComm-2.9.3.jar $<
+
 TtyUART.class: TtyUART.java jSerialComm-2.9.3.jar
 	javac -cp .:jSerialComm-2.9.3.jar $<
 
