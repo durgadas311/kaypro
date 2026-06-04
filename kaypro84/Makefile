@@ -73,10 +73,13 @@ www: __FRC__
 	rsync -Wuv www/*.* $(DEST)
 	rsync -rWuv www/downloads/. $(SEBHC)/.
 
-ship:
+ship: dist
 	rsync -Wuv LICENSE *.jar vkaypro.tgz $(SEBHC)
 	rsync -rWuv --exclude='.[a-z]*' \
 		../disks/. $(SEBHC)/disks/.
 	rsync -rWuv ../configs/. $(SEBHC)/configs/.
+
+dist:
+	cp VirtualKaypro.jar VirtualKeyboard.jar ../bin
 
 __FRC__:
