@@ -6,3 +6,7 @@
 	path = kaypro84/diablo630
 	url = https://github.com/durgadas311/diablo630.git
 	branch = master
+[submodule "kaypro84/jserialcomm"]
+	path = kaypro84/jserialcomm
+	url = https://github.com/durgadas311/jserialcomm.git
+	branch = master

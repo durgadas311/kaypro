@@ -1,0 +1,11 @@
+#!/bin/bash
+# An example of how to run the Kaypro simulator
+# when using native serial ports.
+#
+# Assumes that https://github.com/durgadas311/kaypro.git was cloned
+# into ${HOME}/git. Adjust paths if you use a different location.
+
+JAR1=${HOME}/git/kaypro/bin/VirtualKaypro.jar
+JAR2=${HOME}/git/kaypro/kaypro84/jserialcomm/jSerialComm-2.9.3.jar
+
+exec java -cp ${JAR1}:${JAR2} VirtualKaypro "${@}"

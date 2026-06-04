@@ -1,0 +1,9 @@
+#!/bin/bash
+# An example of how to run the Kaypro simulator.
+#
+# Assumes that https://github.com/durgadas311/kaypro.git was cloned
+# into ${HOME}/git. Adjust path if you use a different location.
+
+JAR1=${HOME}/git/kaypro/bin/VirtualKaypro.jar
+
+exec java -jar ${JAR1} "${@}"

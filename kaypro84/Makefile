@@ -17,17 +17,14 @@ all: z80cpu/z80core.jar diablo630/bin/Diablo630Embedded.jar $(CLASSES)
 %.class: %.java
 	javac -cp $(CLASS_PATH) $?
 
-TtySerial.class: TtySerial.java jSerialComm-2.9.3.jar
-	javac -cp .:jSerialComm-2.9.3.jar $<
+TtySerial.class: TtySerial.java jserialcomm/jSerialComm-2.9.3.jar
+	javac -cp .:jserialcomm/jSerialComm-2.9.3.jar $<
 
-TtyKeyboard.class: TtyKeyboard.java jSerialComm-2.9.3.jar
-	javac -cp .:jSerialComm-2.9.3.jar $<
+TtyKeyboard.class: TtyKeyboard.java jserialcomm/jSerialComm-2.9.3.jar
+	javac -cp .:jserialcomm/jSerialComm-2.9.3.jar $<
 
-TtyUART.class: TtyUART.java jSerialComm-2.9.3.jar
-	javac -cp .:jSerialComm-2.9.3.jar $<
-
-jSerialComm-2.9.3.jar:
-	ln -s ~/Downloads/jSerialComm-2.9.3.jar .
+TtyUART.class: TtyUART.java jserialcomm/jSerialComm-2.9.3.jar
+	javac -cp .:jserialcomm/jSerialComm-2.9.3.jar $<
 
 run:
 	java -cp $(CLASS_PATH) VirtualKaypro
