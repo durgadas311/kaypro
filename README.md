@@ -2,6 +2,9 @@
 
 Kaypro simulator and other related Kaypro items.
 
+This repo uses submodules. After cloning, run "git submodule init".
+Use "git submodule update" to refresh.
+
 This includes the Emergency Debug Monitor, which is designed to (temporarily) replace
 the system's boot ROM and allow debugging/diagnosing of issues using a serial port.
 See [Emergency ROM documentation](rom/doc/monitor.pdf).

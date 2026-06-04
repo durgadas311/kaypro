@@ -1,4 +1,4 @@
-CLASS_PATH = .:z80cpu/z80core.jar:z80cpu/z80debug.jar:diablo630/Diablo630Embedded.jar
+CLASS_PATH = .:z80cpu/z80core.jar:z80cpu/z80debug.jar:diablo630/bin/Diablo630Embedded.jar
 
 JAVAS = $(wildcard *.java)
 CLASSES = $(subst .java,.class,$(JAVAS))
@@ -12,7 +12,7 @@ KBD_CLASSES = TtyUART.class \
 		PasteListener.class \
 		KayproKeyboard.class
 
-all: z80cpu/z80core.jar diablo630/Diablo630Embedded.jar $(CLASSES)
+all: z80cpu/z80core.jar diablo630/bin/Diablo630Embedded.jar $(CLASSES)
 
 %.class: %.java
 	javac -cp $(CLASS_PATH) $?
@@ -54,14 +54,8 @@ temp: __FRC__
 	rm -rf temp/META-INF
 	cd temp; jar -xf ../z80cpu/z80debug.jar
 	rm -rf temp/META-INF
-	cd temp; jar -xf ../diablo630/Diablo630Embedded.jar
+	cd temp; jar -xf ../diablo630/bin/Diablo630Embedded.jar
 	rm -rf temp/META-INF
-
-z80cpu/z80core.jar:
-	make -C z80cpu z80core.jar
-
-diablo630/Diablo630Embedded.jar:
-	make -C diablo630 Diablo630Embedded.jar
 
 jar: VirtualKaypro.jar VirtualKeyboard.jar
 
@@ -80,8 +74,7 @@ www: __FRC__
 	rsync -rWuv www/downloads/. $(SEBHC)/.
 
 ship:
-	rsync -Wuv LICENSE *.jar vkaypro.tgz z80cpu/z80cpu.tgz diablo630/diablo630.tgz \
-		$(SEBHC)
+	rsync -Wuv LICENSE *.jar vkaypro.tgz $(SEBHC)
 	rsync -rWuv --exclude='.[a-z]*' \
 		../disks/. $(SEBHC)/disks/.
 	rsync -rWuv ../configs/. $(SEBHC)/configs/.

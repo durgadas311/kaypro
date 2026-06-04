@@ -1,0 +1,8 @@
+[submodule "kaypro84/z80cpu"]
+	path = kaypro84/z80cpu
+	url = https://github.com/durgadas311/z80cpu.git
+	branch = master
+[submodule "kaypro84/diablo630"]
+	path = kaypro84/diablo630
+	url = https://github.com/durgadas311/diablo630.git
+	branch = master
