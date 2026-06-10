@@ -1,6 +1,7 @@
 // Copyright (c) 2016 Douglas Miller <durgadas311@gmail.com>
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Vector;
 import java.util.Properties;
 import java.io.*;
@@ -11,17 +12,21 @@ public class Diablo630Stream extends OutputStream implements Runnable {
 	Diablo630 front_end;
 	java.util.concurrent.LinkedBlockingDeque<Integer> fifo;
 
+	List<String> boolArgs = Arrays.asList();
+	String[] seqArgs = new String[0];
+
 	public Diablo630Stream(Properties props, Vector<String> argv) {
 		fifo = new java.util.concurrent.LinkedBlockingDeque<Integer>();
-		file = "out.ps";
-		for (String arg : argv) {
-			if (arg.startsWith("file=")) {
-				file = arg.substring(5);
-				break;
-			}
+		// argv.get(0) is this class name.
+		String[] args = argv.subList(1, argv.size()).toArray(new String[0]);
+		Diablo630.processArgs(props, args, boolArgs, seqArgs);
+		// everything is now a property...
+		file = props.getProperty("diablo630_file");
+		if (file == null) {
+			file = "out.ps";
 		}
 		// Defaulting to 10 cpi, 6 lpi...
-		front_end = new Diablo630(props, argv, new PrinterInput());
+		front_end = new Diablo630(props, new PrinterInput());
 		Thread t = new Thread(this);
 		t.start();
 	}
